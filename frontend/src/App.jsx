@@ -24,6 +24,92 @@ const cards = [
   },
 ]
 
+const moderationQueue = [
+  { title: 'Junior Electrical Apprenticeship', provider: 'VoltPath Academy', risk: 'Needs final compliance check' },
+  { title: 'Admin Intern - Retail Operations', provider: 'Sabela Retail Group', risk: 'Duplicate listing detected' },
+  { title: 'Plumbing Learnership NQF 3', provider: 'Blue Pipe Training Hub', risk: 'Closing date mismatch' },
+]
+
+function AdminDashboardShell() {
+  return (
+    <div className="admin-page">
+      <div className="admin-grid-overlay" aria-hidden="true"></div>
+
+      <div className="admin-shell">
+        <div className="admin-header-row">
+          <div className="admin-title-block">
+            <p className="mini-label">ADMIN PANEL</p>
+            <h1>Platform Moderation Console</h1>
+            <p>
+              Review opportunity quality, verify provider submissions, and keep listings
+              aligned with policy and NQF requirements.
+            </p>
+          </div>
+
+          <div className="admin-status-card">
+            <p>Signed in as</p>
+            <strong>Admin Preview</strong>
+            <span>Temporary frontend-only shell</span>
+          </div>
+        </div>
+
+        <div className="admin-kpi-row">
+          <div className="admin-kpi">
+            <span>Pending Reviews</span>
+            <strong>18</strong>
+          </div>
+          <div className="admin-kpi">
+            <span>Flagged Listings</span>
+            <strong>6</strong>
+          </div>
+          <div className="admin-kpi">
+            <span>Provider Appeals</span>
+            <strong>3</strong>
+          </div>
+          <div className="admin-kpi">
+            <span>Avg Turnaround</span>
+            <strong>14h</strong>
+          </div>
+        </div>
+
+        <div className="admin-content-row">
+          <div className="admin-panel">
+            <div className="admin-panel-head">
+              <h2>Moderation Queue</h2>
+              <button type="button">View all</button>
+            </div>
+
+            <div className="admin-list">
+              {moderationQueue.map((item) => (
+                <div key={item.title} className="admin-list-item">
+                  <div>
+                    <h3>{item.title}</h3>
+                    <p>{item.provider}</p>
+                  </div>
+                  <span>{item.risk}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="admin-panel admin-side-panel">
+            <h2>Quick Actions</h2>
+            <div className="admin-action-list">
+              <button type="button">Approve selected listings</button>
+              <button type="button">Send provider feedback</button>
+              <button type="button">Export moderation report</button>
+            </div>
+            <div className="admin-note">
+              This shell is wired for visual preview while OAuth/admin role mapping is in
+              progress.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [role, setRole] = useState('Applicant')
   const [signedIn, setSignedIn] = useState(false)
@@ -114,7 +200,7 @@ function App() {
 
         <div className="topbar-auth">
           <div className="role-select">
-            {['Applicant', 'Provider'].map((item) => (
+            {['Applicant', 'Provider', 'Admin'].map((item) => (
               <button
                 type="button"
                 key={item}
@@ -131,6 +217,11 @@ function App() {
           </button>
         </div>
       </header>
+
+      {role === 'Admin' ? (
+        <AdminDashboardShell />
+      ) : (
+        <>
 
       <section className="page-one">
         <div className="hero-main">
@@ -257,6 +348,8 @@ function App() {
           </p>
         </div>
       </section>
+        </>
+      )}
     </main>
   )
 }
