@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import Dashboard from './pages/Dashboard'
+import Provider from './pages/Provider'
+import Admin from './pages/Admin'
 
 const cards = [
   {
@@ -30,7 +34,7 @@ const moderationQueue = [
   { title: 'Plumbing Learnership NQF 3', provider: 'Blue Pipe Training Hub', risk: 'Closing date mismatch' },
 ]
 
-function AdminDashboardShell() {
+function AdminDashboardShell({ onLogout }) {
   return (
     <div className="admin-page">
       <div className="admin-grid-overlay" aria-hidden="true"></div>
@@ -50,6 +54,9 @@ function AdminDashboardShell() {
             <p>Signed in as</p>
             <strong>Admin Preview</strong>
             <span>Temporary frontend-only shell</span>
+            <button onClick={onLogout} className="admin-btn">
+                Logout
+           </button>
           </div>
         </div>
 
@@ -110,11 +117,52 @@ function AdminDashboardShell() {
   )
 }
 
+function ProtectedRoute({ role, allowedRole, signedIn, children }) {
+  const location = useLocation()
+
+  if (!signedIn) {
+    return <Navigate to="/" replace state={{ from: location }} />
+  }
+
+  if (role !== allowedRole) {
+    return <Navigate to="/" replace state={{ from: location }} />
+  }
+
+  return children
+}
+
 function App() {
-  const [role, setRole] = useState('Applicant')
-  const [signedIn, setSignedIn] = useState(false)
+  const [role, setRole] = useState(() => {
+  return localStorage.getItem('role') || 'Applicant'
+})
+  const [signedIn, setSignedIn] = useState(() => {
+  return localStorage.getItem('signedIn') === 'true'
+})
+
+
+
   const [pointer, setPointer] = useState({ x: 0, y: 0 })
   const [isScrolled, setIsScrolled] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+  localStorage.removeItem('signedIn')
+  setSignedIn(false)
+}, [])
+useEffect(() => {
+  if (location.pathname === '/') {
+    setSignedIn(false)
+    localStorage.removeItem('signedIn')
+  }
+}, [location.pathname])
+
+const handleLogout = () => {
+  setSignedIn(false)
+  setRole('Applicant') // reset default
+  localStorage.clear()
+  navigate('/')
+}
 
   const dots = useMemo(() => {
     const result = []
@@ -149,9 +197,18 @@ function App() {
 
   const resetVisualMove = () => setPointer({ x: 0, y: 0 })
 
-  const handleGoogleContinue = () => {
-    setSignedIn(true)
+ const handleGoogleContinue = () => {
+  setSignedIn(true)
+localStorage.setItem('signedIn', 'true')
+
+  if (role === 'Applicant') {
+    navigate('/dashboard')
+  } else if (role === 'Provider') {
+    navigate('/provider')
+  } else if (role === 'Admin') {
+    navigate('/admin')
   }
+}
 
   useEffect(() => {
     const nodes = document.querySelectorAll('.scroll-animate')
@@ -184,174 +241,123 @@ function App() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  return (
-    <main className="foundry-clone">
-      <header className={`global-topbar ${isScrolled ? 'is-scrolled' : ''}`}>
-        <div className="topbar-main">
-          <div className="topbar-brand">SA LEARNERSHIP FOUNDRY</div>
-          <nav className="topbar-nav">
-            <a href="#">Why Portal</a>
-            <a href="#">Pathways</a>
-            <a href="#">Team</a>
-            <a href="#">Insights</a>
-            <a href="#">Contact</a>
-          </nav>
-        </div>
+return (
+  <Routes>
+    <Route path="/" element={
+      <main className="foundry-clone">
 
-        <div className="topbar-auth">
-          <div className="role-select">
-            {['Applicant', 'Provider', 'Admin'].map((item) => (
-              <button
-                type="button"
-                key={item}
-                className={item === role ? 'active' : ''}
-                onClick={() => setRole(item)}
-              >
-                {item}
-              </button>
-            ))}
+        <header className={`global-topbar ${isScrolled ? 'is-scrolled' : ''}`}>
+          <div className="topbar-main">
+            <div className="topbar-brand">SA LEARNERSHIP FOUNDRY</div>
+            <nav className="topbar-nav">
+              <a href="#">Why Portal</a>
+              <a href="#">Pathways</a>
+              <a href="#">Team</a>
+              <a href="#">Insights</a>
+              <a href="#">Contact</a>
+            </nav>
           </div>
 
-          <button type="button" className="google-auth" onClick={handleGoogleContinue}>
-            {signedIn ? 'Entering Workspace...' : 'Log In with Google'}
-          </button>
-        </div>
-      </header>
-
-      {role === 'Admin' ? (
-        <AdminDashboardShell />
-      ) : (
-        <>
-
-      <section className="page-one">
-        <div className="hero-main">
-          <h1 className="left-title">
-            BUILDING TALENT
-            <br />
-            PATHWAYS THAT
-          </h1>
-
-          <div
-            className="interactive-model"
-            onMouseMove={handleVisualMove}
-            onMouseLeave={resetVisualMove}
-            style={{ '--px': pointer.x, '--py': pointer.y }}
-            aria-hidden="true"
-          >
-            <div className="orbital-core">
-              <span className="orbit orbit-a"></span>
-              <span className="orbit orbit-b"></span>
-              <span className="orbit orbit-c"></span>
-              <span className="orbit-runner runner-a">
-                <span className="orbit-dot"></span>
-              </span>
-              <span className="orbit-runner runner-b">
-                <span className="orbit-dot"></span>
-              </span>
-              <span className="orbit-runner runner-c">
-                <span className="orbit-dot"></span>
-              </span>
-              <span className="orbit-runner runner-d">
-                <span className="orbit-dot"></span>
-              </span>
+          <div className="topbar-auth">
+            <div className="role-select">
+              {['Applicant', 'Provider', 'Admin'].map((item) => (
+                <button
+                  key={item}
+                  className={item === role ? 'active' : ''}
+                  onClick={() => {
+                    setRole(item)
+                     localStorage.setItem('role', item)
+                  }}
+                >
+                  {item}
+                </button>
+              ))}
             </div>
 
-            <div className="dot-volume">
-              {dots.map((dot) => {
-                const x = dot.nx * 340
-                const y = dot.ny * 240
-                const z = dot.z + (Math.abs(dot.nx) + Math.abs(dot.ny)) * 18
+            <button className="google-auth" onClick={handleGoogleContinue}>
+              {signedIn ? 'Entering Workspace...' : 'Log In with Google'}
+            </button>
+          </div>
+        </header>
 
-                return (
+        <section className="page-one">
+          <div className="hero-main">
+            <h1 className="left-title">
+              BUILDING TALENT
+              <br />
+              PATHWAYS THAT
+            </h1>
+
+            <div
+              className="interactive-model"
+              onMouseMove={handleVisualMove}
+              onMouseLeave={resetVisualMove}
+              style={{ '--px': pointer.x, '--py': pointer.y }}
+            >
+              <div className="orbital-core">
+                <span className="orbit orbit-a"></span>
+                <span className="orbit orbit-b"></span>
+                <span className="orbit orbit-c"></span>
+              </div>
+
+              <div className="dot-volume">
+                {dots.map((dot) => (
                   <span
                     key={dot.id}
                     className="dot"
                     style={{
-                      '--x': `${x}px`,
-                      '--y': `${y}px`,
-                      '--z': `${z}px`,
-                      '--dx': `${dot.dx}px`,
-                      '--dy': `${dot.dy}px`,
-                      '--dz': `${dot.dz}px`,
-                      '--delay': dot.delay,
-                      '--dur': dot.duration,
+                      '--x': `${dot.nx * 340}px`,
+                      '--y': `${dot.ny * 240}px`,
+                      '--z': `${dot.z}px`,
                     }}
-                  ></span>
-                )
-              })}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <h1 className="right-title">
+              PUSH THE
+              <br />
+              FUTURE FORWARD
+            </h1>
+          </div>
+
+          <div className="hero-bottom">
+            <p>
+              A venture lab style platform for learnership access, application intelligence,
+              and practical support that moves candidates from skill to real work.
+            </p>
+
+            <div className="status-pill">
+              {signedIn ? `${role} workspace unlocked` : `Role selected: ${role}`}
             </div>
           </div>
+        </section>
 
-          <h1 className="right-title">
-            PUSH THE
-            <br />
-            FUTURE FORWARD
-          </h1>
-        </div>
+      </main>
+    } />
 
-        <div className="hero-bottom">
-          <p>
-            A venture lab style platform for learnership access, application intelligence,
-            and practical support that moves candidates from skill to real work.
-          </p>
+    
+   <Route path="/dashboard" element={
+  <ProtectedRoute role={role} allowedRole="Applicant" signedIn={signedIn}>
+    <Dashboard onLogout={handleLogout} />
+  </ProtectedRoute>
+} />
 
-          <div className="status-pill">
-            {signedIn ? `${role} workspace unlocked` : `Role selected: ${role}`}
-          </div>
-        </div>
-      </section>
+<Route path="/provider" element={
+  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn}>
+    <Provider onLogout={handleLogout} />
+  </ProtectedRoute>
+} />
 
-      <section className="page-two scroll-animate swipe-left">
-        <div className="ethos-row scroll-animate">
-          <div>
-            <p className="mini-label">OUR ETHOS</p>
-            <h2>
-              VISION DRIVES
-              <br />
-              VELOCITY.
-            </h2>
-          </div>
+<Route path="/admin" element={
+  <ProtectedRoute role={role} allowedRole="Admin" signedIn={signedIn}>
+    <AdminDashboardShell onLogout={handleLogout} />
+  </ProtectedRoute>
+} />
 
-          <div className="ethos-copy">
-            <p>
-              Our comprehensive applicant platform shifts the odds with infrastructure
-              that actually works. Career support, practical guidance, and pathway
-              discovery happen in one connected system.
-            </p>
-          </div>
-        </div>
-
-        <div className="card-strip scroll-animate">
-          {cards.map((card, index) => (
-            <article key={card.title} className={`signal-card ${card.tone} scroll-animate`}>
-              <h3>{card.title}</h3>
-              <div className="card-art" aria-hidden="true"></div>
-              <p>{`${String(index + 1).padStart(2, '0')} / 04`}</p>
-              <small>{card.body}</small>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="page-three scroll-animate">
-        <div className="dot-plane" aria-hidden="true"></div>
-        <div className="focus-copy scroll-animate">
-          <p className="mini-label">OUR FOCUS</p>
-          <h2>
-            FROM POTENTIAL
-            <br />
-            TO PAYCHECK.
-          </h2>
-          <p>
-            Discover learnerships faster, apply smarter, and turn your skills into real
-            work experience with one connected journey.
-          </p>
-        </div>
-      </section>
-        </>
-      )}
-    </main>
-  )
+  </Routes>
+)
 }
 
 export default App

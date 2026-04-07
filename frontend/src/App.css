@@ -817,6 +817,37 @@
   .admin-list-item span {
     width: fit-content;
   }
+
+  .admin-btn {
+  margin-top: 12px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.admin-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.admin-action-btn {
+  border: 1px solid rgba(182, 214, 255, 0.48);
+  background: rgba(246, 251, 255, 0.92);
+  color: #143457;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0.65rem 0.8rem;
+}
+
 }
 
 @keyframes spin-orbit {
