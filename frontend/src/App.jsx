@@ -258,10 +258,12 @@ function App() {
   }, [getRoleForEmail])
 
   useEffect(() => {
-    if (!isLoadingAuth && signedIn && role && location.pathname === '/') {
+    const redirectedFromProtectedRoute = Boolean(location.state?.from)
+
+    if (!isLoadingAuth && signedIn && role && location.pathname === '/' && !redirectedFromProtectedRoute) {
       navigate(getLandingRoute(role), { replace: true })
     }
-  }, [isLoadingAuth, signedIn, role, location.pathname, navigate])
+  }, [isLoadingAuth, signedIn, role, location.pathname, location.state, navigate])
 
   const handleLogout = async () => {
     if (hasSupabaseConfig) {
