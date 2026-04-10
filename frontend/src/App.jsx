@@ -1,32 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Provider from './pages/Provider'
-import Admin from './pages/Admin'
-
-const cards = [
-  {
-    title: 'Exponential Foresight',
-    body: 'We identify early movement in sectors before they become obvious, then align candidates to high-upside opportunity flow.',
-    tone: 'tone-dark',
-  },
-  {
-    title: 'Full-Stack Support',
-    body: 'From profile building to interview readiness and mentorship links, applicants get practical support from day one.',
-    tone: 'tone-cyan',
-  },
-  {
-    title: 'Financial Stability',
-    body: 'Stipend-aware pathways and realistic planning help applicants sustain progress while upskilling into real work.',
-    tone: 'tone-orange',
-  },
-  {
-    title: 'Intelligent Iteration',
-    body: 'Feedback loops improve every cycle so each application becomes stronger, clearer, and more targeted.',
-    tone: 'tone-light',
-  },
-]
+import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
 
 const moderationQueue = [
   { title: 'Junior Electrical Apprenticeship', provider: 'VoltPath Academy', risk: 'Needs final compliance check' },
@@ -52,8 +29,8 @@ function AdminDashboardShell({ onLogout }) {
 
           <div className="admin-status-card">
             <p>Signed in as</p>
-            <strong>Admin Preview</strong>
-            <span>Temporary frontend-only shell</span>
+            <strong>Admin</strong>
+            <span>Google OAuth session active</span>
             <button onClick={onLogout} className="admin-btn">
                 Logout
            </button>
@@ -107,8 +84,7 @@ function AdminDashboardShell({ onLogout }) {
               <button type="button">Export moderation report</button>
             </div>
             <div className="admin-note">
-              This shell is wired for visual preview while OAuth/admin role mapping is in
-              progress.
+              Provider listings are moderated here once they are approved into production flow.
             </div>
           </div>
         </div>
@@ -117,8 +93,12 @@ function AdminDashboardShell({ onLogout }) {
   )
 }
 
-function ProtectedRoute({ role, allowedRole, signedIn, children }) {
+function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   const location = useLocation()
+
+  if (isLoading) {
+    return null
+  }
 
   if (!signedIn) {
     return <Navigate to="/" replace state={{ from: location }} />
@@ -131,38 +111,195 @@ function ProtectedRoute({ role, allowedRole, signedIn, children }) {
   return children
 }
 
+function getLandingRoute(role) {
+  if (role === 'Admin') return '/admin'
+  if (role === 'Provider') return '/provider'
+  return '/dashboard'
+}
+
 function App() {
-  const [role, setRole] = useState(() => {
-  return localStorage.getItem('role') || 'Applicant'
-})
-  const [signedIn, setSignedIn] = useState(() => {
-  return localStorage.getItem('signedIn') === 'true'
-})
-
-
+  const [role, setRole] = useState(null)
+  const [signedIn, setSignedIn] = useState(false)
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true)
+  const [authError, setAuthError] = useState('')
+  const [pendingEmail, setPendingEmail] = useState('')
+  const [isSavingRole, setIsSavingRole] = useState(false)
 
   const [pointer, setPointer] = useState({ x: 0, y: 0 })
   const [isScrolled, setIsScrolled] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
-  useEffect(() => {
-  localStorage.removeItem('signedIn')
-  setSignedIn(false)
-}, [])
-useEffect(() => {
-  if (location.pathname === '/') {
-    setSignedIn(false)
-    localStorage.removeItem('signedIn')
-  }
-}, [location.pathname])
+  const getRoleForEmail = useCallback(async (email) => {
+    const { data: userRecord, error: fetchError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('email', email)
+      .maybeSingle()
 
-const handleLogout = () => {
-  setSignedIn(false)
-  setRole('Applicant') // reset default
-  localStorage.clear()
-  navigate('/')
-}
+    if (fetchError) {
+      throw fetchError
+    }
+
+    return userRecord?.role ?? null
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const initializeAuth = async () => {
+      setIsLoadingAuth(true)
+
+      if (!hasSupabaseConfig) {
+        if (isMounted) {
+          setAuthError('Missing Supabase environment variables. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
+          setSignedIn(false)
+          setRole(null)
+          setIsLoadingAuth(false)
+        }
+        return
+      }
+
+      const { data, error } = await supabase.auth.getSession()
+
+      if (error) {
+        if (isMounted) {
+          setAuthError('Unable to restore your session. Please sign in again.')
+          setSignedIn(false)
+          setRole(null)
+          setIsLoadingAuth(false)
+        }
+        return
+      }
+
+      const existingSession = data.session
+
+      if (!existingSession?.user?.email) {
+        if (isMounted) {
+          setSignedIn(false)
+          setRole(null)
+          setIsLoadingAuth(false)
+        }
+        return
+      }
+
+      try {
+        const resolvedRole = await getRoleForEmail(existingSession.user.email)
+        if (isMounted) {
+          setSignedIn(true)
+          setRole(resolvedRole)
+          setPendingEmail(resolvedRole ? '' : existingSession.user.email)
+          setAuthError('')
+        }
+      } catch {
+        if (isMounted) {
+          setSignedIn(false)
+          setRole(null)
+          setAuthError('Signed in, but role lookup failed. Check your users table and policies.')
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingAuth(false)
+        }
+      }
+    }
+
+    initializeAuth()
+
+    if (!hasSupabaseConfig) {
+      return () => {
+        isMounted = false
+      }
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) {
+        return
+      }
+
+      if (event === 'SIGNED_OUT' || !session?.user?.email) {
+        setSignedIn(false)
+        setRole(null)
+        setPendingEmail('')
+        setIsSavingRole(false)
+        setIsLoadingAuth(false)
+        return
+      }
+
+      try {
+        const resolvedRole = await getRoleForEmail(session.user.email)
+        if (!isMounted) {
+          return
+        }
+        setSignedIn(true)
+        setRole(resolvedRole)
+        setPendingEmail(resolvedRole ? '' : session.user.email)
+        setAuthError('')
+      } catch {
+        if (!isMounted) {
+          return
+        }
+        setSignedIn(false)
+        setRole(null)
+        setAuthError('OAuth succeeded, but role lookup failed. Please verify Supabase table policies.')
+      } finally {
+        if (isMounted) {
+          setIsLoadingAuth(false)
+        }
+      }
+    })
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [getRoleForEmail])
+
+  useEffect(() => {
+    if (!isLoadingAuth && signedIn && role && location.pathname === '/') {
+      navigate(getLandingRoute(role), { replace: true })
+    }
+  }, [isLoadingAuth, signedIn, role, location.pathname, navigate])
+
+  const handleLogout = async () => {
+    if (hasSupabaseConfig) {
+      await supabase.auth.signOut()
+    }
+    setSignedIn(false)
+    setRole(null)
+    setPendingEmail('')
+    setIsSavingRole(false)
+    navigate('/')
+  }
+
+  const handleRoleSelection = async (selectedRole) => {
+    if (!pendingEmail) {
+      return
+    }
+
+    setIsSavingRole(true)
+    setAuthError('')
+
+    const { data: insertedUser, error } = await supabase
+      .from('users')
+      .insert({ email: pendingEmail, role: selectedRole })
+      .select('role')
+      .single()
+
+    if (error) {
+      setIsSavingRole(false)
+      setAuthError('Could not save role selection. Please try again.')
+      return
+    }
+
+    const resolvedRole = insertedUser?.role || selectedRole
+    setRole(resolvedRole)
+    setPendingEmail('')
+    setIsSavingRole(false)
+    navigate(getLandingRoute(resolvedRole), { replace: true })
+  }
 
   const dots = useMemo(() => {
     const result = []
@@ -197,18 +334,28 @@ const handleLogout = () => {
 
   const resetVisualMove = () => setPointer({ x: 0, y: 0 })
 
- const handleGoogleContinue = () => {
-  setSignedIn(true)
-localStorage.setItem('signedIn', 'true')
+  const handleGoogleContinue = async () => {
+    setAuthError('')
 
-  if (role === 'Applicant') {
-    navigate('/dashboard')
-  } else if (role === 'Provider') {
-    navigate('/provider')
-  } else if (role === 'Admin') {
-    navigate('/admin')
+    if (!hasSupabaseConfig) {
+      setAuthError('Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before using Google login.')
+      return
+    }
+
+    setIsLoadingAuth(true)
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    })
+
+    if (error) {
+      setIsLoadingAuth(false)
+      setAuthError('Google sign-in failed. Check Supabase Google provider configuration.')
+    }
   }
-}
 
   useEffect(() => {
     const nodes = document.querySelectorAll('.scroll-animate')
@@ -259,23 +406,9 @@ return (
           </div>
 
           <div className="topbar-auth">
-            <div className="role-select">
-              {['Applicant', 'Provider', 'Admin'].map((item) => (
-                <button
-                  key={item}
-                  className={item === role ? 'active' : ''}
-                  onClick={() => {
-                    setRole(item)
-                     localStorage.setItem('role', item)
-                  }}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <button className="google-auth" onClick={handleGoogleContinue}>
-              {signedIn ? 'Entering Workspace...' : 'Log In with Google'}
+            {signedIn && role ? <span className="role-display">{role}</span> : null}
+            <button className="google-auth" onClick={signedIn ? handleLogout : handleGoogleContinue}>
+              {isLoadingAuth ? 'Authenticating...' : signedIn ? 'Logout' : 'Log In with Google'}
             </button>
           </div>
         </header>
@@ -329,9 +462,27 @@ return (
             </p>
 
             <div className="status-pill">
-              {signedIn ? `${role} workspace unlocked` : `Role selected: ${role}`}
+              {signedIn && role
+                ? `${role} workspace unlocked`
+                : signedIn && pendingEmail
+                  ? 'Choose your role to continue'
+                  : 'Sign in with Google to continue'}
             </div>
           </div>
+          {signedIn && !role && pendingEmail ? (
+            <div className="role-onboarding">
+              <p>Select how you want to use the platform for {pendingEmail}.</p>
+              <div className="role-select">
+                <button onClick={() => handleRoleSelection('Applicant')} disabled={isSavingRole}>
+                  Applicant
+                </button>
+                <button onClick={() => handleRoleSelection('Provider')} disabled={isSavingRole}>
+                  Provider
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {authError ? <p className="auth-error">{authError}</p> : null}
         </section>
 
       </main>
@@ -339,19 +490,19 @@ return (
 
     
    <Route path="/dashboard" element={
-  <ProtectedRoute role={role} allowedRole="Applicant" signedIn={signedIn}>
+  <ProtectedRoute role={role} allowedRole="Applicant" signedIn={signedIn} isLoading={isLoadingAuth}>
     <Dashboard onLogout={handleLogout} />
   </ProtectedRoute>
 } />
 
 <Route path="/provider" element={
-  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn}>
+  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
     <Provider onLogout={handleLogout} />
   </ProtectedRoute>
 } />
 
 <Route path="/admin" element={
-  <ProtectedRoute role={role} allowedRole="Admin" signedIn={signedIn}>
+  <ProtectedRoute role={role} allowedRole="Admin" signedIn={signedIn} isLoading={isLoadingAuth}>
     <AdminDashboardShell onLogout={handleLogout} />
   </ProtectedRoute>
 } />
