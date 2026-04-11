@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
+import ApplicantProfile from './pages/ApplicantProfile'
 import Provider from './pages/Provider'
 import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
 
@@ -97,7 +98,11 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   const location = useLocation()
 
   if (isLoading) {
-    return null
+    return (
+      <main className="auth-loading-shell" aria-busy="true" aria-live="polite">
+        <p>Checking your session...</p>
+      </main>
+    )
   }
 
   if (!signedIn) {
@@ -360,7 +365,15 @@ function App() {
   }
 
   useEffect(() => {
+    if (location.pathname !== '/') {
+      return undefined
+    }
+
     const nodes = document.querySelectorAll('.scroll-animate')
+
+    if (!nodes.length) {
+      return undefined
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -381,7 +394,7 @@ function App() {
       nodes.forEach((node) => observer.unobserve(node))
       observer.disconnect()
     }
-  }, [])
+  }, [location.pathname])
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 120)
@@ -472,19 +485,89 @@ return (
             </div>
           </div>
           {signedIn && !role && pendingEmail ? (
-            <div className="role-onboarding">
-              <p>Select how you want to use the platform for {pendingEmail}.</p>
-              <div className="role-select">
-                <button onClick={() => handleRoleSelection('Applicant')} disabled={isSavingRole}>
-                  Applicant
-                </button>
-                <button onClick={() => handleRoleSelection('Provider')} disabled={isSavingRole}>
-                  Provider
-                </button>
+            <div className="role-onboarding-overlay" role="dialog" aria-modal="true" aria-labelledby="role-onboarding-title">
+              <div className="role-onboarding">
+                <p className="role-onboarding-eyebrow">One more step</p>
+                <h2 id="role-onboarding-title">Choose your role</h2>
+                <p>Select how you want to use the platform for {pendingEmail}.</p>
+                <div className="role-select">
+                  <button onClick={() => handleRoleSelection('Applicant')} disabled={isSavingRole}>
+                    Applicant
+                  </button>
+                  <button onClick={() => handleRoleSelection('Provider')} disabled={isSavingRole}>
+                    Provider
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
           {authError ? <p className="auth-error">{authError}</p> : null}
+        </section>
+
+        <section className="page-two">
+          <div className="ethos-row scroll-animate">
+            <div>
+              <p className="mini-label">Why this platform</p>
+              <h2>
+                OPEN DOORS
+                <br />
+                TO REAL WORK
+              </h2>
+            </div>
+
+            <div className="ethos-copy">
+              <p>
+                Learnership Foundry helps applicants, providers, and moderators collaborate in one
+                flow. Discover pathways, publish opportunities, and keep quality high with
+                visibility from intake to placement.
+              </p>
+            </div>
+          </div>
+
+          <div className="card-strip scroll-animate swipe-left">
+            <article className="signal-card tone-dark">
+              <h3>Discover</h3>
+              <p>APPLICANT VIEW</p>
+              <div className="card-art" aria-hidden="true"></div>
+              <small>Find learnerships that match your interests and readiness level.</small>
+            </article>
+
+            <article className="signal-card tone-cyan">
+              <h3>Publish</h3>
+              <p>PROVIDER VIEW</p>
+              <div className="card-art" aria-hidden="true"></div>
+              <small>Create listings and track engagement from qualified candidates.</small>
+            </article>
+
+            <article className="signal-card tone-orange">
+              <h3>Moderate</h3>
+              <p>ADMIN VIEW</p>
+              <div className="card-art" aria-hidden="true"></div>
+              <small>Flag risk, request fixes, and approve opportunities confidently.</small>
+            </article>
+
+            <article className="signal-card tone-light">
+              <h3>Move</h3>
+              <p>OUTCOMES</p>
+              <div className="card-art" aria-hidden="true"></div>
+              <small>Turn applications into skills, credentials, and workplace entry points.</small>
+            </article>
+          </div>
+        </section>
+
+        <section className="page-three">
+          <div className="dot-plane" aria-hidden="true"></div>
+          <div className="focus-copy scroll-animate">
+            <p className="mini-label">Built for momentum</p>
+            <h2>
+              From FIRST CLICK
+              <br />
+              TO FIRST PAYCHECK
+            </h2>
+            <p>
+              Scroll the platform, choose your role, and move into the right workspace to continue.
+            </p>
+          </div>
         </section>
 
       </main>
@@ -496,6 +579,12 @@ return (
     <Dashboard onLogout={handleLogout} />
   </ProtectedRoute>
 } />
+
+  <Route path="/profile" element={
+    <ProtectedRoute role={role} allowedRole="Applicant" signedIn={signedIn} isLoading={isLoadingAuth}>
+      <ApplicantProfile onLogout={handleLogout} />
+    </ProtectedRoute>
+  } />
 
 <Route path="/provider" element={
   <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>

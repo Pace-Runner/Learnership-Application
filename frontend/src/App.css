@@ -342,24 +342,91 @@
   white-space: nowrap;
 }
 
+
+.role-onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 26;
+  display: grid;
+  place-items: center;
+  padding: 1.2rem;
+  background: rgba(2, 7, 17, 0.58);
+  backdrop-filter: blur(4px);
+}
+
 .role-onboarding {
-  margin-top: 1rem;
-  border: 1px solid rgba(176, 209, 255, 0.32);
-  border-radius: 14px;
-  background: rgba(6, 20, 41, 0.55);
-  padding: 0.85rem;
-  max-width: 40rem;
+  width: min(34rem, 100%);
+  border: 1px solid rgba(170, 215, 255, 0.58);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(10, 34, 67, 0.97), rgba(5, 16, 36, 0.97));
+  padding: 1.1rem 1.1rem 1rem;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(155, 208, 255, 0.2);
+}
+
+.role-onboarding-eyebrow {
+  margin: 0;
+  color: rgba(191, 224, 255, 0.9);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.73rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.role-onboarding h2 {
+  margin: 0.35rem 0 0.55rem;
+  color: #f3f9ff;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: clamp(1.2rem, 2.2vw, 1.55rem);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .role-onboarding p {
-  margin: 0 0 0.7rem;
+  margin: 0 0 0.85rem;
   color: rgba(213, 231, 255, 0.92);
-  font-size: 0.88rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .role-onboarding .role-select button:disabled {
   opacity: 0.7;
   cursor: progress;
+}
+
+.role-onboarding .role-select {
+  gap: 0.6rem;
+}
+
+.role-onboarding .role-select button {
+  min-width: 8.6rem;
+  border-width: 1.5px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f9ff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.62rem 1rem;
+}
+
+.role-onboarding .role-select button:hover:not(:disabled),
+.role-onboarding .role-select button:focus-visible {
+  background: #f1f8ff;
+  color: #16335b;
+  border-color: #f1f8ff;
+}
+
+@media (max-width: 680px) {
+  .role-onboarding {
+    padding: 1rem;
+  }
+
+  .role-onboarding .role-select {
+    flex-direction: column;
+  }
+
+  .role-onboarding .role-select button {
+    width: 100%;
+  }
 }
 
 .auth-error {
@@ -512,6 +579,27 @@
   mask-image: radial-gradient(circle at 50% 50%, black 52%, transparent 85%);
   transform: perspective(1000px) rotateX(62deg) scale(1.5);
   transform-origin: center;
+}
+
+.auth-loading-shell {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(103, 152, 232, 0.22), rgba(7, 16, 34, 0) 40%),
+    #071022;
+  color: rgba(233, 245, 255, 0.95);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auth-loading-shell p {
+  margin: 0;
+  border: 1px solid rgba(184, 212, 252, 0.38);
+  border-radius: 999px;
+  padding: 0.7rem 1.1rem;
+  background: rgba(9, 24, 47, 0.66);
 }
 
 .focus-copy {
