@@ -1,16 +1,53 @@
-# React + Vite
+# Learnership Frontend (Vite + Supabase)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 1. Environment variables
 
-Currently, two official plugins are available:
+Create `frontend/.env` from `frontend/.env.example`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```env
+VITE_SUPABASE_URL=https://rgkvcwvubnhffuwnxxas.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-## React Compiler
+You can copy the anon key from Supabase: Project Settings -> API -> Project API keys.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 2. Database schema
 
-## Expanding the ESLint configuration
+Run the SQL in `supabase/schema.sql` in Supabase SQL Editor.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+If you enable RLS on `users`, also run `supabase/rls.sql`.
+
+Important: replace seeded admin emails in the insert block with your real Google account emails.
+
+## 3. Google OAuth provider setup
+
+In Supabase:
+1. Authentication -> Providers -> Google -> Enable.
+2. Paste Google Client ID and Client Secret.
+
+In Google Cloud Console OAuth Client (Web application):
+1. Add this exact redirect URI:
+
+```text
+https://rgkvcwvubnhffuwnxxas.supabase.co/auth/v1/callback
+```
+
+## 4. How role mapping works
+
+After Google login:
+1. Supabase creates/restores the authenticated session.
+2. The app checks `users` table by email.
+3. If email exists, it uses that role (Applicant, Provider, Admin).
+4. If email does not exist, user picks `Applicant` or `Provider` in the UI.
+5. The app inserts that selected role into `users`.
+6. User is redirected to role page:
+	- Applicant -> `/dashboard`
+	- Provider -> `/provider`
+	- Admin -> `/admin`
+
+## 5. Run locally
+
+```bash
+npm install
+npm run dev
+```

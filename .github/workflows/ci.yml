@@ -7,7 +7,8 @@ on:
     branches: ["**"]
 
 jobs:
-  build-and-test:
+  admin-auth-tests:
+    name: admin-auth-tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -24,10 +25,14 @@ jobs:
         run: npm ci
         working-directory: ./frontend
 
+      - name: Lint app
+        run: npm run lint
+        working-directory: ./frontend
+
       - name: Build app
         run: npm run build
         working-directory: ./frontend
 
       - name: Run tests with coverage
-        run: npx vitest run --coverage
+        run: npm run test
         working-directory: ./frontend
