@@ -1,0 +1,484 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;500;700&display=swap');
+
+.user-page {
+  min-height: 100svh;
+  padding: 6rem 2rem 2rem;
+  color: #eaf3ff;
+}
+
+.user-page-inner {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.applicant-theme {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(114, 173, 255, 0.24), rgba(7, 16, 34, 0) 34%),
+    radial-gradient(circle at 88% 16%, rgba(73, 188, 191, 0.2), rgba(7, 16, 34, 0) 36%),
+    #071022;
+}
+
+.provider-theme {
+  background:
+    radial-gradient(circle at 12% 10%, rgba(255, 157, 93, 0.22), rgba(39, 20, 12, 0) 32%),
+    radial-gradient(circle at 86% 14%, rgba(104, 150, 255, 0.2), rgba(7, 16, 34, 0) 34%),
+    #09162b;
+}
+
+.provider-shell {
+  padding-top: 5.2rem;
+}
+
+.provider-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 0.8rem;
+}
+
+.provider-grid-single {
+  grid-template-columns: 1fr;
+}
+
+.provider-panel {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.provider-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.provider-panel-head h2,
+.provider-actions-panel h2 {
+  margin: 0;
+  font-size: 1.08rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  color: #f3f8ff;
+}
+
+.provider-panel-kicker {
+  margin: 0;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(204, 225, 255, 0.82);
+}
+
+.provider-inline-btn {
+  width: auto;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.provider-detail {
+  display: block;
+  margin-top: 0.35rem;
+  color: rgba(221, 234, 251, 0.92);
+  font-size: 0.8rem;
+}
+
+.provider-list li {
+  position: relative;
+}
+
+.status-chip {
+  display: inline-flex;
+  margin-top: 0.45rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(176, 207, 255, 0.36);
+  color: rgba(235, 246, 255, 0.96);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.status-chip-soft {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.provider-note {
+  border-left: 2px solid rgba(255, 183, 135, 0.8);
+  padding-left: 0.7rem;
+  color: rgba(219, 234, 252, 0.94);
+}
+
+.provider-checklist-note {
+  margin-top: 0.2rem;
+}
+
+.provider-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.62rem;
+}
+
+.provider-checklist li {
+  border-left: 2px solid rgba(139, 182, 255, 0.72);
+  padding-left: 0.68rem;
+  color: rgba(223, 234, 250, 0.95);
+  line-height: 1.4;
+}
+
+.provider-actions-panel {
+  margin-top: 0.8rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.provider-action-row {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.user-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.2rem;
+}
+
+.user-nav-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.user-link-btn {
+  border: 1px solid rgba(192, 219, 255, 0.65);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3f8ff;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  border-radius: 999px;
+  padding: 0.62rem 1.1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.user-link-btn:hover {
+  background: #f4f9ff;
+  color: #16355f;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(5, 15, 32, 0.24);
+}
+
+.user-kicker {
+  margin: 0;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: rgba(203, 225, 255, 0.88);
+}
+
+.user-hero h1 {
+  margin: 0.5rem 0 0;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: clamp(2rem, 4.4vw, 4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: #f2f8ff;
+}
+
+.user-intro {
+  margin: 1rem 0 0;
+  max-width: 70ch;
+  color: rgba(214, 229, 250, 0.88);
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.user-logout-btn {
+  border: 1px solid rgba(192, 219, 255, 0.65);
+  background: rgba(255, 255, 255, 0.1);
+  color: #f3f8ff;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  border-radius: 999px;
+  padding: 0.62rem 1.1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.user-logout-btn:hover {
+  background: #f4f9ff;
+  color: #16355f;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(5, 15, 32, 0.24);
+}
+
+.user-stat-grid {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.user-stat-card {
+  border: 1px solid rgba(181, 211, 255, 0.36);
+  border-radius: 16px;
+  padding: 0.9rem 1rem;
+  background: rgba(7, 22, 45, 0.65);
+}
+
+.user-stat-card p {
+  margin: 0;
+  color: rgba(204, 225, 252, 0.86);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.user-stat-card strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.7rem;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  color: #f4f9ff;
+}
+
+.user-content-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.8rem;
+}
+
+.listing-search-panel {
+  margin-top: 1rem;
+}
+
+.listing-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px 120px;
+  gap: 0.6rem;
+  border: 1px solid rgba(176, 209, 255, 0.35);
+  background: rgba(8, 25, 50, 0.68);
+  border-radius: 14px;
+  padding: 0.7rem;
+}
+
+.listing-search-form input,
+.listing-search-form select {
+  border: 1px solid rgba(160, 203, 255, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eff7ff;
+  padding: 0.62rem 0.72rem;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.search-btn {
+  text-align: center;
+}
+
+.user-panel {
+  border: 1px solid rgba(180, 210, 255, 0.34);
+  border-radius: 18px;
+  padding: 1rem;
+  background: rgba(8, 24, 49, 0.68);
+}
+
+.user-panel-alt {
+  background: rgba(11, 32, 63, 0.68);
+}
+
+.user-panel h2 {
+  margin: 0;
+  font-size: 1.08rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  color: #f3f8ff;
+}
+
+.user-list,
+.user-checklist {
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.62rem;
+}
+
+.user-list li {
+  border: 1px solid rgba(176, 207, 255, 0.28);
+  border-radius: 12px;
+  padding: 0.65rem 0.7rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.user-list span {
+  display: block;
+  color: rgba(200, 223, 250, 0.84);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.user-list strong {
+  margin-top: 0.28rem;
+  display: block;
+  font-size: 0.95rem;
+  color: #f4f9ff;
+}
+
+.user-item-meta {
+  display: block;
+  margin-top: 0.34rem;
+  color: rgba(205, 223, 247, 0.84);
+  font-size: 0.78rem;
+}
+
+.user-panel-copy {
+  margin: 0.72rem 0 0;
+  color: rgba(212, 229, 250, 0.92);
+}
+
+.user-action-stack {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.52rem;
+}
+
+.user-action-btn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(167, 204, 255, 0.5);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f0f7ff;
+  padding: 0.66rem 0.78rem;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.user-action-btn:hover {
+  background: #f1f8ff;
+  color: #183964;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(5, 15, 32, 0.22);
+}
+
+.profile-shell {
+  padding-top: 5.2rem;
+}
+
+.profile-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+.profile-card {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.avatar-frame {
+  width: 122px;
+  height: 122px;
+  border-radius: 999px;
+  border: 2px solid rgba(176, 212, 255, 0.62);
+  margin: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 32% 28%, rgba(137, 192, 255, 0.55), rgba(40, 72, 126, 0.85));
+}
+
+.avatar-frame span {
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.05em;
+}
+
+.document-panel {
+  margin-top: 0.8rem;
+}
+
+.doc-list {
+  margin-top: 0.9rem;
+}
+
+.doc-action-row {
+  margin: 0.95rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.doc-action-row li {
+  display: block;
+}
+
+.user-checklist li {
+  border-left: 2px solid rgba(145, 204, 255, 0.7);
+  padding-left: 0.68rem;
+  color: rgba(219, 234, 252, 0.95);
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .user-page {
+    padding: 5.2rem 1rem 1.2rem;
+  }
+
+  .user-hero {
+    flex-direction: column;
+  }
+
+  .user-stat-grid,
+  .user-content-grid,
+  .provider-grid,
+  .profile-grid,
+  .doc-action-row,
+  .listing-search-form,
+  .provider-action-row {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-panel-head {
+    flex-direction: column;
+  }
+}
