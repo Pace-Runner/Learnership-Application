@@ -1,20 +1,13 @@
 // Admin workspace - moderation dashboard for reviewing listings
 
-/**
- * ========================================================================
- * Admin Component (Admin Workspace)
- * ========================================================================
- * Renders admin moderation dashboard.
- * Props:
- * - onLogout: Callback function for logout button
- */
+//just temp
 const moderationQueue = [
   { title: 'Junior Electrical Apprenticeship', provider: 'VoltPath Academy', risk: 'Needs final compliance check' },
   { title: 'Admin Intern - Retail Operations', provider: 'Sabela Retail Group', risk: 'Duplicate listing detected' },
   { title: 'Plumbing Learnership NQF 3', provider: 'Blue Pipe Training Hub', risk: 'Closing date mismatch' },
 ]
 
->>>>>>> 9b8c203c6e71737da9b8b47b831564ccf5976ad7
+//dashboard
 export default function Admin({ onLogout }) {
   return (
     <main className="admin-page">
