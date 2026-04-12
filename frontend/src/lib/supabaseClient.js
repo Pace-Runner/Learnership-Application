@@ -1,35 +1,17 @@
-/**
- * ============================================================================
- * supabaseClient.js - Supabase Database & Auth Client
- * ============================================================================
- * Initializes the Supabase client for authentication and database access.
- * Exports a singleton instance used throughout the app with hasSupabaseConfig flag
- * to gracefully handle missing credentials during development.
- */
+// Initialize Supabase client for auth and database access
+// Also exports a flag to check if env vars are configured (prevents crashes if they're missing)
 
 import { createClient } from '@supabase/supabase-js'
 
-/**
- * ENVIRONMENT VARIABLES
- * These must be set in .env file:
- * - VITE_SUPABASE_URL: Your Supabase project URL from Project Settings > API
- * - VITE_SUPABASE_ANON_KEY: Public anonymous key for frontend access
- */
+// Load from .env file - add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY there
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-/**
- * Configuration Validation Flag
- * Used throughout app to prevent auth calls when credentials are missing.
- * Set to false during development if you haven't configured .env yet.
- */
+// Check if env vars exist before trying to use them
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey)
 
-/**
- * Supabase Client Instance
- * HARD PART: Uses placeholder values if env vars are missing to prevent runtime crashes.
- * Always check hasSupabaseConfig before making auth/db calls.
- */
+// Create client with fallback values if not configured
+// (prevents errors, but auth calls will fail gracefully if config is missing)
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-anon-key',

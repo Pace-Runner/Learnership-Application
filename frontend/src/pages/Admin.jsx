@@ -1,15 +1,4 @@
-/**
- * ============================================================================
- * Admin.jsx - Admin Dashboard
- * ============================================================================
- * Simple admin workspace page showing placeholder moderation console.
- * THIS IS A SIMPLIFIED VERSION - full moderation UI is in App.jsx AdminDashboardShell
- * 
- * Future enhancements:
- * - Move full moderation queue from App.jsx here
- * - Add real data from database instead of sample data
- * - Implement approval/rejection actions
- */
+// Admin workspace - moderation dashboard for reviewing listings
 
 /**
  * ========================================================================
