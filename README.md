@@ -1,14 +1,11 @@
 # Learnership Application Portal
 
 <img src="https://img.shields.io/badge/Type-University Project-1f6feb" alt="University Project">
-
 <img src="https://img.shields.io/badge/Frontend-React-61DAFB?logo=react&amp;logoColor=black" alt="React">
-
 <img src="https://img.shields.io/badge/Build-Vite-646CFF?logo=vite&amp;logoColor=white" alt="Vite">
-
 <img src="https://img.shields.io/badge/Backend-Supabase-3ECF8E?logo=supabase&amp;logoColor=white" alt="Supabase">
-
-<img src="https://img.shields.io/badge/Language-JavaScript-F7DF1E?logo=javascript&amp;logoColor=black" alt="JavaScript">
+<img src="https://img.shields.io/badge/Language-JavaScript-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript">
+<img src="https://img.shields.io/badge/Language-HTML5-E34F26?logo=html5&logoColor=white" alt="HTML5">
 
 A role-based learnership platform built with React, Vite, and Supabase.
 
