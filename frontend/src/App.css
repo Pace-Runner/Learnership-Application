@@ -786,7 +786,9 @@
 .admin-list {
   display: grid;
   gap: 0.55rem;
-  margin-top: 0.9rem;
+  list-style: none;
+  padding: 0;
+  margin: 0.9rem 0 0;
 }
 
 .admin-list-item {
