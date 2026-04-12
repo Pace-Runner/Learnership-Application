@@ -41,31 +41,6 @@ supabase/
 	ci.yml
 ```
 
-## Supabase Database Setup
-
-1. Create a Supabase project.
-2. Open SQL Editor in Supabase.
-3. Run `supabase/schema.sql` to create all core tables.
-4. Optional: run `supabase/rls.sql` if you want row-level security policies on `users`.
-5. Update seeded admin emails in `supabase/schema.sql` to your real admin Google accounts.
-
-### Included schema areas
-
-- `users` (role mapping by email)
-- `applicant_profiles`, `provider_profiles`
-- `nqf_qualifications`, `skill_tags`
-- `opportunities`, `applications`
-- `notifications`, `email_logs`
-- `admin_actions`
-
-## Environment Variables
-
-Create `frontend/.env`:
-
-```env
-VITE_SUPABASE_URL=your-supabase-project-url
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
 
 ## Run Locally
 
@@ -101,18 +76,12 @@ npm test
 1. Push your branch to GitHub.
 2. Open the Actions tab in your repository.
 3. Open the latest `CI` workflow run.
-4. Check the job named `admin-auth-tests`.
-
-Workflow file:
-- `.github/workflows/ci.yml`
 
 ## Google OAuth Notes
 
 In Supabase:
 - Enable Google provider under Authentication -> Providers.
 
-In Google Cloud OAuth client:
-- Add the Supabase callback URL shown in your project settings.
 
 ## Additional Documentation
 
