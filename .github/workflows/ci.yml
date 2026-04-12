@@ -7,8 +7,8 @@ on:
     branches: ["**"]
 
 jobs:
-  admin-auth-tests:
-    name: admin-auth-tests
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -29,10 +29,112 @@ jobs:
         run: npm run lint
         working-directory: ./frontend
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./frontend
+
       - name: Build app
         run: npm run build
         working-directory: ./frontend
 
-      - name: Run tests with coverage
-        run: npm run test
+  applicant-tests:
+    name: Applicant tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Run applicant tests with coverage
+        run: npm run test -- src/App.test.jsx src/pages/UserPages.test.jsx
+        working-directory: ./frontend
+
+  provider-tests:
+    name: Provider tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Run provider tests with coverage
+        run: npm run test -- src/pages/ProviderPage.test.jsx
+        working-directory: ./frontend
+
+  admin-tests:
+    name: Admin tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Run admin tests with coverage
+        run: npm run test -- src/pages/AdminPage.test.jsx
+        working-directory: ./frontend
+
+  role-based-routing-tests:
+    name: Role-based routing tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Run role-based routing tests with coverage
+        run: npm run test -- src/RoleBasedRouting.test.jsx
         working-directory: ./frontend
