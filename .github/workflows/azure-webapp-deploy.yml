@@ -41,6 +41,16 @@ jobs:
             exit 1
           fi
 
+          if [[ ! "$VITE_SUPABASE_URL" =~ ^https://[a-zA-Z0-9-]+\.supabase\.co$ ]]; then
+            echo "VITE_SUPABASE_URL is invalid. Use your project API URL (example: https://<project-ref>.supabase.co), not a dashboard URL."
+            exit 1
+          fi
+
+          if [[ "$VITE_SUPABASE_ANON_KEY" != sb_publishable_* && "$VITE_SUPABASE_ANON_KEY" != eyJ* ]]; then
+            echo "VITE_SUPABASE_ANON_KEY looks invalid. Use the Supabase anon/publishable key."
+            exit 1
+          fi
+
       - name: Build frontend
         run: npm run build
         working-directory: ./frontend
