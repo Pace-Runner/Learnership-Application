@@ -1,3 +1,6 @@
+// Provider workspace - manage learnership listings and applicants
+// Shows quick actions, stats, and listing overview
+
 const providerStats = [
   { label: 'Active listings', value: '09' },
   { label: 'New applicants', value: '31' },
@@ -34,6 +37,7 @@ const providerActions = [
   'Publish selected listing',
 ]
 
+// Provider workspace component  
 export default function Provider({ onLogout }) {
   return (
     <main className="user-page provider-theme provider-shell">

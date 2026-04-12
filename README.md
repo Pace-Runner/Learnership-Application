@@ -7,6 +7,8 @@
 <img src="https://img.shields.io/badge/Language-JavaScript-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript">
 <img src="https://img.shields.io/badge/Language-HTML5-E34F26?logo=html5&logoColor=white" alt="HTML5">
 
+website url: https://learnership-portal-fxd3hwdcehaxhgb3.southafricanorth-01.azurewebsites.net
+
 A role-based learnership platform built with React, Vite, and Supabase.
 
 This project supports three core user roles:
@@ -63,69 +65,6 @@ Current test files:
 - `frontend/src/pages/UserPages.test.jsx`
 - `frontend/src/App.test.jsx`
 
-### Applicant tests
-
-- [x] Applicant workspace renders correctly
-- [x] Quick stats display all required metrics
-- [x] Listings section and search controls visible
-- [x] Example listings and profile navigation present
-- [x] Logout button functional
-- [x] Profile page renders with document actions
-
-### Provider tests
-
-- [ ] Provider model includes organisation name field
-- [x] Google OAuth entry is available for provider registration
-- [ ] Provider role assignment is wired in OAuth callback flow
-- [ ] Provider selection leads to provider route
-- [ ] Provider route is protected and mounted correctly
-
-### Admin tests
-
-- [ ] Unauthenticated users can't access /admin
-- [ ] Wrong role gets redirected away from /admin
-- [ ] Admin email gets the Admin role assigned
-- [ ] Non-admin email never gets the Admin role
-- [ ] Admin lands on /admin after login
-- [ ] Admin can see the dashboard
-- [ ] Admin session survives a page refresh
-- [ ] Logout from admin clears the session
-- [ ] Admin moderation UI has the right controls
-- [ ] Example admin emails are in the database
-
-### Role based tests
-
-#### Role-based redirect logic on OAuth completion
-
-- [ ] Applicant role redirects to /dashboard
-- [ ] Provider role redirects to /provider
-- [ ] Admin role redirects to /admin
-- [x] Unauthenticated users blocked from protected routes
-- [ ] Role isolation enforced
-
-#### Route guard and access control implementation
-
-- [ ] ProtectedRoute component guards all authenticated routes
-- [ ] Redirect logic implemented for unauthorized access
-- [ ] Auth loading state displays during verification
-- [ ] getLandingRoute function routes each role correctly
-- [ ] Protected route middleware prevents cross-role navigation
-
-#### Route architecture and mounting
-
-- [ ] All role routes mounted in App.jsx
-- [ ] Provider route mounts Provider component
-- [ ] Admin route mounts Admin dashboard
-- [ ] Dashboard route mounts Applicant dashboard
-- [ ] Each route requires correct role in ProtectedRoute
-
-#### Code coverage and CI infrastructure
-
-- [ ] Vitest + v8 coverage configured
-- [ ] Coverage reports generated and integrated
-- [ ] Role-sensitive components have high coverage
-- [ ] GitHub Actions CI runs test pipeline
-- [ ] Tests pass in CI environment
 
 ### Run tests locally
 

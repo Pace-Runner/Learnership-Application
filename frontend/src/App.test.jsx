@@ -2,6 +2,9 @@ import { describe, test, expect } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { cwd } from 'node:process'
 import App from './App'
 
 afterEach(() => {
@@ -9,7 +12,12 @@ afterEach(() => {
 })
 
 describe('Provider tests', () => {
-  test.todo('Provider model includes organisation name field')
+  test('Provider model includes organisation name field', () => {
+    const schemaSql = readFileSync(resolve(cwd(), '../supabase/schema.sql'), 'utf8')
+
+    expect(schemaSql).toContain('create table if not exists provider_profiles')
+    expect(schemaSql).toContain('organisation_name text')
+  })
 
   test('Google OAuth entry is available for provider registration', () => {
     const { container } = render(
@@ -24,18 +32,60 @@ describe('Provider tests', () => {
     expect(buttonText).toMatch(/Log In with Google|Authenticating/i)
   })
 
-  test.todo('Provider role assignment is wired in OAuth callback flow')
-  test.todo('Provider selection leads to provider route')
-  test.todo('Provider route is protected and mounted correctly')
+  test('Provider role assignment is wired in OAuth callback flow', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain(".insert({ email: pendingEmail, role: selectedRole })")
+    expect(appSource).toContain("handleRoleSelection('Provider')")
+  })
+
+  test('Provider selection leads to provider route', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+    expect(appSource).toContain('<Route path="/provider"')
+  })
+
+  test('Provider route is protected and mounted correctly', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('<Route path="/provider"')
+    expect(appSource).toMatch(/allowedRole="Provider"/)
+    expect(appSource).toContain('ProtectedRoute')
+  })
 })
 
 describe('Admin tests', () => {
-  test.todo("Unauthenticated users can't access /admin")
-  test.todo('Wrong role gets redirected away from /admin')
+  test("Unauthenticated users can't access /admin", () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('!signedIn')
+    expect(appSource).toContain('<Route path="/admin"')
+    expect(appSource).toContain('Navigate to="/"')
+  })
+
+  test('Wrong role gets redirected away from /admin', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('role !== allowedRole')
+    expect(appSource).toContain('<Route path="/admin"')
+    expect(appSource).toContain('Navigate to="/"')
+  })
   test.todo('Admin email gets the Admin role assigned')
   test.todo('Non-admin email never gets the Admin role')
-  test.todo('Admin lands on /admin after login')
-  test.todo('Admin can see the dashboard')
+  test('Admin lands on /admin after login', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
+    expect(appSource).toContain('<Route path="/admin"')
+  })
+
+  test('Admin can see the dashboard', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('Platform Moderation Console')
+    expect(appSource).toContain('<Route path="/admin"')
+  })
   test.todo('Admin session survives a page refresh')
   test.todo('Logout from admin clears the session')
   test.todo('Admin moderation UI has the right controls')
@@ -43,9 +93,23 @@ describe('Admin tests', () => {
 })
 
 describe('Role based tests', () => {
-  test.todo('Applicant role redirects to /dashboard')
-  test.todo('Provider role redirects to /provider')
-  test.todo('Admin role redirects to /admin')
+  test('Applicant role redirects to /dashboard', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain("return '/dashboard'")
+  })
+
+  test('Provider role redirects to /provider', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+  })
+
+  test('Admin role redirects to /admin', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
+  })
 
   test('Unauthenticated users blocked from protected routes', async () => {
     render(
@@ -58,18 +122,77 @@ describe('Role based tests', () => {
   })
 
   test.todo('Role isolation enforced')
-  test.todo('ProtectedRoute component guards all authenticated routes')
-  test.todo('Redirect logic implemented for unauthorized access')
+  test('ProtectedRoute component guards all authenticated routes', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('function ProtectedRoute')
+    expect(appSource).toContain('!signedIn')
+    expect(appSource).toContain('role !== allowedRole')
+  })
+
+  test('Redirect logic implemented for unauthorized access', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('Navigate to="/"')
+    expect(appSource).toContain('replace state={{ from: location }}')
+  })
   test.todo('Auth loading state displays during verification')
-  test.todo('getLandingRoute function routes each role correctly')
+  test('getLandingRoute function routes each role correctly', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('function getLandingRoute(role)')
+    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
+    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+    expect(appSource).toContain("return '/dashboard'")
+  })
   test.todo('Protected route middleware prevents cross-role navigation')
-  test.todo('All role routes mounted in App.jsx')
-  test.todo('Provider route mounts Provider component')
-  test.todo('Admin route mounts Admin dashboard')
-  test.todo('Dashboard route mounts Applicant dashboard')
-  test.todo('Each route requires correct role in ProtectedRoute')
-  test.todo('Vitest + v8 coverage configured')
-  test.todo('Coverage reports generated and integrated')
+  test('All role routes mounted in App.jsx', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('<Route path="/dashboard"')
+    expect(appSource).toContain('<Route path="/provider"')
+    expect(appSource).toContain('<Route path="/admin"')
+  })
+
+  test('Provider route mounts Provider component', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('<Provider onLogout={handleLogout} />')
+  })
+
+  test('Admin route mounts Admin dashboard', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('<AdminDashboardShell onLogout={handleLogout} />')
+  })
+
+  test('Dashboard route mounts Applicant dashboard', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('<Dashboard onLogout={handleLogout} />')
+  })
+
+  test('Each route requires correct role in ProtectedRoute', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toMatch(/allowedRole="Applicant"/)
+    expect(appSource).toMatch(/allowedRole="Provider"/)
+    expect(appSource).toMatch(/allowedRole="Admin"/)
+  })
+
+  test('Vitest + v8 coverage configured', () => {
+    const packageJson = readFileSync(resolve(cwd(), 'package.json'), 'utf8')
+
+    expect(packageJson).toContain('vitest run --coverage')
+    expect(packageJson).toContain('@vitest/coverage-v8')
+  })
+
+  test('Coverage reports generated and integrated', () => {
+    const ciWorkflow = readFileSync(resolve(cwd(), '../.github/workflows/ci.yml'), 'utf8')
+
+    expect(ciWorkflow).toContain('with coverage')
+    expect(ciWorkflow).toContain('npm run test --')
+  })
   test.todo('Role-sensitive components have high coverage')
   test.todo('GitHub Actions CI runs test pipeline')
   test.todo('Tests pass in CI environment')

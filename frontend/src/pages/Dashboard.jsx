@@ -1,6 +1,10 @@
+// Applicant workspace - search and filter learnership listings
+// Shows quick stats, search form, and current listings
+
 import { Link } from 'react-router-dom'
 import './UserPages.css'
 
+// Quick stats cards for applicant dashboard
 const quickStats = [
   { label: 'Available listings', value: '18' },
   { label: 'Saved opportunities', value: '12' },
@@ -27,6 +31,7 @@ const availableListings = [
 
 const listingFilters = ['All', 'Learnership', 'Internship', 'Apprenticeship']
 
+// Applicant workspace component
 export default function Dashboard({ onLogout }) {
   return (
     <main className="user-page applicant-theme user-discovery-shell">

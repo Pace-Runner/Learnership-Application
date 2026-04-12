@@ -1,12 +1,16 @@
+// Applicant profile management - upload photos, bio, and documents
+
 import { Link } from 'react-router-dom'
 import './UserPages.css'
 
+// Sample uploaded documents
 const uploadedDocs = [
   { name: 'CV - Thandi_Mokoena.pdf', updated: 'Updated 2 days ago' },
   { name: 'Matric_Certificate.pdf', updated: 'Updated 3 weeks ago' },
   { name: 'IT_Support_Badge.pdf', updated: 'Updated 1 month ago' },
 ]
 
+// Applicant profile page component
 export default function ApplicantProfile({ onLogout }) {
   return (
     <main className="user-page applicant-theme profile-shell">

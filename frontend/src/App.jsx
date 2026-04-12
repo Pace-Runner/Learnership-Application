@@ -1,3 +1,11 @@
+// Main app: handles Google OAuth, role-based routing, and admin dashboard
+// TRICKY PARTS:
+// - OAuth flow: Google login → email lookup → role selection (if new user)
+// - Session persistence: browser cookies restored on page refresh
+// - Route guards: ProtectedRoute blocks unauthorized access
+// - State management: tracking auth, loading, roles, and pending signups
+// - 3D animation: particle effect that reacts to mouse movement
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
@@ -12,6 +20,7 @@ const moderationQueue = [
   { title: 'Plumbing Learnership NQF 3', provider: 'Blue Pipe Training Hub', risk: 'Closing date mismatch' },
 ]
 
+// Admin moderation dashboard - shown when user has Admin role
 function AdminDashboardShell({ onLogout }) {
   return (
     <div className="admin-page">
@@ -94,6 +103,8 @@ function AdminDashboardShell({ onLogout }) {
   )
 }
 
+// Route guard: only renders children if user has the right role and is logged in
+// The "isLoading" check prevents showing the wrong page while auth is being verified
 function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   const location = useLocation()
 
@@ -116,6 +127,7 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   return children
 }
 
+// Redirect logic: where should each role go after logging in?
 function getLandingRoute(role) {
   if (role === 'Admin') return '/admin'
   if (role === 'Provider') return '/provider'
@@ -123,24 +135,29 @@ function getLandingRoute(role) {
 }
 
 function App() {
+  // Auth state: tracks whether user is signed in, what their role is, and if we're still checking
   const [role, setRole] = useState(null)
   const [signedIn, setSignedIn] = useState(false)
   const [isLoadingAuth, setIsLoadingAuth] = useState(true)
   const [authError, setAuthError] = useState('')
-  const [pendingEmail, setPendingEmail] = useState('')
-  const [isSavingRole, setIsSavingRole] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState('') // User logged in but hasn't picked a role yet
+  const [isSavingRole, setIsSavingRole] = useState(false) // Submitting role choice to database
 
+  // Animation state for the 3D particle effect
   const [pointer, setPointer] = useState({ x: 0, y: 0 })
   const [isScrolled, setIsScrolled] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Look up user's role in the database by email
+  // If email doesn't exist yet (new user), returns null
   const getRoleForEmail = useCallback(async (email) => {
+    // Query users table: find role by email address
     const { data: userRecord, error: fetchError } = await supabase
       .from('users')
       .select('role')
       .eq('email', email)
-      .maybeSingle()
+      .maybeSingle() // null if no match
 
     if (fetchError) {
       throw fetchError
@@ -149,6 +166,8 @@ function App() {
     return userRecord?.role ?? null
   }, [])
 
+  // On mount: restore session from browser cookies and set up auth listener
+  // This runs once and keeps listening for sign-in/sign-out events
   useEffect(() => {
     let isMounted = true
 
@@ -262,6 +281,7 @@ function App() {
     }
   }, [getRoleForEmail])
 
+  // Auto-redirect after successful login to the user's role-specific page
   useEffect(() => {
     const redirectedFromProtectedRoute = Boolean(location.state?.from)
 
@@ -270,9 +290,10 @@ function App() {
     }
   }, [isLoadingAuth, signedIn, role, location.pathname, location.state, navigate])
 
+  // Clear session and reset all state when logging out
   const handleLogout = async () => {
     if (hasSupabaseConfig) {
-      await supabase.auth.signOut()
+      await supabase.auth.signOut() // Clear session cookie
     }
     setSignedIn(false)
     setRole(null)
@@ -281,6 +302,8 @@ function App() {
     navigate('/')
   }
 
+  // User selected a role (Applicant or Provider) after Google login
+  // This inserts them into the users table so next login they go straight to their dashboard
   const handleRoleSelection = async (selectedRole) => {
     if (!pendingEmail) {
       return
@@ -308,6 +331,8 @@ function App() {
     navigate(getLandingRoute(resolvedRole), { replace: true })
   }
 
+  // Generate particle positions for 3D animation (748 dots in 34x22 grid)
+  // Complex math creates radial gradient effect that reacts to mouse movement
   const dots = useMemo(() => {
     const result = []
     const columns = 34
@@ -332,6 +357,7 @@ function App() {
     return result
   }, [])
 
+  // Track mouse position for 3D particle effect
   const handleVisualMove = (event) => {
     const rect = event.currentTarget.getBoundingClientRect()
     const px = ((event.clientX - rect.left) / rect.width - 0.5) * 2
@@ -341,6 +367,8 @@ function App() {
 
   const resetVisualMove = () => setPointer({ x: 0, y: 0 })
 
+  // Start Google OAuth flow
+  // After user logs in with Google, auth listener detects it and handles role lookup/selection
   const handleGoogleContinue = async () => {
     setAuthError('')
 
@@ -364,6 +392,7 @@ function App() {
     }
   }
 
+  // Fade in sections as they scroll into view
   useEffect(() => {
     if (location.pathname !== '/') {
       return undefined
@@ -379,13 +408,13 @@ function App() {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible')
+            entry.target.classList.add('is-visible') // Add CSS class to trigger fade-in
           } else {
-            entry.target.classList.remove('is-visible')
+            entry.target.classList.remove('is-visible') // Remove class when scrolled past
           }
         })
       },
-      { threshold: 0.18 },
+      { threshold: 0.18 }, // Element must be 18% visible to trigger
     )
 
     nodes.forEach((node) => observer.observe(node))
@@ -396,6 +425,7 @@ function App() {
     }
   }, [location.pathname])
 
+  // Track if user has scrolled past the hero section (used for topbar styling)
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 120)
     onScroll()
@@ -403,6 +433,7 @@ function App() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // All routes: home page with auth, and protected role dashboards
 return (
   <Routes>
     <Route path="/" element={
