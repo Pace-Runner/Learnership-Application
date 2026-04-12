@@ -1,6 +1,23 @@
+/**
+ * ============================================================================
+ * Dashboard.jsx - Applicant Workspace
+ * ============================================================================
+ * Display page for Applicant users to search and filter learnership listings.
+ * Shows:
+ * - Workspace header with role and logout
+ * - Quick stats (available listings, saved opportunities, documents)
+ * - Search and filter form
+ * - Current listings preview
+ * - Link to profile page (/profile)
+ */
+
 import { Link } from 'react-router-dom'
 import './UserPages.css'
 
+/**
+ * APPLICANT STATS
+ * Small cards displaying key metrics for the applicant.
+ */
 const quickStats = [
   { label: 'Available listings', value: '18' },
   { label: 'Saved opportunities', value: '12' },
@@ -27,6 +44,14 @@ const availableListings = [
 
 const listingFilters = ['All', 'Learnership', 'Internship', 'Apprenticeship']
 
+/**
+ * ========================================================================
+ * Dashboard Component (Applicant Workspace)
+ * ========================================================================
+ * Renders the applicant view with listings search functionality.
+ * Props:
+ * - onLogout: Callback function for logout button
+ */
 export default function Dashboard({ onLogout }) {
   return (
     <main className="user-page applicant-theme user-discovery-shell">

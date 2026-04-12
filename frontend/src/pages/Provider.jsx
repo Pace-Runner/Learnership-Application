@@ -1,3 +1,16 @@
+/**
+ * ============================================================================
+ * Provider.jsx - Provider Workspace
+ * ============================================================================
+ * Dashboard for Provider users to manage learnership listings.
+ * Shows:
+ * - Workspace header with role and logout
+ * - Quick actions (create listing, review applicants, publish)
+ * - Provider stats (active listings, new applicants, pending reviews)
+ * - Listing overview with applicant details
+ * - Publishing checklist
+ */
+
 const providerStats = [
   { label: 'Active listings', value: '09' },
   { label: 'New applicants', value: '31' },
@@ -34,6 +47,14 @@ const providerActions = [
   'Publish selected listing',
 ]
 
+/**
+ * ========================================================================
+ * Provider Component (Provider Workspace)
+ * ========================================================================
+ * Renders provider dashboard with listing management tools.
+ * Props:
+ * - onLogout: Callback function for logout button
+ */
 export default function Provider({ onLogout }) {
   return (
     <main className="user-page provider-theme provider-shell">

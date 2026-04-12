@@ -1,12 +1,44 @@
+/**
+ * ============================================================================
+ * ApplicantProfile.jsx - Applicant Profile and Documents
+ * ============================================================================
+ * Page for applicants to manage their profile, avatar, and uploaded documents.
+ * Shows:
+ * - Profile picture upload
+ * - About me section
+ * - Document list (CV, certificates)
+ * - Document action buttons
+ * 
+ * This page is linked from Dashboard (/dashboard) as "Go to My Profile"
+ */
+
 import { Link } from 'react-router-dom'
 import './UserPages.css'
 
+/**
+ * UPLOADED DOCUMENTS
+ * Sample list of documents with upload timestamps.
+ */
 const uploadedDocs = [
   { name: 'CV - Thandi_Mokoena.pdf', updated: 'Updated 2 days ago' },
   { name: 'Matric_Certificate.pdf', updated: 'Updated 3 weeks ago' },
   { name: 'IT_Support_Badge.pdf', updated: 'Updated 1 month ago' },
 ]
 
+/**
+ * ========================================================================
+ * ApplicantProfile Component (Applicant Profile Page)
+ * ========================================================================
+ * Renders applicant profile management page.
+ * Props:
+ * - onLogout: Callback function for logout button
+ * 
+ * SECTIONS:
+ * 1. Profile header with navigation
+ * 2. Profile picture card
+ * 3. About me section
+ * 4. Documents panel with upload/view controls
+ */
 export default function ApplicantProfile({ onLogout }) {
   return (
     <main className="user-page applicant-theme profile-shell">
