@@ -50,3 +50,4 @@ jobs:
           app-name: ${{ env.WEBAPP_NAME }}
           slot-name: Production
           package: frontend/dist
+ 
