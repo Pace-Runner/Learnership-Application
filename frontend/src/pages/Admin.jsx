@@ -1,13 +1,13 @@
 // Admin workspace - moderation dashboard for reviewing listings
 
-//just temp
+// Mock queue data for now; this can come from Supabase once moderation APIs are wired.
 const moderationQueue = [
   { title: 'Junior Electrical Apprenticeship', provider: 'VoltPath Academy', risk: 'Needs final compliance check' },
   { title: 'Admin Intern - Retail Operations', provider: 'Sabela Retail Group', risk: 'Duplicate listing detected' },
   { title: 'Plumbing Learnership NQF 3', provider: 'Blue Pipe Training Hub', risk: 'Closing date mismatch' },
 ]
 
-//dashboard
+// dashboard
 export default function Admin({ onLogout }) {
   return (
     <main className="admin-page">
@@ -34,6 +34,7 @@ export default function Admin({ onLogout }) {
           </aside>
         </header>
 
+        {/* Quick snapshot cards so admins can scan platform health at a glance. */}
         <section className="admin-kpi-row" aria-label="Moderation metrics">
           <article className="admin-kpi">
             <span>Pending Reviews</span>
@@ -60,6 +61,7 @@ export default function Admin({ onLogout }) {
               <button type="button">View all</button>
             </header>
 
+            {/* Queue list is rendered from moderationQueue until backend data is connected. */}
             <ul className="admin-list">
               {moderationQueue.map((item) => (
                 <li key={item.title} className="admin-list-item">
