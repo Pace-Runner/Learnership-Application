@@ -1,0 +1,92 @@
+import { test, expect, vi } from 'vitest'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { afterEach } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { cwd } from 'node:process'
+import Provider from './Provider'
+import App from '../App'
+
+afterEach(() => {
+  cleanup()
+})
+
+// ===== PROVIDER DASHBOARD TESTS =====
+test('PROVIDER-DASHBOARD: renders provider dashboard heading and welcome message', () => {
+  const onLogout = vi.fn()
+  render(
+    <MemoryRouter>
+      <Provider onLogout={onLogout} />
+    </MemoryRouter>
+  )
+
+  expect(screen.getByText('Provider Workspace')).toBeTruthy()
+  expect(screen.getByText(/Manage your learnership pipeline/i)).toBeTruthy()
+})
+
+test('PROVIDER-DASHBOARD: renders quick actions, stats, and listing overview', () => {
+  const onLogout = vi.fn()
+  render(
+    <MemoryRouter>
+      <Provider onLogout={onLogout} />
+    </MemoryRouter>
+  )
+
+  expect(screen.getByText('Quick actions')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Create a new listing' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Review applicants' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Publish selected listing' })).toBeTruthy()
+  expect(screen.getByText('Active listings')).toBeTruthy()
+  expect(screen.getByText('New applicants')).toBeTruthy()
+  expect(screen.getByText('Listings needing review')).toBeTruthy()
+  expect(screen.getByText('Listing overview')).toBeTruthy()
+  expect(screen.getByText('Applicants by listing')).toBeTruthy()
+  expect(screen.getByText('Business Administration NQF 4')).toBeTruthy()
+  expect(screen.getAllByText(/Best applicants:/i)).toHaveLength(3)
+  expect(screen.getByText('Before you publish')).toBeTruthy()
+})
+
+test('PROVIDER-DASHBOARD: logout button is clickable and triggers callback', () => {
+  const onLogout = vi.fn()
+  render(
+    <MemoryRouter>
+      <Provider onLogout={onLogout} />
+    </MemoryRouter>
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: /logout/i }))
+  expect(onLogout).toHaveBeenCalledTimes(1)
+})
+
+// ===== PROVIDER ACCEPTANCE TESTS =====
+test('PROVIDER-ACCEPTANCE-1: Provider model has organisation_name field in schema', () => {
+  const schemaSql = readFileSync(resolve(cwd(), '../supabase/schema.sql'), 'utf8')
+
+  expect(schemaSql).toContain('create table if not exists provider_profiles')
+  expect(schemaSql).toContain('organisation_name text')
+})
+
+test('PROVIDER-ACCEPTANCE-2: Google OAuth entry point exists on registration page', () => {
+  render(
+    <MemoryRouter initialEntries={['/']}>
+      <App />
+    </MemoryRouter>
+  )
+
+  expect(screen.getByRole('button', { name: /Log In with Google|Authenticating/i })).toBeTruthy()
+})
+
+test('PROVIDER-ACCEPTANCE-3: OAuth callback supports Provider role assignment flow', () => {
+  const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+  expect(appSource).toContain(".insert({ email: pendingEmail, role: selectedRole })")
+  expect(appSource).toContain("handleRoleSelection('Provider')")
+})
+
+test('PROVIDER-ACCEPTANCE-4: Successful Provider login landing route is /provider', () => {
+  const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+  expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+  expect(appSource).toContain('<Route path="/provider"')
+})
