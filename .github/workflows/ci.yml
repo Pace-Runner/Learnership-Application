@@ -1,3 +1,12 @@
+# CONTINUOUS INTEGRATION PIPELINE
+# PURPOSE: Validate code quality on every push and pull request
+# JOBS:
+#   - Lint: Check code style with ESLint (catch formatting/convention issues)
+#   - Build: Compile React with Vite (catch syntax/import errors)
+#   - Tests: Run unit/integration tests by role (Applicant, Provider, Admin, Routing)
+#   - Coverage: Generate v8 coverage reports showing % of code tested
+# STATUS: All jobs must pass before merging to main
+
 name: CI
 
 on:

@@ -1,10 +1,11 @@
-// Applicant workspace - search and filter learnership listings
-// Shows quick stats, search form, and current listings
+// APPLICANT DASHBOARD: Main workspace for applicant users
+// PURPOSE: Display available learnership listings and quick stats
+// NOTE: Currently shows static/placeholder data; ready for Supabase integration
 
 import { Link } from 'react-router-dom'
 import './UserPages.css'
 
-// Quick stats cards for applicant dashboard
+// Quick statistics shown at top of dashboard
 const quickStats = [
   { label: 'Available listings', value: '18' },
   { label: 'Saved opportunities', value: '12' },

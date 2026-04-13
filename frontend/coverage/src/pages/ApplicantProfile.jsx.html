@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">33.33% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>1/3</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/2</span>
+                <span class='fraction'>0/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">33.33% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>3/3</span>
+                <span class='fraction'>1/3</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line high'></div>
+    <div class='status-line low'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -132,11 +132,11 @@
 <a name='L67'></a><a href='#L67'>67</a>
 <a name='L68'></a><a href='#L68'>68</a>
 <a name='L69'></a><a href='#L69'>69</a>
-<a name='L70'></a><a href='#L70'>70</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -150,6 +150,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -184,7 +185,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -201,17 +209,21 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Link } from 'react-router-dom'
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// Applicant profile management - upload photos, bio, and documents
+&nbsp;
+import { Link } from 'react-router-dom'
 import './UserPages.css'
 &nbsp;
+// Sample uploaded documents
 const uploadedDocs = [
   { name: 'CV - Thandi_Mokoena.pdf', updated: 'Updated 2 days ago' },
   { name: 'Matric_Certificate.pdf', updated: 'Updated 3 weeks ago' },
   { name: 'IT_Support_Badge.pdf', updated: 'Updated 1 month ago' },
 ]
 &nbsp;
-export default function ApplicantProfile({ onLogout }) {
-  return (
+// Applicant profile page component
+export default function <span class="fstat-no" title="function not covered" >ApplicantProfile({</span> onLogout }) {
+<span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;main className="user-page applicant-theme profile-shell"&gt;
       &lt;section className="user-page-inner"&gt;
       &lt;header className="user-hero profile-header"&gt;
@@ -252,8 +264,8 @@ export default function ApplicantProfile({ onLogout }) {
         &lt;p className="user-panel-copy"&gt;Manage your uploaded CV and supporting certificates in one place.&lt;/p&gt;
 &nbsp;
         &lt;ul className="user-list doc-list"&gt;
-          {uploadedDocs.map((doc) =&gt; (
-            &lt;li key={doc.name}&gt;
+          {uploadedDocs.<span class="fstat-no" title="function not covered" >map((d</span>oc) =&gt; (
+<span class="cstat-no" title="statement not covered" >            &lt;li key={doc.name}&gt;</span>
               &lt;strong&gt;{doc.name}&lt;/strong&gt;
               &lt;small className="user-item-meta"&gt;{doc.updated}&lt;/small&gt;
             &lt;/li&gt;
@@ -277,7 +289,7 @@ export default function ApplicantProfile({ onLogout }) {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-12T09:21:51.335Z
+                at 2026-04-12T18:32:18.855Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

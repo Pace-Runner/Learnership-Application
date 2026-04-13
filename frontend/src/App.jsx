@@ -103,11 +103,17 @@ function AdminDashboardShell({ onLogout }) {
   )
 }
 
-// Route guard: only renders children if user has the right role and is logged in
-// The "isLoading" check prevents showing the wrong page while auth is being verified
+// ProtectedRoute: Guard component that restricts access to role-specific pages
+// USAGE: <ProtectedRoute role={role} allowedRole="Admin" signedIn={signedIn} isLoading={isLoadingAuth}><Admin /></ProtectedRoute>
+// LOGIC:
+// 1. If still checking auth → show loading shell (don't flash wrong page)
+// 2. If not signed in → redirect to home (must log in)
+// 3. If wrong role → redirect to home (prevent unauthorized access)
+// 4. All checks pass → render the protected content
 function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   const location = useLocation()
 
+  // Show loading state while session is being verified from browser cookies
   if (isLoading) {
     return (
       <main className="auth-loading-shell" aria-busy="true" aria-live="polite">
@@ -116,14 +122,18 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
     )
   }
 
+  // Unauthenticated users cannot access protected routes
   if (!signedIn) {
     return <Navigate to="/" replace state={{ from: location }} />
   }
 
+  // Role mismatch: user is logged in but lacks permission for this page
+  // Example: Applicant (role="Applicant") trying to access /admin (allowedRole="Admin")
   if (role !== allowedRole) {
     return <Navigate to="/" replace state={{ from: location }} />
   }
 
+  // All security checks passed: render the page
   return children
 }
 
@@ -135,13 +145,13 @@ function getLandingRoute(role) {
 }
 
 function App() {
-  // Auth state: tracks whether user is signed in, what their role is, and if we're still checking
-  const [role, setRole] = useState(null)
-  const [signedIn, setSignedIn] = useState(false)
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true)
-  const [authError, setAuthError] = useState('')
-  const [pendingEmail, setPendingEmail] = useState('') // User logged in but hasn't picked a role yet
-  const [isSavingRole, setIsSavingRole] = useState(false) // Submitting role choice to database
+  // Authentication state management:
+  const [role, setRole] = useState(null) // Current user's role: 'Admin', 'Provider', 'Applicant', or null
+  const [signedIn, setSignedIn] = useState(false) // True if OAuth session is active
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true) // True while checking session from browser cookies
+  const [authError, setAuthError] = useState('') // Display auth errors to user
+  const [pendingEmail, setPendingEmail] = useState('') // New user email waiting for role selection
+  const [isSavingRole, setIsSavingRole] = useState(false) // True while inserting user into database
 
   // Animation state for the 3D particle effect
   const [pointer, setPointer] = useState({ x: 0, y: 0 })
@@ -149,8 +159,7 @@ function App() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Look up user's role in the database by email
-  // If email doesn't exist yet (new user), returns null
+  // Query users table to get applicant/provider/admin role based on email
   const getRoleForEmail = useCallback(async (email) => {
     // Query users table: find role by email address
     const { data: userRecord, error: fetchError } = await supabase
@@ -166,8 +175,13 @@ function App() {
     return userRecord?.role ?? null
   }, [])
 
-  // On mount: restore session from browser cookies and set up auth listener
-  // This runs once and keeps listening for sign-in/sign-out events
+  // AUTH BOOTSTRAP: Restore user session on app load and listen for auth changes
+  // FLOW:
+  // 1. Check if session exists in browser cookies (user already logged in before)
+  // 2. Lookup user's role in database by email
+  // 3. Set up listener to detect sign-in/sign-out events
+  // 4. When sign-in happens, role lookup and optional role selection for new users
+  // WHY: Ensures app state matches Supabase auth session, prevents stale data on refresh
   useEffect(() => {
     let isMounted = true
 
@@ -281,7 +295,9 @@ function App() {
     }
   }, [getRoleForEmail])
 
-  // Auto-redirect after successful login to the user's role-specific page
+  // AUTO-REDIRECT: Send logged-in users to their role-appropriate dashboard
+  // WHEN: User has loaded auth state, is signed in, has a role, and is on home page
+  // REDIRECTS: Admin → /admin, Provider → /provider, Applicant → /dashboard
   useEffect(() => {
     const redirectedFromProtectedRoute = Boolean(location.state?.from)
 
@@ -302,8 +318,13 @@ function App() {
     navigate('/')
   }
 
-  // User selected a role (Applicant or Provider) after Google login
-  // This inserts them into the users table so next login they go straight to their dashboard
+  // NEW USER ROLE SELECTION: First-time users must choose their role
+  // WHY: roles (Admin/Provider/Applicant) determine which dashboard they access
+  // PROCESS:
+  // 1. User logs in with Google (new email, not in database yet)
+  // 2. We show role selection popup
+  // 3. User picks role → we insert into 'users' table with their email + role
+  // 4. Next login, step 2-3 are skipped (role already in database)
   const handleRoleSelection = async (selectedRole) => {
     if (!pendingEmail) {
       return
@@ -367,8 +388,10 @@ function App() {
 
   const resetVisualMove = () => setPointer({ x: 0, y: 0 })
 
-  // Start Google OAuth flow
-  // After user logs in with Google, auth listener detects it and handles role lookup/selection
+  // OAUTH ENTRY POINT: Initiate Google sign-in
+  // HOW: Calls Supabase.auth.signInWithOAuth() which opens Google login popup
+  // THEN: Auth listener (above) automatically detects successful login and looks up role
+  // NOTE: Don't manually handle role lookup here—let the auth listener do it (keeps logic centralized)
   const handleGoogleContinue = async () => {
     setAuthError('')
 

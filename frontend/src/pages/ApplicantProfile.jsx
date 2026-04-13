@@ -1,9 +1,11 @@
-// Applicant profile management - upload photos, bio, and documents
+// APPLICANT PROFILE: User profile management page
+// PURPOSE: Allow applicants to upload documents, manage profile info
+// STATUS: Currently UI-only; ready for file upload and database integration
 
 import { Link } from 'react-router-dom'
 import './UserPages.css'
 
-// Sample uploaded documents
+// Sample uploaded documents (placeholder; replace with Supabase query)
 const uploadedDocs = [
   { name: 'CV - Thandi_Mokoena.pdf', updated: 'Updated 2 days ago' },
   { name: 'Matric_Certificate.pdf', updated: 'Updated 3 weeks ago' },
