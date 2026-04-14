@@ -20,6 +20,7 @@ create table if not exists applicant_profiles (
   date_of_birth date,
   id_number text,
   cv_url text,
+  about_me text,
   created_at timestamp default now()
 );
 
