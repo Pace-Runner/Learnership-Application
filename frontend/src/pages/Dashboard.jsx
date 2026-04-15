@@ -2,7 +2,9 @@
 // PURPOSE: Display available learnership listings and quick stats
 // NOTE: Currently shows static/placeholder data; ready for Supabase integration
 
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
 // Quick statistics shown at top of dashboard
@@ -32,12 +34,61 @@ const availableListings = [
 
 const listingFilters = ['All', 'Learnership', 'Internship', 'Apprenticeship']
 
+function normalizeApprovedListing(row) {
+  return {
+    id: row.id,
+    title: row.title || 'Untitled opportunity',
+    type: row.type || 'Not specified',
+    meta: row.meta,
+    location: row.location || 'Not specified',
+    closingDate: row.closingDate || row.closing_date || 'Not specified',
+  }
+}
+
 // Applicant workspace component
 export default function Dashboard({ onLogout, listings }) {
   const hasListingsProp = Array.isArray(listings)
-  const approvedListings = hasListingsProp
-    ? listings.filter((listing) => listing?.status === 'Approved')
-    : availableListings
+  const [dbApprovedListings, setDbApprovedListings] = useState([])
+
+  useEffect(() => {
+    if (hasListingsProp || !hasSupabaseConfig) {
+      return
+    }
+
+    let isMounted = true
+
+    const fetchApprovedListings = async () => {
+      const { data, error } = await supabase
+        .from('opportunities')
+        .select('id,title,type,location,closing_date,status')
+        .eq('status', 'Approved')
+        .order('created_at', { ascending: false })
+
+      if (!isMounted || error) {
+        return
+      }
+
+      setDbApprovedListings((data || []).map(normalizeApprovedListing))
+    }
+
+    fetchApprovedListings()
+
+    return () => {
+      isMounted = false
+    }
+  }, [hasListingsProp])
+
+  const approvedListings = useMemo(() => {
+    if (hasListingsProp) {
+      return listings.filter((listing) => listing?.status === 'Approved')
+    }
+
+    if (!hasSupabaseConfig) {
+      return availableListings
+    }
+
+    return dbApprovedListings
+  }, [dbApprovedListings, hasListingsProp, listings])
 
   return (
     <main className="user-page applicant-theme user-discovery-shell">

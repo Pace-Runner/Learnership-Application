@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 
 function getPendingListings(listings) {
@@ -7,7 +7,7 @@ function getPendingListings(listings) {
 
 function buildAdminActionPayload(adminId, actionType, targetId, reason) {
   const payload = {
-    admin_id: adminId,
+    admin_id: adminId || null,
     action_type: actionType,
     target_type: 'listing',
     target_id: targetId,
@@ -20,9 +20,22 @@ function buildAdminActionPayload(adminId, actionType, targetId, reason) {
   return payload
 }
 
+function normalizeListing(row) {
+  const providerFromJoin = row?.provider_profiles?.organisation_name
+  return {
+    id: row.id,
+    title: row.title || 'Untitled opportunity',
+    provider: row.provider || providerFromJoin || row.provider_id || 'Unknown provider',
+    type: row.type || 'Not specified',
+    location: row.location || 'Not specified',
+    closingDate: row.closingDate || row.closing_date || 'Not specified',
+    status: row.status,
+  }
+}
+
 export default function Admin({
   onLogout = () => {},
-  listings = [],
+  listings,
   onApproveListing,
   onRemoveListing,
   onLogAdminAction,
@@ -30,15 +43,23 @@ export default function Admin({
   userRole = 'Admin',
   isAuthenticated = true,
 }) {
-  const pendingListings = useMemo(() => getPendingListings(listings), [listings])
+  const hasProvidedListings = Array.isArray(listings)
+  const pendingListings = useMemo(
+    () => getPendingListings(hasProvidedListings ? listings : []),
+    [hasProvidedListings, listings],
+  )
   const [visibleListings, setVisibleListings] = useState(pendingListings)
   const [removeReason, setRemoveReason] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
+  const [isQueueLoading, setIsQueueLoading] = useState(false)
+  const [resolvedAdminId, setResolvedAdminId] = useState('')
 
   useEffect(() => {
-    setVisibleListings(pendingListings)
-  }, [pendingListings])
+    if (hasProvidedListings) {
+      setVisibleListings(pendingListings)
+    }
+  }, [hasProvidedListings, pendingListings])
 
   if (!isAuthenticated) {
     return (
@@ -60,12 +81,87 @@ export default function Admin({
     )
   }
 
+  const effectiveAdminId = currentAdminId || resolvedAdminId || ''
+
+  const resolveAdminId = useCallback(async () => {
+    if (!hasSupabaseConfig || hasProvidedListings) {
+      return
+    }
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user?.email) {
+      return
+    }
+
+    const { data: userRecord } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', user.email)
+      .maybeSingle()
+
+    if (userRecord?.id) {
+      setResolvedAdminId(userRecord.id)
+      return
+    }
+
+    const { data: upsertedAdmin } = await supabase
+      .from('users')
+      .upsert({ email: user.email, role: 'Admin' }, { onConflict: 'email' })
+      .select('id')
+      .maybeSingle()
+
+    if (upsertedAdmin?.id) {
+      setResolvedAdminId(upsertedAdmin.id)
+    }
+  }, [hasProvidedListings])
+
+  const fetchPendingListings = useCallback(async () => {
+    if (hasProvidedListings) {
+      return
+    }
+
+    if (!hasSupabaseConfig) {
+      setVisibleListings([])
+      setErrorMessage('Supabase config missing. Cannot load moderation queue.')
+      return
+    }
+
+    setIsQueueLoading(true)
+    setErrorMessage('')
+
+    const { data, error } = await supabase
+      .from('opportunities')
+      .select('id,title,type,location,closing_date,status,provider_id,provider_profiles:provider_id(organisation_name)')
+      .eq('status', 'Pending')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      setVisibleListings([])
+      setErrorMessage('Could not load pending listings. Check Supabase RLS policies.')
+      setIsQueueLoading(false)
+      return
+    }
+
+    setVisibleListings((data || []).map(normalizeListing))
+    setIsQueueLoading(false)
+  }, [hasProvidedListings])
+
+  useEffect(() => {
+    resolveAdminId()
+    fetchPendingListings()
+  }, [resolveAdminId, fetchPendingListings])
+
   const persistListingStatus = async (listingId, status) => {
     if (!hasSupabaseConfig) {
       return
     }
 
-    await supabase.from('opportunities').update({ status }).eq('id', listingId)
+    const { error } = await supabase.from('opportunities').update({ status }).eq('id', listingId)
+    return error
   }
 
   const persistAdminAction = async (payload) => {
@@ -73,7 +169,8 @@ export default function Admin({
       return
     }
 
-    await supabase.from('admin_actions').insert(payload)
+    const { error } = await supabase.from('admin_actions').insert(payload)
+    return error
   }
 
   const removeFromVisibleQueue = (listingId) => {
@@ -81,18 +178,25 @@ export default function Admin({
   }
 
   const handleApprove = async (listing) => {
-    const payload = buildAdminActionPayload(currentAdminId, 'approved', listing.id)
+    const payload = buildAdminActionPayload(effectiveAdminId, 'approved', listing.id)
 
     if (typeof onApproveListing === 'function') {
       onApproveListing(listing.id)
     } else {
-      await persistListingStatus(listing.id, 'Approved')
+      const updateError = await persistListingStatus(listing.id, 'Approved')
+      if (updateError) {
+        setErrorMessage('Could not approve listing. Check database permissions.')
+        return
+      }
     }
 
     if (typeof onLogAdminAction === 'function') {
       onLogAdminAction(payload)
     } else {
-      await persistAdminAction(payload)
+      const logError = await persistAdminAction(payload)
+      if (logError) {
+        setErrorMessage('Listing approved, but action log failed.')
+      }
     }
 
     removeFromVisibleQueue(listing.id)
@@ -107,18 +211,25 @@ export default function Admin({
     }
 
     const reason = removeReason.trim()
-    const payload = buildAdminActionPayload(currentAdminId, 'removed', listing.id, reason)
+    const payload = buildAdminActionPayload(effectiveAdminId, 'removed', listing.id, reason)
 
     if (typeof onRemoveListing === 'function') {
       onRemoveListing(listing.id, reason)
     } else {
-      await persistListingStatus(listing.id, 'Removed')
+      const updateError = await persistListingStatus(listing.id, 'Removed')
+      if (updateError) {
+        setErrorMessage('Could not remove listing. Check database permissions.')
+        return
+      }
     }
 
     if (typeof onLogAdminAction === 'function') {
       onLogAdminAction(payload)
     } else {
-      await persistAdminAction(payload)
+      const logError = await persistAdminAction(payload)
+      if (logError) {
+        setErrorMessage('Listing removed, but action log failed.')
+      }
     }
 
     removeFromVisibleQueue(listing.id)
@@ -175,7 +286,7 @@ export default function Admin({
           <section className="admin-panel" aria-label="Moderation queue">
             <header className="admin-panel-head">
               <h2>Moderation Queue</h2>
-              <button type="button">View all</button>
+              <button type="button" onClick={fetchPendingListings}>View all</button>
             </header>
 
             <div className="admin-note">{statusMessage || errorMessage}</div>
@@ -194,7 +305,9 @@ export default function Admin({
               placeholder="Enter a moderation reason before removing a listing"
             />
 
-            {visibleListings.length === 0 ? (
+            {isQueueLoading ? (
+              <p className="admin-note">Loading pending listings...</p>
+            ) : visibleListings.length === 0 ? (
               <p className="admin-note">No pending listings to review.</p>
             ) : (
               <ul className="admin-list">
