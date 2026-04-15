@@ -20,39 +20,16 @@ function renderAdmin(props = {}) {
     isAuthenticated: true,
   }
 
-  return render(<Admin {...defaultProps} {...props} />)
+  const merged = { ...defaultProps, ...props }
+  return render(<Admin {...merged} />)
 }
 
 describe('Admin moderation queue TDD tests', () => {
   test('1. moderation queue only shows Pending listings', () => {
     const listings = [
-      {
-        id: 'l-1',
-        title: 'Pending Listing Alpha',
-        provider: 'Provider A',
-        type: 'Learnership',
-        location: 'Cape Town',
-        closingDate: '2026-05-01',
-        status: 'Pending',
-      },
-      {
-        id: 'l-2',
-        title: 'Approved Listing Beta',
-        provider: 'Provider B',
-        type: 'Internship',
-        location: 'Johannesburg',
-        closingDate: '2026-05-05',
-        status: 'Approved',
-      },
-      {
-        id: 'l-3',
-        title: 'Removed Listing Gamma',
-        provider: 'Provider C',
-        type: 'Apprenticeship',
-        location: 'Durban',
-        closingDate: '2026-05-09',
-        status: 'Removed',
-      },
+      { id: 'l-1', title: 'Pending Listing Alpha', provider: 'Provider A', type: 'Learnership', location: 'Cape Town', closingDate: '2026-05-01', status: 'Pending' },
+      { id: 'l-2', title: 'Approved Listing Beta', provider: 'Provider B', type: 'Internship', location: 'Johannesburg', closingDate: '2026-05-05', status: 'Approved' },
+      { id: 'l-3', title: 'Removed Listing Gamma', provider: 'Provider C', type: 'Apprenticeship', location: 'Durban', closingDate: '2026-05-09', status: 'Removed' },
     ]
 
     renderAdmin({ listings })
@@ -64,15 +41,7 @@ describe('Admin moderation queue TDD tests', () => {
 
   test('2. moderation queue shows title, provider, type, location, closing date', () => {
     const listings = [
-      {
-        id: 'l-10',
-        title: 'Electrical Apprenticeship Cohort',
-        provider: 'VoltPath Academy',
-        type: 'Apprenticeship',
-        location: 'Pretoria',
-        closingDate: '2026-06-01',
-        status: 'Pending',
-      },
+      { id: 'l-10', title: 'Electrical Apprenticeship Cohort', provider: 'VoltPath Academy', type: 'Apprenticeship', location: 'Pretoria', closingDate: '2026-06-01', status: 'Pending' },
     ]
 
     renderAdmin({ listings })
@@ -89,81 +58,58 @@ describe('Admin moderation queue TDD tests', () => {
 
   test('3. empty moderation queue shows a clear message', () => {
     renderAdmin({ listings: [] })
-
     expect(screen.getByText(/no pending listings to review/i)).toBeTruthy()
   })
 
   test('4. approve action updates listing status and removes from queue', () => {
     const onApproveListing = vi.fn()
+    const onLogAdminAction = vi.fn()
     const listings = [
-      {
-        id: 'l-20',
-        title: 'Pending Listing For Approval',
-        provider: 'Provider X',
-        type: 'Learnership',
-        location: 'Polokwane',
-        closingDate: '2026-06-20',
-        status: 'Pending',
-      },
+      { id: 'l-20', title: 'Pending Listing For Approval', provider: 'Provider X', type: 'Learnership', location: 'Polokwane', closingDate: '2026-06-20', status: 'Pending' },
     ]
 
-    renderAdmin({ listings, onApproveListing })
+    renderAdmin({ listings, onApproveListing, onLogAdminAction })
 
-    fireEvent.click(screen.getByRole('button', { name: /approve/i }))
+    const approveButtons = screen.getAllByRole('button', { name: /approve/i })
+    const approveButton = approveButtons.find((btn) => btn.textContent === 'Approve')
+    fireEvent.click(approveButton)
 
     expect(onApproveListing).toHaveBeenCalledWith('l-20')
+    expect(onLogAdminAction).toHaveBeenCalled()
     expect(screen.queryByText('Pending Listing For Approval')).toBeNull()
   })
 
   test('5. remove action updates listing status and removes from queue', () => {
     const onRemoveListing = vi.fn()
+    const onLogAdminAction = vi.fn()
     const listings = [
-      {
-        id: 'l-21',
-        title: 'Pending Listing For Removal',
-        provider: 'Provider Y',
-        type: 'Internship',
-        location: 'Bloemfontein',
-        closingDate: '2026-06-21',
-        status: 'Pending',
-      },
+      { id: 'l-21', title: 'Pending Listing For Removal', provider: 'Provider Y', type: 'Internship', location: 'Bloemfontein', closingDate: '2026-06-21', status: 'Pending' },
     ]
 
-    renderAdmin({ listings, onRemoveListing })
+    renderAdmin({ listings, onRemoveListing, onLogAdminAction })
 
-    fireEvent.change(screen.getByLabelText(/remove reason/i), {
-      target: { value: 'Duplicate listing' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /remove/i }))
+    fireEvent.change(screen.getByLabelText(/remove reason/i), { target: { value: 'Duplicate listing' } })
+    const removeButtons = screen.getAllByRole('button', { name: /remove/i })
+    const removeButton = removeButtons.find((btn) => btn.textContent === 'Remove')
+    fireEvent.click(removeButton)
 
     expect(onRemoveListing).toHaveBeenCalledWith('l-21', 'Duplicate listing')
+    expect(onLogAdminAction).toHaveBeenCalled()
     expect(screen.queryByText('Pending Listing For Removal')).toBeNull()
   })
 
   test('6. approve action is logged in admin_actions payload', () => {
     const onApproveListing = vi.fn()
     const onLogAdminAction = vi.fn()
-
     const listings = [
-      {
-        id: 'l-30',
-        title: 'Pending Log Approval Listing',
-        provider: 'Provider Z',
-        type: 'Learnership',
-        location: 'Kimberley',
-        closingDate: '2026-07-01',
-        status: 'Pending',
-      },
+      { id: 'l-30', title: 'Pending Log Approval Listing', provider: 'Provider Z', type: 'Learnership', location: 'Kimberley', closingDate: '2026-07-01', status: 'Pending' },
     ]
 
-    renderAdmin({
-      listings,
-      currentAdminId: 'admin-900',
-      onApproveListing,
-      onLogAdminAction,
-    })
+    renderAdmin({ listings, currentAdminId: 'admin-900', onApproveListing, onLogAdminAction })
 
-    fireEvent.click(screen.getByRole('button', { name: /approve/i }))
+    const approveButtons = screen.getAllByRole('button', { name: /approve/i })
+    const approveButton = approveButtons.find((btn) => btn.textContent === 'Approve')
+    fireEvent.click(approveButton)
 
     expect(onLogAdminAction).toHaveBeenCalledWith({
       admin_id: 'admin-900',
@@ -176,30 +122,16 @@ describe('Admin moderation queue TDD tests', () => {
   test('7. remove action is logged in admin_actions payload', () => {
     const onRemoveListing = vi.fn()
     const onLogAdminAction = vi.fn()
-
     const listings = [
-      {
-        id: 'l-31',
-        title: 'Pending Log Remove Listing',
-        provider: 'Provider Z2',
-        type: 'Apprenticeship',
-        location: 'Gqeberha',
-        closingDate: '2026-07-03',
-        status: 'Pending',
-      },
+      { id: 'l-31', title: 'Pending Log Remove Listing', provider: 'Provider Z2', type: 'Apprenticeship', location: 'Gqeberha', closingDate: '2026-07-03', status: 'Pending' },
     ]
 
-    renderAdmin({
-      listings,
-      currentAdminId: 'admin-901',
-      onRemoveListing,
-      onLogAdminAction,
-    })
+    renderAdmin({ listings, currentAdminId: 'admin-901', onRemoveListing, onLogAdminAction })
 
-    fireEvent.change(screen.getByLabelText(/remove reason/i), {
-      target: { value: 'Non-compliant content' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /remove/i }))
+    fireEvent.change(screen.getByLabelText(/remove reason/i), { target: { value: 'Non-compliant content' } })
+    const removeButtons = screen.getAllByRole('button', { name: /remove/i })
+    const removeButton = removeButtons.find((btn) => btn.textContent === 'Remove')
+    fireEvent.click(removeButton)
 
     expect(onLogAdminAction).toHaveBeenCalledWith({
       admin_id: 'admin-901',
@@ -212,22 +144,15 @@ describe('Admin moderation queue TDD tests', () => {
 
   test('8. remove action requires a reason', () => {
     const onRemoveListing = vi.fn()
-
     const listings = [
-      {
-        id: 'l-40',
-        title: 'Needs reason listing',
-        provider: 'Provider Q',
-        type: 'Learnership',
-        location: 'Nelspruit',
-        closingDate: '2026-08-01',
-        status: 'Pending',
-      },
+      { id: 'l-40', title: 'Needs reason listing', provider: 'Provider Q', type: 'Learnership', location: 'Nelspruit', closingDate: '2026-08-01', status: 'Pending' },
     ]
 
     renderAdmin({ listings, onRemoveListing })
 
-    fireEvent.click(screen.getByRole('button', { name: /remove/i }))
+    const removeButtons = screen.getAllByRole('button', { name: /remove/i })
+    const removeButton = removeButtons.find((btn) => btn.textContent === 'Remove')
+    fireEvent.click(removeButton)
 
     expect(onRemoveListing).not.toHaveBeenCalled()
     expect(screen.getByText(/remove reason is required/i)).toBeTruthy()
@@ -235,36 +160,19 @@ describe('Admin moderation queue TDD tests', () => {
 
   test('9. non-admin cannot access moderation panel', () => {
     renderAdmin({ userRole: 'Applicant', isAuthenticated: true })
-
     expect(screen.queryByText(/moderation queue/i)).toBeNull()
     expect(screen.getByText(/access denied/i)).toBeTruthy()
   })
 
   test('10. unauthenticated user cannot access moderation panel', () => {
     renderAdmin({ isAuthenticated: false })
-
     expect(screen.queryByText(/moderation queue/i)).toBeNull()
     expect(screen.getByText(/redirecting to home/i)).toBeTruthy()
   })
 
   test('11. approved listing becomes visible to applicants', () => {
-    const listingsBefore = [
-      {
-        id: 'a-1',
-        title: 'Applicant Visibility Listing',
-        type: 'Learnership',
-        status: 'Pending',
-      },
-    ]
-
-    const listingsAfter = [
-      {
-        id: 'a-1',
-        title: 'Applicant Visibility Listing',
-        type: 'Learnership',
-        status: 'Approved',
-      },
-    ]
+    const listingsBefore = [{ id: 'a-1', title: 'Applicant Visibility Listing', type: 'Learnership', provider: 'Provider', location: 'Location', closingDate: '2026-05-01', status: 'Pending' }]
+    const listingsAfter = [{ id: 'a-1', title: 'Applicant Visibility Listing', type: 'Learnership', provider: 'Provider', location: 'Location', closingDate: '2026-05-01', status: 'Approved' }]
 
     const onLogout = vi.fn()
 
@@ -287,18 +195,8 @@ describe('Admin moderation queue TDD tests', () => {
 
   test('12. removed listing is not visible to applicants', () => {
     const listings = [
-      {
-        id: 'a-3',
-        title: 'Approved Applicant Listing',
-        type: 'Learnership',
-        status: 'Approved',
-      },
-      {
-        id: 'a-2',
-        title: 'Should Not Be Visible To Applicants',
-        type: 'Internship',
-        status: 'Removed',
-      },
+      { id: 'a-3', title: 'Approved Applicant Listing', type: 'Learnership', provider: 'Provider', location: 'Location', closingDate: '2026-05-01', status: 'Approved' },
+      { id: 'a-2', title: 'Should Not Be Visible To Applicants', type: 'Internship', provider: 'Provider', location: 'Location', closingDate: '2026-05-01', status: 'Removed' },
     ]
 
     const onLogout = vi.fn()
