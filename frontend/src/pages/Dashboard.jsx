@@ -33,7 +33,12 @@ const availableListings = [
 const listingFilters = ['All', 'Learnership', 'Internship', 'Apprenticeship']
 
 // Applicant workspace component
-export default function Dashboard({ onLogout }) {
+export default function Dashboard({ onLogout, listings }) {
+  const hasListingsProp = Array.isArray(listings)
+  const approvedListings = hasListingsProp
+    ? listings.filter((listing) => listing?.status === 'Approved')
+    : availableListings
+
   return (
     <main className="user-page applicant-theme user-discovery-shell">
       <section className="user-page-inner">
@@ -79,15 +84,21 @@ export default function Dashboard({ onLogout }) {
       <section className="user-content-grid">
         <article className="user-panel">
           <h2>Current Listings and Internships</h2>
-          <ul className="user-list">
-            {availableListings.map((item) => (
-              <li key={item.title}>
-                <span>{item.type}</span>
-                <strong>{item.title}</strong>
-                <small className="user-item-meta">{item.meta}</small>
-              </li>
-            ))}
-          </ul>
+          {approvedListings.length === 0 ? (
+            <p className="user-panel-copy">No approved listings available yet.</p>
+          ) : (
+            <ul className="user-list">
+              {approvedListings.map((item) => (
+                <li key={item.id || item.title}>
+                  <span>{item.type}</span>
+                  <strong>{item.title}</strong>
+                  {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
+                  {item.location ? <small className="user-item-meta">{item.location}</small> : null}
+                  {item.closingDate ? <small className="user-item-meta">{item.closingDate}</small> : null}
+                </li>
+              ))}
+            </ul>
+          )}
         </article>
       </section>
       </section>

@@ -9,99 +9,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import Admin from './pages/Admin'
 import Dashboard from './pages/Dashboard'
 import ApplicantProfile from './pages/ApplicantProfile'
 import Provider from './pages/Provider'
 import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
-
-const moderationQueue = [
-  { title: 'Junior Electrical Apprenticeship', provider: 'VoltPath Academy', risk: 'Needs final compliance check' },
-  { title: 'Admin Intern - Retail Operations', provider: 'Sabela Retail Group', risk: 'Duplicate listing detected' },
-  { title: 'Plumbing Learnership NQF 3', provider: 'Blue Pipe Training Hub', risk: 'Closing date mismatch' },
-]
-
-// Admin moderation dashboard - shown when user has Admin role
-function AdminDashboardShell({ onLogout }) {
-  return (
-    <div className="admin-page">
-      <div className="admin-grid-overlay" aria-hidden="true"></div>
-
-      <div className="admin-shell">
-        <div className="admin-header-row">
-          <div className="admin-title-block">
-            <p className="mini-label">ADMIN PANEL</p>
-            <h1>Platform Moderation Console</h1>
-            <p>
-              Review opportunity quality, verify provider submissions, and keep listings
-              aligned with policy and NQF requirements.
-            </p>
-          </div>
-
-          <div className="admin-status-card">
-            <p>Signed in as</p>
-            <strong>Admin</strong>
-            <span>Google OAuth session active</span>
-            <button onClick={onLogout} className="admin-btn">
-                Logout
-           </button>
-          </div>
-        </div>
-
-        <div className="admin-kpi-row">
-          <div className="admin-kpi">
-            <span>Pending Reviews</span>
-            <strong>18</strong>
-          </div>
-          <div className="admin-kpi">
-            <span>Flagged Listings</span>
-            <strong>6</strong>
-          </div>
-          <div className="admin-kpi">
-            <span>Provider Appeals</span>
-            <strong>3</strong>
-          </div>
-          <div className="admin-kpi">
-            <span>Avg Turnaround</span>
-            <strong>14h</strong>
-          </div>
-        </div>
-
-        <div className="admin-content-row">
-          <div className="admin-panel">
-            <div className="admin-panel-head">
-              <h2>Moderation Queue</h2>
-              <button type="button">View all</button>
-            </div>
-
-            <div className="admin-list">
-              {moderationQueue.map((item) => (
-                <div key={item.title} className="admin-list-item">
-                  <div>
-                    <h3>{item.title}</h3>
-                    <p>{item.provider}</p>
-                  </div>
-                  <span>{item.risk}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="admin-panel admin-side-panel">
-            <h2>Quick Actions</h2>
-            <div className="admin-action-list">
-              <button type="button">Approve selected listings</button>
-              <button type="button">Send provider feedback</button>
-              <button type="button">Export moderation report</button>
-            </div>
-            <div className="admin-note">
-              Provider listings are moderated here once they are approved into production flow.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+const AdminDashboardShell = Admin
 
 // ProtectedRoute: Guard component that restricts access to role-specific pages
 // USAGE: <ProtectedRoute role={role} allowedRole="Admin" signedIn={signedIn} isLoading={isLoadingAuth}><Admin /></ProtectedRoute>

@@ -1,14 +1,132 @@
-// Admin workspace - moderation dashboard for reviewing listings
+import { useEffect, useMemo, useState } from 'react'
+import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 
-// Mock queue data for now; this can come from Supabase once moderation APIs are wired.
-const moderationQueue = [
-  { title: 'Junior Electrical Apprenticeship', provider: 'VoltPath Academy', risk: 'Needs final compliance check' },
-  { title: 'Admin Intern - Retail Operations', provider: 'Sabela Retail Group', risk: 'Duplicate listing detected' },
-  { title: 'Plumbing Learnership NQF 3', provider: 'Blue Pipe Training Hub', risk: 'Closing date mismatch' },
-]
+function getPendingListings(listings) {
+  return listings.filter((listing) => listing?.status === 'Pending')
+}
 
-// dashboard
-export default function Admin({ onLogout }) {
+function buildAdminActionPayload(adminId, actionType, targetId, reason) {
+  const payload = {
+    admin_id: adminId,
+    action_type: actionType,
+    target_type: 'listing',
+    target_id: targetId,
+  }
+
+  if (reason) {
+    payload.reason = reason
+  }
+
+  return payload
+}
+
+export default function Admin({
+  onLogout = () => {},
+  listings = [],
+  onApproveListing,
+  onRemoveListing,
+  onLogAdminAction,
+  currentAdminId = '',
+  userRole = 'Admin',
+  isAuthenticated = true,
+}) {
+  const pendingListings = useMemo(() => getPendingListings(listings), [listings])
+  const [visibleListings, setVisibleListings] = useState(pendingListings)
+  const [removeReason, setRemoveReason] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [statusMessage, setStatusMessage] = useState('')
+
+  useEffect(() => {
+    setVisibleListings(pendingListings)
+  }, [pendingListings])
+
+  if (!isAuthenticated) {
+    return (
+      <main className="admin-page">
+        <section className="admin-shell">
+          <p>Redirecting to home</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (userRole !== 'Admin') {
+    return (
+      <main className="admin-page">
+        <section className="admin-shell">
+          <p>Access denied. Admins only.</p>
+        </section>
+      </main>
+    )
+  }
+
+  const persistListingStatus = async (listingId, status) => {
+    if (!hasSupabaseConfig) {
+      return
+    }
+
+    await supabase.from('opportunities').update({ status }).eq('id', listingId)
+  }
+
+  const persistAdminAction = async (payload) => {
+    if (!hasSupabaseConfig) {
+      return
+    }
+
+    await supabase.from('admin_actions').insert(payload)
+  }
+
+  const removeFromVisibleQueue = (listingId) => {
+    setVisibleListings((currentListings) => currentListings.filter((listing) => listing.id !== listingId))
+  }
+
+  const handleApprove = async (listing) => {
+    const payload = buildAdminActionPayload(currentAdminId, 'approved', listing.id)
+
+    if (typeof onApproveListing === 'function') {
+      onApproveListing(listing.id)
+    } else {
+      await persistListingStatus(listing.id, 'Approved')
+    }
+
+    if (typeof onLogAdminAction === 'function') {
+      onLogAdminAction(payload)
+    } else {
+      await persistAdminAction(payload)
+    }
+
+    removeFromVisibleQueue(listing.id)
+    setErrorMessage('')
+    setStatusMessage(`Approved ${listing.title}`)
+  }
+
+  const handleRemove = async (listing) => {
+    if (!removeReason.trim()) {
+      setErrorMessage('Remove reason is required before removing a listing.')
+      return
+    }
+
+    const reason = removeReason.trim()
+    const payload = buildAdminActionPayload(currentAdminId, 'removed', listing.id, reason)
+
+    if (typeof onRemoveListing === 'function') {
+      onRemoveListing(listing.id, reason)
+    } else {
+      await persistListingStatus(listing.id, 'Removed')
+    }
+
+    if (typeof onLogAdminAction === 'function') {
+      onLogAdminAction(payload)
+    } else {
+      await persistAdminAction(payload)
+    }
+
+    removeFromVisibleQueue(listing.id)
+    setRemoveReason('')
+    setErrorMessage('')
+    setStatusMessage(`Removed ${listing.title}`)
+  }
+
   return (
     <main className="admin-page">
       <span className="admin-grid-overlay" aria-hidden="true"></span>
@@ -19,8 +137,8 @@ export default function Admin({ onLogout }) {
             <p className="mini-label">Admin Workspace</p>
             <h1>Platform Moderation Console</h1>
             <p>
-              Review opportunity quality, verify provider submissions, and keep listings
-              aligned with policy and NQF requirements.
+              Review opportunity quality, verify provider submissions, and keep listings aligned
+              with policy and NQF requirements.
             </p>
           </section>
 
@@ -34,11 +152,10 @@ export default function Admin({ onLogout }) {
           </aside>
         </header>
 
-        {/* Quick snapshot cards so admins can scan platform health at a glance. */}
         <section className="admin-kpi-row" aria-label="Moderation metrics">
           <article className="admin-kpi">
             <span>Pending Reviews</span>
-            <strong>18</strong>
+            <strong>{visibleListings.length}</strong>
           </article>
           <article className="admin-kpi">
             <span>Flagged Listings</span>
@@ -61,24 +178,53 @@ export default function Admin({ onLogout }) {
               <button type="button">View all</button>
             </header>
 
-            {/* Queue list is rendered from moderationQueue until backend data is connected. */}
-            <ul className="admin-list">
-              {moderationQueue.map((item) => (
-                <li key={item.title} className="admin-list-item">
-                  <header>
-                    <h3>{item.title}</h3>
-                    <p>{item.provider}</p>
-                  </header>
-                  <span>{item.risk}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="admin-note">{statusMessage || errorMessage}</div>
+
+            <label className="admin-removal-label" htmlFor="remove-reason">
+              Remove reason
+            </label>
+            <textarea
+              id="remove-reason"
+              value={removeReason}
+              onChange={(event) => {
+                setRemoveReason(event.target.value)
+                setErrorMessage('')
+              }}
+              rows="3"
+              placeholder="Enter a moderation reason before removing a listing"
+            />
+
+            {visibleListings.length === 0 ? (
+              <p className="admin-note">No pending listings to review.</p>
+            ) : (
+              <ul className="admin-list">
+                {visibleListings.map((listing) => (
+                  <li key={listing.id} className="admin-list-item">
+                    <header>
+                      <h3>{listing.title}</h3>
+                      <p>{listing.provider}</p>
+                    </header>
+                    <span>{listing.type}</span>
+                    <span>{listing.location}</span>
+                    <span>{listing.closingDate}</span>
+                    <div className="admin-action-list">
+                      <button type="button" onClick={() => handleApprove(listing)}>
+                        Approve
+                      </button>
+                      <button type="button" onClick={() => handleRemove(listing)}>
+                        Remove
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <aside className="admin-panel admin-side-panel" aria-label="Quick actions">
             <h2>Quick Actions</h2>
             <nav className="admin-action-list" aria-label="Admin quick actions">
-              <button type="button">Approve selected listings</button>
+              <button type="button">Review selected listings</button>
               <button type="button">Send provider feedback</button>
               <button type="button">Export moderation report</button>
             </nav>
