@@ -54,12 +54,19 @@ export default function Admin({
   const [statusMessage, setStatusMessage] = useState('')
   const [isQueueLoading, setIsQueueLoading] = useState(false)
   const [resolvedAdminId, setResolvedAdminId] = useState('')
+  const [selectedListingIds, setSelectedListingIds] = useState([])
 
   useEffect(() => {
     if (hasProvidedListings) {
       setVisibleListings(pendingListings)
     }
   }, [hasProvidedListings, pendingListings])
+
+  useEffect(() => {
+    setSelectedListingIds((currentSelection) =>
+      currentSelection.filter((listingId) => visibleListings.some((listing) => listing.id === listingId)),
+    )
+  }, [visibleListings])
 
   if (!isAuthenticated) {
     return (
@@ -177,7 +184,15 @@ export default function Admin({
     setVisibleListings((currentListings) => currentListings.filter((listing) => listing.id !== listingId))
   }
 
-  const handleApprove = async (listing) => {
+  const toggleListingSelection = (listingId) => {
+    setSelectedListingIds((currentSelection) =>
+      currentSelection.includes(listingId)
+        ? currentSelection.filter((id) => id !== listingId)
+        : [...currentSelection, listingId],
+    )
+  }
+
+  const approveSingleListing = async (listing) => {
     const payload = buildAdminActionPayload(effectiveAdminId, 'approved', listing.id)
 
     if (typeof onApproveListing === 'function') {
@@ -186,7 +201,7 @@ export default function Admin({
       const updateError = await persistListingStatus(listing.id, 'Approved')
       if (updateError) {
         setErrorMessage('Could not approve listing. Check database permissions.')
-        return
+        return false
       }
     }
 
@@ -200,17 +215,10 @@ export default function Admin({
     }
 
     removeFromVisibleQueue(listing.id)
-    setErrorMessage('')
-    setStatusMessage(`Approved ${listing.title}`)
+    return true
   }
 
-  const handleRemove = async (listing) => {
-    if (!removeReason.trim()) {
-      setErrorMessage('Remove reason is required before removing a listing.')
-      return
-    }
-
-    const reason = removeReason.trim()
+  const removeSingleListing = async (listing, reason) => {
     const payload = buildAdminActionPayload(effectiveAdminId, 'removed', listing.id, reason)
 
     if (typeof onRemoveListing === 'function') {
@@ -219,7 +227,7 @@ export default function Admin({
       const updateError = await persistListingStatus(listing.id, 'Removed')
       if (updateError) {
         setErrorMessage('Could not remove listing. Check database permissions.')
-        return
+        return false
       }
     }
 
@@ -233,9 +241,115 @@ export default function Admin({
     }
 
     removeFromVisibleQueue(listing.id)
+    return true
+  }
+
+  const handleApprove = async (listing) => {
+    const didApprove = await approveSingleListing(listing)
+    if (!didApprove) {
+      return
+    }
+    setSelectedListingIds((currentSelection) => currentSelection.filter((id) => id !== listing.id))
+    setErrorMessage('')
+    setStatusMessage(`Approved ${listing.title}`)
+  }
+
+  const handleRemove = async (listing) => {
+    if (!removeReason.trim()) {
+      setErrorMessage('Remove reason is required before removing a listing.')
+      return
+    }
+
+    const reason = removeReason.trim()
+    const didRemove = await removeSingleListing(listing, reason)
+    if (!didRemove) {
+      return
+    }
+
+    setSelectedListingIds((currentSelection) => currentSelection.filter((id) => id !== listing.id))
     setRemoveReason('')
     setErrorMessage('')
     setStatusMessage(`Removed ${listing.title}`)
+  }
+
+  const handleApproveSelected = async () => {
+    if (selectedListingIds.length === 0) {
+      setErrorMessage('Select at least one listing first.')
+      return
+    }
+
+    const selectedListings = visibleListings.filter((listing) => selectedListingIds.includes(listing.id))
+    for (const listing of selectedListings) {
+      const didApprove = await approveSingleListing(listing)
+      if (!didApprove) {
+        return
+      }
+    }
+
+    setSelectedListingIds([])
+    setErrorMessage('')
+    setStatusMessage(`Approved ${selectedListings.length} selected listing(s).`)
+  }
+
+  const handleRemoveSelected = async () => {
+    const reason = removeReason.trim()
+
+    if (selectedListingIds.length === 0) {
+      setErrorMessage('Select at least one listing first.')
+      return
+    }
+
+    if (!reason) {
+      setErrorMessage('Remove reason is required before removing selected listings.')
+      return
+    }
+
+    const selectedListings = visibleListings.filter((listing) => selectedListingIds.includes(listing.id))
+    for (const listing of selectedListings) {
+      const didRemove = await removeSingleListing(listing, reason)
+      if (!didRemove) {
+        return
+      }
+    }
+
+    setSelectedListingIds([])
+    setRemoveReason('')
+    setErrorMessage('')
+    setStatusMessage(`Removed ${selectedListings.length} selected listing(s).`)
+  }
+
+  const handleExportModerationReport = () => {
+    if (visibleListings.length === 0) {
+      setErrorMessage('No pending listings to export.')
+      return
+    }
+
+    const header = ['id', 'title', 'provider', 'type', 'location', 'closingDate', 'status']
+    const rows = visibleListings.map((listing) => [
+      listing.id,
+      listing.title,
+      listing.provider,
+      listing.type,
+      listing.location,
+      listing.closingDate,
+      listing.status,
+    ])
+
+    const csv = [header, ...rows]
+      .map((row) => row.map((value) => `"${String(value || '').replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `moderation-report-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    setErrorMessage('')
+    setStatusMessage('Moderation report exported.')
   }
 
   return (
@@ -314,6 +428,14 @@ export default function Admin({
                 {visibleListings.map((listing) => (
                   <li key={listing.id} className="admin-list-item">
                     <header>
+                      <label className="admin-select-label">
+                        <input
+                          type="checkbox"
+                          checked={selectedListingIds.includes(listing.id)}
+                          onChange={() => toggleListingSelection(listing.id)}
+                        />
+                        Select
+                      </label>
                       <h3>{listing.title}</h3>
                       <p>{listing.provider}</p>
                     </header>
@@ -337,9 +459,9 @@ export default function Admin({
           <aside className="admin-panel admin-side-panel" aria-label="Quick actions">
             <h2>Quick Actions</h2>
             <nav className="admin-action-list" aria-label="Admin quick actions">
-              <button type="button">Review selected listings</button>
-              <button type="button">Send provider feedback</button>
-              <button type="button">Export moderation report</button>
+              <button type="button" onClick={handleApproveSelected}>Approve selected listings</button>
+              <button type="button" onClick={handleRemoveSelected}>Remove selected listings</button>
+              <button type="button" onClick={handleExportModerationReport}>Export moderation report</button>
             </nav>
             <p className="admin-note">
               Provider listings are moderated here once they are approved into production flow.

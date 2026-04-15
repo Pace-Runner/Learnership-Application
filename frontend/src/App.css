@@ -847,6 +847,49 @@
   font-size: 0.84rem;
 }
 
+.admin-removal-label {
+  display: block;
+  margin-top: 0.8rem;
+  margin-bottom: 0.35rem;
+  color: rgba(213, 233, 255, 0.95);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#remove-reason {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(175, 207, 255, 0.38);
+  background: rgba(10, 28, 58, 0.82);
+  color: rgba(235, 247, 255, 0.98);
+  padding: 0.6rem 0.7rem;
+  resize: vertical;
+  min-height: 78px;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+#remove-reason::placeholder {
+  color: rgba(188, 212, 240, 0.85);
+}
+
+.admin-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(199, 223, 252, 0.88);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.admin-select-label input {
+  accent-color: #86c8ff;
+}
+
 @media (max-width: 1100px) {
   .hero-main,
   .hero-bottom,
