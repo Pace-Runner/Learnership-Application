@@ -49,12 +49,19 @@ export default function Admin({
     [hasProvidedListings, listings],
   )
   const [visibleListings, setVisibleListings] = useState(pendingListings)
-  const [removeReason, setRemoveReason] = useState('')
+  const [selectedListingId, setSelectedListingId] = useState('')
+  const [reviewAction, setReviewAction] = useState('')
+  const [actionReason, setActionReason] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [isQueueLoading, setIsQueueLoading] = useState(false)
   const [resolvedAdminId, setResolvedAdminId] = useState('')
-  const [selectedListingIds, setSelectedListingIds] = useState([])
+  const [approvedCount, setApprovedCount] = useState(0)
+  const [removedCount, setRemovedCount] = useState(0)
+  const [approvedHistory, setApprovedHistory] = useState([])
+  const [removedHistory, setRemovedHistory] = useState([])
+  const [historyView, setHistoryView] = useState('approved')
+  const [isSubmittingAction, setIsSubmittingAction] = useState(false)
 
   useEffect(() => {
     if (hasProvidedListings) {
@@ -63,9 +70,11 @@ export default function Admin({
   }, [hasProvidedListings, pendingListings])
 
   useEffect(() => {
-    setSelectedListingIds((currentSelection) =>
-      currentSelection.filter((listingId) => visibleListings.some((listing) => listing.id === listingId)),
-    )
+    if (!visibleListings.some((listing) => listing.id === selectedListingId)) {
+      setSelectedListingId('')
+      setReviewAction('')
+      setActionReason('')
+    }
   }, [visibleListings])
 
   if (!isAuthenticated) {
@@ -89,6 +98,8 @@ export default function Admin({
   }
 
   const effectiveAdminId = currentAdminId || resolvedAdminId || ''
+  const selectedListing = visibleListings.find((listing) => listing.id === selectedListingId) || null
+  const historyItems = historyView === 'approved' ? approvedHistory : removedHistory
 
   const resolveAdminId = useCallback(async () => {
     if (!hasSupabaseConfig || hasProvidedListings) {
@@ -144,7 +155,7 @@ export default function Admin({
       .from('opportunities')
       .select('id,title,type,location,closing_date,status,provider_id,provider_profiles:provider_id(organisation_name)')
       .eq('status', 'Pending')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
 
     if (error) {
       setVisibleListings([])
@@ -157,10 +168,65 @@ export default function Admin({
     setIsQueueLoading(false)
   }, [hasProvidedListings])
 
+  const fetchAdminInsights = useCallback(async () => {
+    if (hasProvidedListings || !hasSupabaseConfig || !effectiveAdminId) {
+      return
+    }
+
+    const { data: actions, error } = await supabase
+      .from('admin_actions')
+      .select('target_id,action_type,created_at,reason')
+      .eq('admin_id', effectiveAdminId)
+      .eq('target_type', 'listing')
+      .in('action_type', ['approved', 'removed'])
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return
+    }
+
+    const approvedActions = (actions || []).filter((action) => action.action_type === 'approved')
+    const removedActions = (actions || []).filter((action) => action.action_type === 'removed')
+
+    const targetIds = [...new Set((actions || []).map((action) => action.target_id).filter(Boolean))]
+    let titleMap = {}
+
+    if (targetIds.length) {
+      const { data: opportunities } = await supabase
+        .from('opportunities')
+        .select('id,title')
+        .in('id', targetIds)
+
+      titleMap = Object.fromEntries((opportunities || []).map((item) => [item.id, item.title]))
+    }
+
+    setApprovedCount(approvedActions.length)
+    setRemovedCount(removedActions.length)
+    setApprovedHistory(
+      approvedActions.map((action) => ({
+        id: action.target_id,
+        title: titleMap[action.target_id] || `Listing ${action.target_id}`,
+        createdAt: action.created_at,
+      })),
+    )
+    setRemovedHistory(
+      removedActions.map((action) => ({
+        id: action.target_id,
+        title: titleMap[action.target_id] || `Listing ${action.target_id}`,
+        createdAt: action.created_at,
+        reason: action.reason,
+      })),
+    )
+  }, [effectiveAdminId, hasProvidedListings])
+
   useEffect(() => {
     resolveAdminId()
     fetchPendingListings()
   }, [resolveAdminId, fetchPendingListings])
+
+  useEffect(() => {
+    fetchAdminInsights()
+  }, [fetchAdminInsights])
 
   const persistListingStatus = async (listingId, status) => {
     if (!hasSupabaseConfig) {
@@ -184,16 +250,9 @@ export default function Admin({
     setVisibleListings((currentListings) => currentListings.filter((listing) => listing.id !== listingId))
   }
 
-  const toggleListingSelection = (listingId) => {
-    setSelectedListingIds((currentSelection) =>
-      currentSelection.includes(listingId)
-        ? currentSelection.filter((id) => id !== listingId)
-        : [...currentSelection, listingId],
-    )
-  }
-
   const approveSingleListing = async (listing) => {
-    const payload = buildAdminActionPayload(effectiveAdminId, 'approved', listing.id)
+    const reason = actionReason.trim()
+    const payload = buildAdminActionPayload(effectiveAdminId, 'approved', listing.id, reason)
 
     if (typeof onApproveListing === 'function') {
       onApproveListing(listing.id)
@@ -249,91 +308,73 @@ export default function Admin({
     if (!didApprove) {
       return
     }
-    setSelectedListingIds((currentSelection) => currentSelection.filter((id) => id !== listing.id))
+    setSelectedListingId('')
+    setReviewAction('')
+    setActionReason('')
     setErrorMessage('')
     setStatusMessage(`Approved ${listing.title}`)
+    await fetchAdminInsights()
   }
 
   const handleRemove = async (listing) => {
-    if (!removeReason.trim()) {
+    if (!actionReason.trim()) {
       setErrorMessage('Remove reason is required before removing a listing.')
       return
     }
 
-    const reason = removeReason.trim()
+    const reason = actionReason.trim()
     const didRemove = await removeSingleListing(listing, reason)
     if (!didRemove) {
       return
     }
 
-    setSelectedListingIds((currentSelection) => currentSelection.filter((id) => id !== listing.id))
-    setRemoveReason('')
+    setSelectedListingId('')
+    setReviewAction('')
+    setActionReason('')
     setErrorMessage('')
     setStatusMessage(`Removed ${listing.title}`)
+    await fetchAdminInsights()
   }
 
-  const handleApproveSelected = async () => {
-    if (selectedListingIds.length === 0) {
-      setErrorMessage('Select at least one listing first.')
+  const handleConfirmAction = async () => {
+    if (!selectedListing) {
+      setErrorMessage('Choose a listing first.')
       return
     }
 
-    const selectedListings = visibleListings.filter((listing) => selectedListingIds.includes(listing.id))
-    for (const listing of selectedListings) {
-      const didApprove = await approveSingleListing(listing)
-      if (!didApprove) {
-        return
-      }
+    if (!reviewAction) {
+      setErrorMessage('Choose approve or remove first.')
+      return
     }
 
-    setSelectedListingIds([])
-    setErrorMessage('')
-    setStatusMessage(`Approved ${selectedListings.length} selected listing(s).`)
+    if (!actionReason.trim()) {
+      setErrorMessage('Please provide a reason before confirming.')
+      return
+    }
+
+    setIsSubmittingAction(true)
+    if (reviewAction === 'approved') {
+      await handleApprove(selectedListing)
+    } else {
+      await handleRemove(selectedListing)
+    }
+    setIsSubmittingAction(false)
   }
 
-  const handleRemoveSelected = async () => {
-    const reason = removeReason.trim()
-
-    if (selectedListingIds.length === 0) {
-      setErrorMessage('Select at least one listing first.')
-      return
-    }
-
-    if (!reason) {
-      setErrorMessage('Remove reason is required before removing selected listings.')
-      return
-    }
-
-    const selectedListings = visibleListings.filter((listing) => selectedListingIds.includes(listing.id))
-    for (const listing of selectedListings) {
-      const didRemove = await removeSingleListing(listing, reason)
-      if (!didRemove) {
-        return
-      }
-    }
-
-    setSelectedListingIds([])
-    setRemoveReason('')
+  const handleCancelAction = () => {
+    setReviewAction('')
+    setActionReason('')
     setErrorMessage('')
-    setStatusMessage(`Removed ${selectedListings.length} selected listing(s).`)
   }
 
   const handleExportModerationReport = () => {
-    if (visibleListings.length === 0) {
-      setErrorMessage('No pending listings to export.')
+    if (historyItems.length === 0) {
+      setErrorMessage('No items available in this view to export.')
       return
     }
 
-    const header = ['id', 'title', 'provider', 'type', 'location', 'closingDate', 'status']
-    const rows = visibleListings.map((listing) => [
-      listing.id,
-      listing.title,
-      listing.provider,
-      listing.type,
-      listing.location,
-      listing.closingDate,
-      listing.status,
-    ])
+    const header = ['listing_id', 'title', 'action', 'performed_at']
+    const rows = historyItems.map((item) => [item.id, item.title, historyView, item.createdAt || ''])
 
     const csv = [header, ...rows]
       .map((row) => row.map((value) => `"${String(value || '').replace(/"/g, '""')}"`).join(','))
@@ -343,13 +384,13 @@ export default function Admin({
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `moderation-report-${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `${historyView}-listings-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     setErrorMessage('')
-    setStatusMessage('Moderation report exported.')
+    setStatusMessage(`${historyView === 'approved' ? 'Approved' : 'Removed'} listings report exported.`)
   }
 
   return (
@@ -383,16 +424,12 @@ export default function Admin({
             <strong>{visibleListings.length}</strong>
           </article>
           <article className="admin-kpi">
-            <span>Flagged Listings</span>
-            <strong>6</strong>
+            <span>Approved Opportunities</span>
+            <strong>{approvedCount}</strong>
           </article>
           <article className="admin-kpi">
-            <span>Provider Appeals</span>
-            <strong>3</strong>
-          </article>
-          <article className="admin-kpi">
-            <span>Avg Turnaround</span>
-            <strong>14h</strong>
+            <span>Removed Opportunities</span>
+            <strong>{removedCount}</strong>
           </article>
         </section>
 
@@ -405,20 +442,6 @@ export default function Admin({
 
             <div className="admin-note">{statusMessage || errorMessage}</div>
 
-            <label className="admin-removal-label" htmlFor="remove-reason">
-              Remove reason
-            </label>
-            <textarea
-              id="remove-reason"
-              value={removeReason}
-              onChange={(event) => {
-                setRemoveReason(event.target.value)
-                setErrorMessage('')
-              }}
-              rows="3"
-              placeholder="Enter a moderation reason before removing a listing"
-            />
-
             {isQueueLoading ? (
               <p className="admin-note">Loading pending listings...</p>
             ) : visibleListings.length === 0 ? (
@@ -427,42 +450,120 @@ export default function Admin({
               <ul className="admin-list">
                 {visibleListings.map((listing) => (
                   <li key={listing.id} className="admin-list-item">
-                    <header>
-                      <label className="admin-select-label">
-                        <input
-                          type="checkbox"
-                          checked={selectedListingIds.includes(listing.id)}
-                          onChange={() => toggleListingSelection(listing.id)}
-                        />
-                        Select
-                      </label>
+                    <button
+                      type="button"
+                      className={`admin-queue-card ${selectedListingId === listing.id ? 'is-active' : ''}`}
+                      onClick={() => {
+                        setSelectedListingId(listing.id)
+                        setReviewAction('')
+                        setActionReason('')
+                        setErrorMessage('')
+                        setStatusMessage('')
+                      }}
+                    >
                       <h3>{listing.title}</h3>
                       <p>{listing.provider}</p>
-                    </header>
-                    <span>{listing.type}</span>
-                    <span>{listing.location}</span>
-                    <span>{listing.closingDate}</span>
-                    <div className="admin-action-list">
-                      <button type="button" onClick={() => handleApprove(listing)}>
-                        Approve
-                      </button>
-                      <button type="button" onClick={() => handleRemove(listing)}>
-                        Remove
-                      </button>
-                    </div>
+                      <div className="admin-queue-meta">
+                        <span>{listing.type}</span>
+                        <span>{listing.location}</span>
+                        <span>{listing.closingDate}</span>
+                      </div>
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
+
+            {selectedListing ? (
+              <section className="admin-selection-panel" aria-label="Selected listing review panel">
+                <h3>Selected Listing</h3>
+                <p>{selectedListing.title}</p>
+                <div className="admin-review-actions">
+                  <button
+                    type="button"
+                    className={reviewAction === 'approved' ? 'is-active' : ''}
+                    onClick={() => {
+                      setReviewAction('approved')
+                      setErrorMessage('')
+                    }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    className={reviewAction === 'removed' ? 'is-active' : ''}
+                    onClick={() => {
+                      setReviewAction('removed')
+                      setErrorMessage('')
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                {reviewAction ? (
+                  <div className="admin-confirm-panel">
+                    <label className="admin-removal-label" htmlFor="action-reason">
+                      {reviewAction === 'approved' ? 'Approval reason' : 'Removal reason'}
+                    </label>
+                    <textarea
+                      id="action-reason"
+                      value={actionReason}
+                      onChange={(event) => {
+                        setActionReason(event.target.value)
+                        setErrorMessage('')
+                      }}
+                      rows="3"
+                      placeholder={`Explain why this listing should be ${reviewAction === 'approved' ? 'approved' : 'removed'}.`}
+                    />
+                    <div className="admin-confirm-actions">
+                      <button type="button" onClick={handleConfirmAction} disabled={isSubmittingAction}>
+                        {isSubmittingAction ? 'Saving...' : `Confirm ${reviewAction === 'approved' ? 'Approve' : 'Remove'}`}
+                      </button>
+                      <button type="button" className="admin-ghost-btn" onClick={handleCancelAction}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
           </section>
 
           <aside className="admin-panel admin-side-panel" aria-label="Quick actions">
             <h2>Quick Actions</h2>
             <nav className="admin-action-list" aria-label="Admin quick actions">
-              <button type="button" onClick={handleApproveSelected}>Approve selected listings</button>
-              <button type="button" onClick={handleRemoveSelected}>Remove selected listings</button>
+              <button
+                type="button"
+                className={historyView === 'approved' ? 'is-active' : ''}
+                onClick={() => setHistoryView('approved')}
+              >
+                Approved listings
+              </button>
+              <button
+                type="button"
+                className={historyView === 'removed' ? 'is-active' : ''}
+                onClick={() => setHistoryView('removed')}
+              >
+                Removed listings
+              </button>
               <button type="button" onClick={handleExportModerationReport}>Export moderation report</button>
             </nav>
+            <section className="admin-history-panel" aria-label="Admin action history">
+              <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
+              {historyItems.length === 0 ? (
+                <p className="admin-note">No listings in this history yet.</p>
+              ) : (
+                <ul className="admin-history-list">
+                  {historyItems.map((item) => (
+                    <li key={`${item.id}-${item.createdAt}`}>
+                      <strong>{item.title}</strong>
+                      <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Unknown date'}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
             <p className="admin-note">
               Provider listings are moderated here once they are approved into production flow.
             </p>
