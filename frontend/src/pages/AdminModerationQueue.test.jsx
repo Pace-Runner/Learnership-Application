@@ -70,9 +70,12 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, onApproveListing, onLogAdminAction })
 
-    const approveButtons = screen.getAllByRole('button', { name: /approve/i })
-    const approveButton = approveButtons.find((btn) => btn.textContent === 'Approve')
-    fireEvent.click(approveButton)
+    fireEvent.click(screen.getByRole('button', { name: /pending listing for approval/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^approve$/i }))
+    fireEvent.change(screen.getByLabelText(/approval reason/i), {
+      target: { value: 'Meets quality and compliance checks' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /confirm approve/i }))
 
     expect(onApproveListing).toHaveBeenCalledWith('l-20')
     expect(onLogAdminAction).toHaveBeenCalled()
@@ -88,10 +91,12 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, onRemoveListing, onLogAdminAction })
 
-    fireEvent.change(screen.getByLabelText(/remove reason/i), { target: { value: 'Duplicate listing' } })
-    const removeButtons = screen.getAllByRole('button', { name: /remove/i })
-    const removeButton = removeButtons.find((btn) => btn.textContent === 'Remove')
-    fireEvent.click(removeButton)
+    fireEvent.click(screen.getByRole('button', { name: /pending listing for removal/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }))
+    fireEvent.change(screen.getByLabelText(/removal reason/i), {
+      target: { value: 'Duplicate listing' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /confirm remove/i }))
 
     expect(onRemoveListing).toHaveBeenCalledWith('l-21', 'Duplicate listing')
     expect(onLogAdminAction).toHaveBeenCalled()
@@ -107,16 +112,21 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, currentAdminId: 'admin-900', onApproveListing, onLogAdminAction })
 
-    const approveButtons = screen.getAllByRole('button', { name: /approve/i })
-    const approveButton = approveButtons.find((btn) => btn.textContent === 'Approve')
-    fireEvent.click(approveButton)
-
-    expect(onLogAdminAction).toHaveBeenCalledWith({
-      admin_id: 'admin-900',
-      action_type: 'approved',
-      target_type: 'listing',
-      target_id: 'l-30',
+    fireEvent.click(screen.getByRole('button', { name: /pending log approval listing/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^approve$/i }))
+    fireEvent.change(screen.getByLabelText(/approval reason/i), {
+      target: { value: 'Verified listing content and dates' },
     })
+    fireEvent.click(screen.getByRole('button', { name: /confirm approve/i }))
+
+    expect(onLogAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        admin_id: 'admin-900',
+        action_type: 'approved',
+        target_type: 'listing',
+        target_id: 'l-30',
+      }),
+    )
   })
 
   test('7. remove action is logged in admin_actions payload', () => {
@@ -128,18 +138,22 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, currentAdminId: 'admin-901', onRemoveListing, onLogAdminAction })
 
-    fireEvent.change(screen.getByLabelText(/remove reason/i), { target: { value: 'Non-compliant content' } })
-    const removeButtons = screen.getAllByRole('button', { name: /remove/i })
-    const removeButton = removeButtons.find((btn) => btn.textContent === 'Remove')
-    fireEvent.click(removeButton)
-
-    expect(onLogAdminAction).toHaveBeenCalledWith({
-      admin_id: 'admin-901',
-      action_type: 'removed',
-      target_type: 'listing',
-      target_id: 'l-31',
-      reason: 'Non-compliant content',
+    fireEvent.click(screen.getByRole('button', { name: /pending log remove listing/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }))
+    fireEvent.change(screen.getByLabelText(/removal reason/i), {
+      target: { value: 'Non-compliant content' },
     })
+    fireEvent.click(screen.getByRole('button', { name: /confirm remove/i }))
+
+    expect(onLogAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        admin_id: 'admin-901',
+        action_type: 'removed',
+        target_type: 'listing',
+        target_id: 'l-31',
+        reason: 'Non-compliant content',
+      }),
+    )
   })
 
   test('8. remove action requires a reason', () => {
@@ -150,12 +164,12 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, onRemoveListing })
 
-    const removeButtons = screen.getAllByRole('button', { name: /remove/i })
-    const removeButton = removeButtons.find((btn) => btn.textContent === 'Remove')
-    fireEvent.click(removeButton)
+    fireEvent.click(screen.getByRole('button', { name: /needs reason listing/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /confirm remove/i }))
 
     expect(onRemoveListing).not.toHaveBeenCalled()
-    expect(screen.getByText(/remove reason is required/i)).toBeTruthy()
+    expect(screen.getByText(/please provide a reason before confirming/i)).toBeTruthy()
   })
 
   test('9. non-admin cannot access moderation panel', () => {
