@@ -447,7 +447,7 @@ export default function Admin({
             ) : visibleListings.length === 0 ? (
               <p className="admin-note">No pending listings to review.</p>
             ) : (
-              <ul className="admin-list">
+              <ul className="admin-list admin-list-scroll">
                 {visibleListings.map((listing) => (
                   <li key={listing.id} className="admin-list-item">
                     <button
@@ -469,65 +469,65 @@ export default function Admin({
                         <span>{listing.closingDate}</span>
                       </div>
                     </button>
+
+                    {selectedListingId === listing.id ? (
+                      <section className="admin-selection-panel" aria-label="Selected listing review panel">
+                        <h3>Selected Listing</h3>
+                        <p>{listing.title}</p>
+                        <div className="admin-review-actions">
+                          <button
+                            type="button"
+                            className={reviewAction === 'approved' ? 'is-active' : ''}
+                            onClick={() => {
+                              setReviewAction('approved')
+                              setErrorMessage('')
+                            }}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            className={reviewAction === 'removed' ? 'is-active' : ''}
+                            onClick={() => {
+                              setReviewAction('removed')
+                              setErrorMessage('')
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        {reviewAction ? (
+                          <div className="admin-confirm-panel">
+                            <label className="admin-removal-label" htmlFor={`action-reason-${listing.id}`}>
+                              {reviewAction === 'approved' ? 'Approval reason' : 'Removal reason'}
+                            </label>
+                            <textarea
+                              id={`action-reason-${listing.id}`}
+                              value={actionReason}
+                              onChange={(event) => {
+                                setActionReason(event.target.value)
+                                setErrorMessage('')
+                              }}
+                              rows="3"
+                              placeholder={`Explain why this listing should be ${reviewAction === 'approved' ? 'approved' : 'removed'}.`}
+                            />
+                            <div className="admin-confirm-actions">
+                              <button type="button" onClick={handleConfirmAction} disabled={isSubmittingAction}>
+                                {isSubmittingAction ? 'Saving...' : `Confirm ${reviewAction === 'approved' ? 'Approve' : 'Remove'}`}
+                              </button>
+                              <button type="button" className="admin-ghost-btn" onClick={handleCancelAction}>
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </section>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             )}
-
-            {selectedListing ? (
-              <section className="admin-selection-panel" aria-label="Selected listing review panel">
-                <h3>Selected Listing</h3>
-                <p>{selectedListing.title}</p>
-                <div className="admin-review-actions">
-                  <button
-                    type="button"
-                    className={reviewAction === 'approved' ? 'is-active' : ''}
-                    onClick={() => {
-                      setReviewAction('approved')
-                      setErrorMessage('')
-                    }}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    className={reviewAction === 'removed' ? 'is-active' : ''}
-                    onClick={() => {
-                      setReviewAction('removed')
-                      setErrorMessage('')
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                {reviewAction ? (
-                  <div className="admin-confirm-panel">
-                    <label className="admin-removal-label" htmlFor="action-reason">
-                      {reviewAction === 'approved' ? 'Approval reason' : 'Removal reason'}
-                    </label>
-                    <textarea
-                      id="action-reason"
-                      value={actionReason}
-                      onChange={(event) => {
-                        setActionReason(event.target.value)
-                        setErrorMessage('')
-                      }}
-                      rows="3"
-                      placeholder={`Explain why this listing should be ${reviewAction === 'approved' ? 'approved' : 'removed'}.`}
-                    />
-                    <div className="admin-confirm-actions">
-                      <button type="button" onClick={handleConfirmAction} disabled={isSubmittingAction}>
-                        {isSubmittingAction ? 'Saving...' : `Confirm ${reviewAction === 'approved' ? 'Approve' : 'Remove'}`}
-                      </button>
-                      <button type="button" className="admin-ghost-btn" onClick={handleCancelAction}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </section>
-            ) : null}
           </section>
 
           <aside className="admin-panel admin-side-panel" aria-label="Quick actions">

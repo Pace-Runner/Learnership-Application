@@ -791,6 +791,12 @@
   margin: 0.9rem 0 0;
 }
 
+.admin-list-scroll {
+  max-height: 24rem;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
 .admin-list-item {
   margin: 0;
 }
@@ -944,7 +950,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 260px;
+  max-height: 15.5rem;
   overflow: auto;
   display: grid;
   gap: 0.45rem;
