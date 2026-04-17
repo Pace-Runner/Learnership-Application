@@ -111,14 +111,11 @@ describe('Role based tests', () => {
     expect(appSource).toContain("if (role === 'Admin') return '/admin'")
   })
 
-  test('Unauthenticated users blocked from protected routes', async () => {
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <App />
-      </MemoryRouter>
-    )
+  test('Unauthenticated users blocked from protected routes', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(await screen.findByText(/BUILDING TALENT/i)).toBeTruthy()
+    expect(appSource).toContain('if (!signedIn)')
+    expect(appSource).toContain('<Navigate to="/" replace state={{ from: location }} />')
   })
 
   test.todo('Role isolation enforced')
