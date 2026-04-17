@@ -6,7 +6,7 @@
 // - State management: tracking auth, loading, roles, and pending signups
 // - 3D animation: particle effect that reacts to mouse movement
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import Admin from './pages/Admin'
@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard'
 import ApplicantProfile from './pages/ApplicantProfile'
 import Provider from './pages/Provider'
 import ProviderListingForm from './pages/ProviderListingForm'
+import ProviderListingEdit from './pages/ProviderListingEdit'
 import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
 const AdminDashboardShell = Admin
 
@@ -66,6 +67,7 @@ function App() {
   const [authError, setAuthError] = useState('') // Display auth errors to user
   const [pendingEmail, setPendingEmail] = useState('') // New user email waiting for role selection
   const [isSavingRole, setIsSavingRole] = useState(false) // True while inserting user into database
+  const oauthTimeoutRef = useRef(null)
 
   // Animation state for the 3D particle effect
   const [pointer, setPointer] = useState({ x: 0, y: 0 })
@@ -74,6 +76,13 @@ function App() {
   const location = useLocation()
   const oauthRedirectTo =
     import.meta.env.VITE_AUTH_REDIRECT_URL?.trim() || `${window.location.origin}/`
+
+  const clearOAuthTimeout = useCallback(() => {
+    if (oauthTimeoutRef.current) {
+      window.clearTimeout(oauthTimeoutRef.current)
+      oauthTimeoutRef.current = null
+    }
+  }, [])
 
   // Query users table to get applicant/provider/admin role based on email
   const getRoleForEmail = useCallback(async (email) => {
@@ -174,6 +183,7 @@ function App() {
       }
 
       if (event === 'SIGNED_OUT' || !session?.user?.email) {
+        clearOAuthTimeout()
         setSignedIn(false)
         setRole(null)
         setPendingEmail('')
@@ -187,6 +197,7 @@ function App() {
         if (!isMounted) {
           return
         }
+        clearOAuthTimeout()
         setSignedIn(true)
         setRole(resolvedRole)
         setPendingEmail(resolvedRole ? '' : session.user.email)
@@ -200,16 +211,18 @@ function App() {
         setAuthError('OAuth succeeded, but role lookup failed. Please verify Supabase table policies.')
       } finally {
         if (isMounted) {
+          clearOAuthTimeout()
           setIsLoadingAuth(false)
         }
       }
     })
 
     return () => {
+      clearOAuthTimeout()
       isMounted = false
       subscription.unsubscribe()
     }
-  }, [getRoleForEmail])
+  }, [clearOAuthTimeout, getRoleForEmail])
 
   // AUTO-REDIRECT: Send logged-in users to their role-appropriate dashboard
   // WHEN: User has loaded auth state, is signed in, has a role, and is on home page
@@ -224,6 +237,8 @@ function App() {
 
   // Clear session and reset all state when logging out
   const handleLogout = async () => {
+    clearOAuthTimeout()
+
     if (hasSupabaseConfig) {
       await supabase.auth.signOut() // Clear session cookie
     }
@@ -318,6 +333,12 @@ function App() {
 
     setIsLoadingAuth(true)
 
+    clearOAuthTimeout()
+    oauthTimeoutRef.current = window.setTimeout(() => {
+      setIsLoadingAuth(false)
+      setAuthError('Google sign-in timed out. Please try again.')
+    }, 12000)
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -326,6 +347,7 @@ function App() {
     })
 
     if (error) {
+      clearOAuthTimeout()
       setIsLoadingAuth(false)
       setAuthError('Google sign-in failed. Verify Supabase redirect URLs include your local host and VITE_AUTH_REDIRECT_URL value.')
     }
@@ -565,6 +587,12 @@ return (
 <Route path="/provider/listings/new" element={
   <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
     <ProviderListingForm />
+  </ProtectedRoute>
+} />
+
+<Route path="/provider/listings/:listingId/edit" element={
+  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
+    <ProviderListingEdit />
   </ProtectedRoute>
 } />
 

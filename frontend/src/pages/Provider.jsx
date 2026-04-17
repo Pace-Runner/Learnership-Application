@@ -48,14 +48,69 @@ export default function Provider({ onLogout }) {
   const [listings, setListings] = useState([])
   const [isLoadingListings, setIsLoadingListings] = useState(true)
   const [listingsError, setListingsError] = useState('')
+  const [providerId, setProviderId] = useState('')
 
   const handleCreateListing = () => {
     navigate('/provider/listings/new')
+  }
 
-    // Fallback for environments where SPA navigation is blocked by runtime state.
-    if (window.location.pathname !== '/provider/listings/new') {
-      window.location.assign('/provider/listings/new')
+  const handleEditListing = (listing) => {
+    if (listing.status === 'Approved') {
+      const isConfirmed = window.confirm(
+        'This listing is already approved. Do you want to continue editing it?',
+      )
+
+      if (!isConfirmed) {
+        return
+      }
     }
+
+    navigate(`/provider/listings/${listing.id}/edit`)
+  }
+
+  const handleDeleteListing = async (listing) => {
+    const baseMessage = 'Are you sure you want to delete this listing?'
+    const approvedMessage =
+      'This listing is already approved. Deleting it may affect live applicants. Delete anyway?'
+
+    const isConfirmed = window.confirm(listing.status === 'Approved' ? approvedMessage : baseMessage)
+
+    if (!isConfirmed) {
+      return
+    }
+
+    if (!hasSupabaseConfig) {
+      setListings((current) => current.filter((item) => item.id !== listing.id))
+      return
+    }
+
+    if (!providerId) {
+      setListingsError('Could not validate ownership for delete action.')
+      return
+    }
+
+    const { error: deleteRequirementError } = await supabase
+      .from('opportunity_requirements')
+      .delete()
+      .eq('opportunity_id', listing.id)
+
+    if (deleteRequirementError) {
+      setListingsError('Listing could not be deleted. Please try again.')
+      return
+    }
+
+    const { error: deleteOpportunityError } = await supabase
+      .from('opportunities')
+      .delete()
+      .eq('id', listing.id)
+      .eq('provider_id', providerId)
+
+    if (deleteOpportunityError) {
+      setListingsError('Listing could not be deleted. Please try again.')
+      return
+    }
+
+    setListings((current) => current.filter((item) => item.id !== listing.id))
   }
 
   useEffect(() => {
@@ -138,6 +193,10 @@ export default function Provider({ onLogout }) {
         }
 
         providerId = createdProvider.id
+      }
+
+      if (isMounted) {
+        setProviderId(providerId)
       }
 
       const { data: opportunityRows, error: opportunityError } = await supabase
@@ -266,6 +325,22 @@ export default function Provider({ onLogout }) {
                       <small className="user-item-meta">Duration: {item.duration || 'Not specified'}</small>
                       <small className="provider-detail">Closing date: {formatClosingDate(item.closing_date)}</small>
                       <small className={getStatusClass(item.status)}>Status: {item.status || 'Pending'}</small>
+                      <div className="provider-listing-controls">
+                        <button
+                          type="button"
+                          className="user-action-btn provider-listing-btn"
+                          onClick={() => handleEditListing(item)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="user-action-btn provider-listing-btn provider-delete-btn"
+                          onClick={() => handleDeleteListing(item)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
