@@ -301,9 +301,9 @@ describe('ApplicantProfile coverage', () => {
     fireEvent.change(screen.getByLabelText('Qualification'), { target: { value: 'qual-2' } })
     fireEvent.change(screen.getByLabelText('NQF level'), { target: { value: '6' } })
     fireEvent.change(screen.getByLabelText('Year completed'), { target: { value: '2024' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Accounting Basics' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Communication' }))
 
-    await waitFor(() => expect(applicantSpies.skillTagsInsert).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove Communication' })).toBeTruthy())
 
     fireEvent.click(screen.getByRole('button', { name: 'Save full profile' }))
 
@@ -321,7 +321,7 @@ describe('ApplicantProfile coverage', () => {
     expect(educationPayload[0].nqf_level).toBe(6)
 
     const skillsPayload = applicantSpies.skillsInsert.mock.calls[0]?.[0]
-    expect(skillsPayload[0].skill_tag_id).toBe('skill-new')
+    expect(skillsPayload[0].skill_tag_id).toBe('skill-1')
   })
 
   test('validates CV uploads, persists CV url, and opens uploaded documents', async () => {
@@ -372,5 +372,31 @@ describe('ApplicantProfile coverage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Delete document/i }))
     await waitFor(() => expect(applicantSpies.docsStorageRemove).toHaveBeenCalled())
     expect(applicantSpies.profileUpdateEq).toHaveBeenCalledWith('user_id', applicantState.userId)
+  })
+
+  test('keeps unsaved personal details and selected skills after CV upload', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Neo' } })
+    
+    const fileInputs = document.querySelectorAll('input[type="file"]')
+    const cvInput = fileInputs[1]
+
+    fireEvent.change(cvInput, {
+      target: { files: [new File(['cv'], 'draft-cv.pdf', { type: 'application/pdf' })] },
+    })
+
+    await waitFor(() => expect(applicantSpies.docsStorageUpload).toHaveBeenCalled())
+
+    expect(screen.getByDisplayValue('Neo')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove Communication' })).toBeTruthy()
   })
 })

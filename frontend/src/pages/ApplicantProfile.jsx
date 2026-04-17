@@ -13,45 +13,60 @@ const CV_TYPE_ALLOWLIST = [
 ]
 
 const skillSuggestionLibrary = [
-  'Customer Service',
-  'Administration',
-  'Data Entry',
-  'Microsoft Excel',
-  'Microsoft Word',
-  'Communication',
-  'Teamwork',
-  'Problem Solving',
-  'Reception',
-  'Office Management',
-  'Project Coordination',
-  'Scheduling',
-  'Bookkeeping',
   'Accounting Basics',
-  'Cash Handling',
-  'Retail Sales',
-  'Merchandising',
-  'Inventory Control',
-  'Procurement',
-  'Logistics',
-  'Warehouse Operations',
-  'Computer Literacy',
-  'Email Management',
-  'CRM Administration',
-  'Digital Marketing',
-  'Social Media',
-  'Content Writing',
-  'Graphic Design',
-  'Web Research',
-  'Front Office',
-  'Call Centre Support',
-  'Operations Support',
-  'Human Resources',
-  'Recruitment Support',
-  'Project Support',
-  'Customer Relations',
+  'Administration',
   'Business Analysis',
-  'Health and Safety',
+  'Bookkeeping',
+  'Call Centre Support',
+  'Cash Handling',
+  'Communication',
+  'Computer Literacy',
+  'Content Writing',
+  'CRM Administration',
+  'Customer Relations',
+  'Customer Service',
+  'Data Analysis',
+  'Data Entry',
+  'Digital Marketing',
   'Electrical Safety',
+  'Email Management',
+  'Event Planning',
+  'Financial Analysis',
+  'Front Office',
+  'Graphic Design',
+  'Health and Safety',
+  'Human Resources',
+  'Inventory Control',
+  'Invoicing',
+  'Logistics',
+  'Mentoring',
+  'Merchandising',
+  'Microsoft Excel',
+  'Microsoft PowerPoint',
+  'Microsoft Word',
+  'Office Management',
+  'Operations Support',
+  'Payroll',
+  'Problem Solving',
+  'Procurement',
+  'Project Coordination',
+  'Project Management',
+  'Project Support',
+  'Public Speaking',
+  'Quality Assurance',
+  'Reception',
+  'Recruitment Support',
+  'Retail Sales',
+  'Sales',
+  'Scheduling',
+  'Social Media',
+  'Team Leadership',
+  'Teamwork',
+  'Time Management',
+  'Training',
+  'Warehouse Operations',
+  'Web Research',
+  'Writing',
 ]
 
 const defaultProfileForm = {
@@ -85,6 +100,37 @@ function normalizeSkillName(value) {
   return value.replace(/\s+/g, ' ').trim()
 }
 
+function getFriendlySupabaseError(error, fallbackMessage) {
+  if (!error) {
+    return fallbackMessage
+  }
+
+  const code = error.code || ''
+  const message = (error.message || '').toLowerCase()
+
+  if (code === '42501' || message.includes('row-level security')) {
+    return 'You do not have permission to perform this action yet. Please run the latest RLS SQL script and sign in again.'
+  }
+
+  if (code === '23503' || message.includes('foreign key')) {
+    return 'Your account link is incomplete in the database. Please log out, log back in, and try again.'
+  }
+
+  if (code === '23505' || message.includes('duplicate')) {
+    return 'This record already exists. Try refreshing the page and saving again.'
+  }
+
+  if (code === '22P02' || message.includes('invalid input syntax')) {
+    return 'One of the field values has an invalid format. Please check phone, ID number, and education year.'
+  }
+
+  if (message.includes('failed to fetch') || message.includes('network')) {
+    return 'Network error while saving. Please check your internet connection and try again.'
+  }
+
+  return error.message || fallbackMessage
+}
+
 export default function ApplicantProfile({ onLogout }) {
   const [userId, setUserId] = useState('')
   const [profileId, setProfileId] = useState('')
@@ -106,10 +152,13 @@ export default function ApplicantProfile({ onLogout }) {
   const [isLoadingFiles, setIsLoadingFiles] = useState(true)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [uploadMessage, setUploadMessage] = useState('')
+  const [showSavedConfirmation, setShowSavedConfirmation] = useState(false)
   const [skillDraft, setSkillDraft] = useState('')
   const [skillSearch, setSkillSearch] = useState('')
   const [skillError, setSkillError] = useState('')
-  const [isAddingSkill, setIsAddingSkill] = useState(false)
+  const [showAllSkills, setShowAllSkills] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [educationFieldErrors, setEducationFieldErrors] = useState({})
 
   const profileInputRef = useRef(null)
   const cvInputRef = useRef(null)
@@ -149,6 +198,11 @@ export default function ApplicantProfile({ onLogout }) {
       })),
     [],
   )
+  const allSelectedSkills = useMemo(() => {
+    const dbSkills = skillTagOptions.filter((skillTag) => selectedSkillTagIds.includes(skillTag.id))
+    const suggestedSkills = recommendedSkillTags.filter((skillTag) => selectedSkillTagIds.includes(skillTag.id))
+    return [...dbSkills, ...suggestedSkills].sort((left, right) => left.name.localeCompare(right.name))
+  }, [selectedSkillTagIds, skillTagOptions, recommendedSkillTags])
   const visibleSkillTags = useMemo(() => {
     const normalizedSearch = skillSearch.trim().toLowerCase()
     const mergedSuggestions = [...skillTagOptions]
@@ -159,7 +213,7 @@ export default function ApplicantProfile({ onLogout }) {
       }
     })
 
-    return mergedSuggestions
+    const filtered = mergedSuggestions
       .filter((skillTag) => {
         if (!normalizedSearch) {
           return true
@@ -168,8 +222,13 @@ export default function ApplicantProfile({ onLogout }) {
         return skillTag.name.toLowerCase().includes(normalizedSearch)
       })
       .sort((left, right) => left.name.localeCompare(right.name))
-      .slice(0, normalizedSearch ? 30 : 8)
-  }, [recommendedSkillTags, skillSearch, skillTagOptions])
+
+    if (normalizedSearch) {
+      return filtered.slice(0, 30)
+    }
+
+    return filtered.slice(0, showAllSkills ? filtered.length : 12)
+  }, [recommendedSkillTags, skillSearch, skillTagOptions, showAllSkills])
 
   const fetchDropdownData = useCallback(async () => {
     setIsLoadingDropdowns(true)
@@ -227,20 +286,108 @@ export default function ApplicantProfile({ onLogout }) {
     setCvLinkUrl(data.signedUrl)
   }, [])
 
+  const fetchStorageFiles = useCallback(async (authUserId) => {
+    if (!authUserId || !hasSupabaseConfig) {
+      setIsLoadingFiles(false)
+      return
+    }
+
+    setIsLoadingFiles(true)
+
+    const [{ data: profileFiles }, { data: docFiles }] = await Promise.all([
+      supabase.storage.from(PROFILE_BUCKET).list(authUserId, { limit: 10 }),
+      supabase.storage.from(DOCS_BUCKET).list(authUserId, { limit: 100 }),
+    ])
+
+    const firstProfileFile = profileFiles?.[0]
+    if (firstProfileFile?.name) {
+      const { data } = await supabase.storage
+        .from(PROFILE_BUCKET)
+        .createSignedUrl(`${authUserId}/${firstProfileFile.name}`, 60 * 60)
+      setProfileImageUrl(data?.signedUrl || '')
+      setProfileImageName(firstProfileFile.name)
+    } else {
+      setProfileImageUrl('')
+      setProfileImageName('')
+    }
+
+    setUploadedDocs(
+      (docFiles || [])
+        .filter((file) => file.name && !file.name.endsWith('/'))
+        .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')),
+    )
+
+    setIsLoadingFiles(false)
+  }, [])
+
+  const resolveDatabaseUserId = useCallback(async (authUser) => {
+    const authUserId = authUser?.id || ''
+    const authUserEmail = authUser?.email || ''
+
+    if (!authUserId || !hasSupabaseConfig) {
+      return ''
+    }
+
+    if (!authUserEmail) {
+      return authUserId
+    }
+
+    const { data: userRow, error: userLookupError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', authUserEmail)
+      .maybeSingle()
+
+    if (userLookupError) {
+      console.error('Users lookup error:', userLookupError)
+      return authUserId
+    }
+
+    if (userRow?.id) {
+      return userRow.id
+    }
+
+    const { data: insertedUser, error: userInsertError } = await supabase
+      .from('users')
+      .insert({
+        id: authUserId,
+        email: authUserEmail,
+        role: 'Applicant',
+      })
+      .select('id')
+      .single()
+
+    if (userInsertError) {
+      console.error('Users insert error:', userInsertError)
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', authUserEmail)
+        .maybeSingle()
+      return existingUser?.id || authUserId
+    }
+
+    return insertedUser?.id || authUserId
+  }, [])
+
   const fetchFiles = useCallback(
-    async (authUserId) => {
-      if (!authUserId || !hasSupabaseConfig) {
+    async (authUserId, databaseUserId) => {
+      if (!authUserId || !databaseUserId || !hasSupabaseConfig) {
         setIsLoadingFiles(false)
         return
       }
 
+      console.log('Fetching profile data for auth user:', authUserId)
+      console.log('Using database user id:', databaseUserId)
       setIsLoadingFiles(true)
 
       const { data: loadedProfile } = await supabase
         .from('applicant_profiles')
         .select('*')
-        .eq('user_id', authUserId)
+        .eq('user_id', databaseUserId)
         .maybeSingle()
+
+      console.log('Profile loaded:', loadedProfile)
 
       const nextProfileId = loadedProfile?.id || ''
       setProfileId(nextProfileId)
@@ -288,37 +435,18 @@ export default function ApplicantProfile({ onLogout }) {
         }
 
         setSelectedSkillTagIds((skills || []).map((row) => row.skill_tag_id).filter(Boolean))
+
+        console.log('✓ Profile data loaded:')
+        console.log('  - Education entries:', educations?.length || 0)
+        console.log('  - Skills selected:', skills?.length || 0)
       } else {
         setEducationRows([createEducationRow()])
         setSelectedSkillTagIds([])
       }
 
-      const [{ data: profileFiles }, { data: docFiles }] = await Promise.all([
-        supabase.storage.from(PROFILE_BUCKET).list(authUserId, { limit: 10 }),
-        supabase.storage.from(DOCS_BUCKET).list(authUserId, { limit: 100 }),
-      ])
-
-      const firstProfileFile = profileFiles?.[0]
-      if (firstProfileFile?.name) {
-        const { data } = await supabase.storage
-          .from(PROFILE_BUCKET)
-          .createSignedUrl(`${authUserId}/${firstProfileFile.name}`, 60 * 60)
-        setProfileImageUrl(data?.signedUrl || '')
-        setProfileImageName(firstProfileFile.name)
-      } else {
-        setProfileImageUrl('')
-        setProfileImageName('')
-      }
-
-      setUploadedDocs(
-        (docFiles || [])
-          .filter((file) => file.name && !file.name.endsWith('/'))
-          .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')),
-      )
-
-      setIsLoadingFiles(false)
+      await fetchStorageFiles(authUserId)
     },
-    [resolveCvLink],
+    [fetchStorageFiles, resolveCvLink],
   )
 
   useEffect(() => {
@@ -336,14 +464,23 @@ export default function ApplicantProfile({ onLogout }) {
       }
 
       const { data } = await supabase.auth.getUser()
-      const authUserId = data?.user?.id || ''
+      const authUser = data?.user || null
+      const authUserId = authUser?.id || ''
 
       if (!isMounted) {
         return
       }
 
       setUserId(authUserId)
-      await fetchFiles(authUserId)
+
+      const databaseUserId = await resolveDatabaseUserId(authUser)
+      if (!databaseUserId) {
+        setUploadMessage('Could not link your account in the users table. Please contact support.')
+        setIsLoadingFiles(false)
+        return
+      }
+
+      await fetchFiles(authUserId, databaseUserId)
     }
 
     loadUserFiles()
@@ -351,13 +488,95 @@ export default function ApplicantProfile({ onLogout }) {
     return () => {
       isMounted = false
     }
-  }, [fetchDropdownData, fetchFiles])
+  }, [fetchDropdownData, fetchFiles, resolveDatabaseUserId])
 
   const handleProfileFieldChange = (fieldName, value) => {
     setProfileForm((current) => ({
       ...current,
       [fieldName]: value,
     }))
+
+    setFieldErrors((current) => {
+      if (!current[fieldName]) {
+        return current
+      }
+      const next = { ...current }
+      delete next[fieldName]
+      return next
+    })
+  }
+
+  const validateSingleProfileField = (fieldName, value) => {
+    if (fieldName === 'first_name') {
+      if (!String(value || '').trim()) {
+        return 'First name is required.'
+      }
+      return ''
+    }
+
+    if (fieldName === 'last_name') {
+      if (!String(value || '').trim()) {
+        return 'Last name is required.'
+      }
+      return ''
+    }
+
+    if (fieldName === 'location') {
+      if (!String(value || '').trim()) {
+        return 'Location is required.'
+      }
+      return ''
+    }
+
+    if (fieldName === 'phone') {
+      const normalizedPhone = String(value || '').replace(/\D/g, '')
+      if (!normalizedPhone) {
+        return 'Phone number is required.'
+      }
+      if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+        return 'Phone number must contain 10 to 15 digits.'
+      }
+      return ''
+    }
+
+    if (fieldName === 'id_number') {
+      const normalizedIdNumber = String(value || '').replace(/\s+/g, '')
+      if (!normalizedIdNumber) {
+        return 'ID number is required.'
+      }
+      if (!/^\d{13}$/.test(normalizedIdNumber)) {
+        return 'ID number must be exactly 13 digits.'
+      }
+      return ''
+    }
+
+    if (fieldName === 'date_of_birth') {
+      if (!value) {
+        return ''
+      }
+      const parsedDob = new Date(value)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (Number.isNaN(parsedDob.getTime()) || parsedDob > today) {
+        return 'Date of birth cannot be in the future.'
+      }
+      return ''
+    }
+
+    return ''
+  }
+
+  const handleProfileFieldBlur = (fieldName, value) => {
+    const message = validateSingleProfileField(fieldName, value)
+    setFieldErrors((current) => {
+      const next = { ...current }
+      if (message) {
+        next[fieldName] = message
+      } else {
+        delete next[fieldName]
+      }
+      return next
+    })
   }
 
   const handleEducationRowChange = (index, fieldName, value) => {
@@ -373,6 +592,16 @@ export default function ApplicantProfile({ onLogout }) {
         }
       }),
     )
+
+    setEducationFieldErrors((current) => {
+      const key = `${index}-${fieldName}`
+      if (!current[key]) {
+        return current
+      }
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
   }
 
   const handleAddEducation = () => {
@@ -387,6 +616,40 @@ export default function ApplicantProfile({ onLogout }) {
 
       return current.filter((_, rowIndex) => rowIndex !== index)
     })
+
+    // Reset row-indexed errors after removing an entry to avoid stale mappings.
+    setEducationFieldErrors({})
+  }
+
+  const getEducationValidationErrors = (rows) => {
+    const nextErrors = {}
+    const currentYear = new Date().getFullYear()
+
+    rows.forEach((row, index) => {
+      const anyField = row.institution || row.qualification_id || row.nqf_level || row.year_completed
+      if (!anyField) {
+        return
+      }
+
+      if (!row.institution) {
+        nextErrors[`${index}-institution`] = 'Institution is required for this education entry.'
+      }
+      if (!row.qualification_id) {
+        nextErrors[`${index}-qualification_id`] = 'Qualification is required for this education entry.'
+      }
+      if (!row.nqf_level) {
+        nextErrors[`${index}-nqf_level`] = 'NQF level is required for this education entry.'
+      }
+
+      if (row.year_completed) {
+        const yearValue = Number(row.year_completed)
+        if (!Number.isInteger(yearValue) || yearValue < 1900 || yearValue > currentYear + 1) {
+          nextErrors[`${index}-year_completed`] = 'Year completed must be between 1900 and next year.'
+        }
+      }
+    })
+
+    return nextErrors
   }
 
   const toggleSkillSelection = (skillTagId) => {
@@ -432,7 +695,7 @@ export default function ApplicantProfile({ onLogout }) {
 
     const { data: insertedSkill, error } = await supabase
       .from('skill_tags')
-      .insert({ name: normalizedName, nqf_aligned: false })
+      .insert({ name: normalizedName })
       .select('id,name')
       .single()
 
@@ -445,7 +708,7 @@ export default function ApplicantProfile({ onLogout }) {
 
       if (!fallbackSkill?.id) {
         setIsAddingSkill(false)
-        setSkillError('Could not create this skill right now. Please try again.')
+        setSkillError(getFriendlySupabaseError(error, 'Could not create this skill right now. Please try again.'))
         return
       }
 
@@ -482,6 +745,38 @@ export default function ApplicantProfile({ onLogout }) {
     if (!profileForm.location.trim()) return 'Location is required.'
     if (!profileForm.id_number.trim()) return 'ID number is required.'
 
+    const normalizedPhone = profileForm.phone.replace(/\D/g, '')
+    if (normalizedPhone.length < 10 || normalizedPhone.length > 15) {
+      return 'Phone number must contain 10 to 15 digits.'
+    }
+
+    const normalizedIdNumber = profileForm.id_number.replace(/\s+/g, '')
+    if (!/^\d{13}$/.test(normalizedIdNumber)) {
+      return 'ID number must be exactly 13 digits.'
+    }
+
+    if (profileForm.date_of_birth) {
+      const parsedDob = new Date(profileForm.date_of_birth)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (Number.isNaN(parsedDob.getTime()) || parsedDob > today) {
+        return 'Date of birth cannot be in the future.'
+      }
+    }
+
+    const currentYear = new Date().getFullYear()
+    const hasInvalidEducationYear = educationRows.some((row) => {
+      if (!row.year_completed) {
+        return false
+      }
+      const yearValue = Number(row.year_completed)
+      return !Number.isInteger(yearValue) || yearValue < 1900 || yearValue > currentYear + 1
+    })
+
+    if (hasInvalidEducationYear) {
+      return 'Education year completed must be between 1900 and next year.'
+    }
+
     const hasInvalidEducation = educationRows.some((row) => {
       const anyField = row.institution || row.qualification_id || row.nqf_level || row.year_completed
       if (!anyField) {
@@ -497,7 +792,35 @@ export default function ApplicantProfile({ onLogout }) {
     return ''
   }
 
+  const focusValidationField = (validationError) => {
+    const messageToFieldId = {
+      'First name is required.': 'profile-first-name',
+      'Last name is required.': 'profile-last-name',
+      'Phone number is required.': 'profile-phone',
+      'Phone number must contain 10 to 15 digits.': 'profile-phone',
+      'Location is required.': 'profile-location',
+      'ID number is required.': 'profile-id-number',
+      'ID number must be exactly 13 digits.': 'profile-id-number',
+      'Date of birth cannot be in the future.': 'profile-date-of-birth',
+      'Education year completed must be between 1900 and next year.': 'education-year-0',
+      'Each education entry must include institution, qualification, and NQF level.': 'education-institution-0',
+    }
+
+    const fieldId = messageToFieldId[validationError]
+    if (!fieldId) return
+
+    const field = document.getElementById(fieldId)
+    if (!field) return
+
+    field.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    field.focus()
+  }
+
   const handleSaveFullProfile = async () => {
+    console.log('💾 Save button clicked!')
+    console.log('  - userId:', userId)
+    console.log('  - hasSupabaseConfig:', hasSupabaseConfig)
+    
     if (!userId || !hasSupabaseConfig) {
       setUploadMessage('Please sign in and ensure Supabase is configured before saving.')
       return
@@ -505,95 +828,161 @@ export default function ApplicantProfile({ onLogout }) {
 
     const validationError = validateProfileForm()
     if (validationError) {
+      console.warn('❌ Validation error:', validationError)
       setUploadMessage(validationError)
+      setEducationFieldErrors(getEducationValidationErrors(educationRows))
+      const messageToFieldKey = {
+        'First name is required.': 'first_name',
+        'Last name is required.': 'last_name',
+        'Phone number is required.': 'phone',
+        'Phone number must contain 10 to 15 digits.': 'phone',
+        'Location is required.': 'location',
+        'ID number is required.': 'id_number',
+        'ID number must be exactly 13 digits.': 'id_number',
+        'Date of birth cannot be in the future.': 'date_of_birth',
+      }
+      const fieldKey = messageToFieldKey[validationError]
+      if (fieldKey) {
+        setFieldErrors((current) => ({ ...current, [fieldKey]: validationError }))
+      }
+      focusValidationField(validationError)
       return
     }
 
+    console.log('✅ Validation passed, starting save...')
     setIsSavingProfile(true)
     setUploadMessage('Saving profile...')
 
-    const profilePayload = {
-      user_id: userId,
-      first_name: profileForm.first_name.trim(),
-      last_name: profileForm.last_name.trim(),
-      phone: profileForm.phone.trim(),
-      location: profileForm.location.trim(),
-      date_of_birth: profileForm.date_of_birth || null,
-      id_number: profileForm.id_number.trim(),
-      cv_url: profileForm.cv_url || null,
-      about_me: profileForm.about_me.trim() || null,
-    }
+    try {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
 
-    let resolvedProfileId = profileId
-
-    if (resolvedProfileId) {
-      const { error: updateError } = await supabase
-        .from('applicant_profiles')
-        .update(profilePayload)
-        .eq('id', resolvedProfileId)
-
-      if (updateError) {
+      const databaseUserId = await resolveDatabaseUserId(authUser)
+      if (!databaseUserId) {
+        setUploadMessage('Could not save profile because your user account is not linked in the database.')
         setIsSavingProfile(false)
-        setUploadMessage('Could not save profile. Please try again.')
-        return
-      }
-    } else {
-      const { data: insertedProfile, error: insertError } = await supabase
-        .from('applicant_profiles')
-        .insert(profilePayload)
-        .select('id')
-        .single()
-
-      if (insertError || !insertedProfile?.id) {
-        setIsSavingProfile(false)
-        setUploadMessage('Could not create profile. Please try again.')
         return
       }
 
-      resolvedProfileId = insertedProfile.id
-      setProfileId(insertedProfile.id)
-    }
-
-    await Promise.all([
-      supabase.from('applicant_education').delete().eq('applicant_id', resolvedProfileId),
-      supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId),
-    ])
-
-    const educationPayload = educationRows
-      .filter((row) => row.institution || row.qualification_id || row.nqf_level || row.year_completed)
-      .map((row) => ({
-        applicant_id: resolvedProfileId,
-        institution: row.institution.trim(),
-        qualification_id: row.qualification_id || null,
-        nqf_level: row.nqf_level ? Number(row.nqf_level) : null,
-        year_completed: row.year_completed ? Number(row.year_completed) : null,
-      }))
-
-    if (educationPayload.length > 0) {
-      const { error: educationError } = await supabase.from('applicant_education').insert(educationPayload)
-      if (educationError) {
-        setIsSavingProfile(false)
-        setUploadMessage('Profile saved, but education entries failed to save.')
-        return
+      const profilePayload = {
+        user_id: databaseUserId,
+        first_name: profileForm.first_name.trim(),
+        last_name: profileForm.last_name.trim(),
+        phone: profileForm.phone.trim(),
+        location: profileForm.location.trim(),
+        date_of_birth: profileForm.date_of_birth || null,
+        id_number: profileForm.id_number.trim(),
+        cv_url: profileForm.cv_url || null,
+        about_me: profileForm.about_me.trim() || null,
       }
-    }
 
-    if (selectedSkillTagIds.length > 0) {
-      const skillsPayload = selectedSkillTagIds.map((skillTagId) => ({
-        applicant_id: resolvedProfileId,
-        skill_tag_id: skillTagId,
-      }))
+      let resolvedProfileId = profileId
 
-      const { error: skillsError } = await supabase.from('applicant_skills').insert(skillsPayload)
-      if (skillsError) {
-        setIsSavingProfile(false)
-        setUploadMessage('Profile saved, but selected skills failed to save.')
-        return
+      if (resolvedProfileId) {
+        const { error: updateError } = await supabase
+          .from('applicant_profiles')
+          .update(profilePayload)
+          .eq('id', resolvedProfileId)
+
+        if (updateError) {
+          console.error('Profile update error:', updateError)
+          setUploadMessage(`Could not save profile: ${getFriendlySupabaseError(updateError, 'Unknown error')}`)
+          setIsSavingProfile(false)
+          return
+        }
+      } else {
+        const { data: insertedProfile, error: insertError } = await supabase
+          .from('applicant_profiles')
+          .insert(profilePayload)
+          .select('id')
+          .single()
+
+        if (insertError || !insertedProfile?.id) {
+          console.error('Profile insert error:', insertError)
+          setUploadMessage(`Could not create profile: ${getFriendlySupabaseError(insertError, 'Unknown error')}`)
+          setIsSavingProfile(false)
+          return
+        }
+
+        resolvedProfileId = insertedProfile.id
+        setProfileId(insertedProfile.id)
       }
-    }
 
-    setIsSavingProfile(false)
-    setUploadMessage('Profile, education, and skills saved successfully.')
+      const [deleteEdu, deleteSkills] = await Promise.all([
+        supabase.from('applicant_education').delete().eq('applicant_id', resolvedProfileId),
+        supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId),
+      ])
+
+      if (deleteEdu.error) {
+        console.error('Education delete error:', deleteEdu.error)
+      }
+      if (deleteSkills.error) {
+        console.error('Skills delete error:', deleteSkills.error)
+      }
+
+      const educationPayload = educationRows
+        .filter((row) => row.institution || row.qualification_id || row.nqf_level || row.year_completed)
+        .map((row) => ({
+          applicant_id: resolvedProfileId,
+          institution: row.institution.trim(),
+          qualification_id: row.qualification_id || null,
+          nqf_level: row.nqf_level ? Number(row.nqf_level) : null,
+          year_completed: row.year_completed ? Number(row.year_completed) : null,
+        }))
+
+      if (educationPayload.length > 0) {
+        const { error: educationError } = await supabase.from('applicant_education').insert(educationPayload)
+        if (educationError) {
+          console.error('Education insert error:', educationError)
+          setUploadMessage(
+            `Profile saved, but education entries failed: ${getFriendlySupabaseError(educationError, 'Unknown error')}`,
+          )
+          setIsSavingProfile(false)
+          return
+        }
+      }
+
+      if (selectedSkillTagIds.length > 0) {
+        const skillsPayload = selectedSkillTagIds.map((skillTagId) => ({
+          applicant_id: resolvedProfileId,
+          skill_tag_id: skillTagId,
+        }))
+
+        console.log('Saving skills:', skillsPayload)
+        const { error: skillsError } = await supabase.from('applicant_skills').insert(skillsPayload)
+        if (skillsError) {
+          console.error('Skills insert error:', skillsError)
+          setUploadMessage(
+            `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsError, 'Unknown error')}`,
+          )
+          setIsSavingProfile(false)
+          return
+        }
+      }
+
+      console.log('✓ Profile saved with ID:', resolvedProfileId)
+      console.log('✓ Saved profile:', profilePayload)
+      console.log('✓ Saved education entries:', educationPayload.length)
+      console.log('✓ Saved skills:', selectedSkillTagIds.length)
+
+      setIsSavingProfile(false)
+      setShowSavedConfirmation(true)
+      setUploadMessage('')
+
+      // Show "Saved" for 2 seconds
+      setTimeout(() => {
+        setShowSavedConfirmation(false)
+      }, 2000)
+
+      // Reload data to verify persistence
+      console.log('Reloading profile data to verify persistence...')
+      await fetchFiles(userId, databaseUserId)
+    } catch (err) {
+      console.error('Unexpected save error:', err)
+      setUploadMessage(getFriendlySupabaseError(err, 'Unexpected error while saving profile. Please try again.'))
+      setIsSavingProfile(false)
+    }
   }
 
   const handleProfileUpload = async (event) => {
@@ -608,14 +997,14 @@ export default function ApplicantProfile({ onLogout }) {
     const { error } = await supabase.storage.from(PROFILE_BUCKET).upload(filePath, file, { upsert: true })
 
     if (error) {
-      setUploadMessage('Profile upload failed. Please try again.')
+      setUploadMessage(`Profile upload failed: ${getFriendlySupabaseError(error, 'Please try again.')}`)
       setTimeout(() => setUploadMessage(''), 3000)
       return
     }
 
     setUploadMessage('Profile picture uploaded successfully.')
     setTimeout(() => setUploadMessage(''), 3000)
-    await fetchFiles(userId)
+    await fetchStorageFiles(userId)
   }
 
   const handleDocumentUpload = async (event) => {
@@ -631,7 +1020,9 @@ export default function ApplicantProfile({ onLogout }) {
       const { error } = await supabase.storage.from(DOCS_BUCKET).upload(filePath, file, { upsert: false })
 
       if (error) {
-        setUploadMessage(`Document upload failed for ${file.name}. Please try again.`)
+        setUploadMessage(
+          `Document upload failed for ${file.name}: ${getFriendlySupabaseError(error, 'Please try again.')}`,
+        )
         setTimeout(() => setUploadMessage(''), 3000)
         event.target.value = ''
         return
@@ -641,7 +1032,7 @@ export default function ApplicantProfile({ onLogout }) {
     event.target.value = ''
     setUploadMessage('Document(s) uploaded successfully.')
     setTimeout(() => setUploadMessage(''), 3000)
-    await fetchFiles(userId)
+    await fetchStorageFiles(userId)
   }
 
   const handleCvUpload = async (event) => {
@@ -685,7 +1076,7 @@ export default function ApplicantProfile({ onLogout }) {
 
     setUploadMessage('CV uploaded successfully.')
     setTimeout(() => setUploadMessage(''), 3000)
-    await fetchFiles(userId)
+    await fetchStorageFiles(userId)
   }
 
   const handleDeleteDocument = async (fileName) => {
@@ -713,7 +1104,7 @@ export default function ApplicantProfile({ onLogout }) {
 
     setUploadMessage('Document deleted.')
     setTimeout(() => setUploadMessage(''), 3000)
-    await fetchFiles(userId)
+    await fetchStorageFiles(userId)
   }
 
   const handleDeleteProfilePicture = async () => {
@@ -731,7 +1122,7 @@ export default function ApplicantProfile({ onLogout }) {
 
     setUploadMessage('Profile picture deleted.')
     setTimeout(() => setUploadMessage(''), 3000)
-    await fetchFiles(userId)
+    await fetchStorageFiles(userId)
   }
 
   const openDocument = async (fileName) => {
@@ -832,57 +1223,78 @@ export default function ApplicantProfile({ onLogout }) {
         <section className="user-panel profile-card profile-card-personal">
           <h2>Personal details</h2>
           <div className="profile-fields-grid">
-            <label className="profile-field" htmlFor="profile-first-name">
+            <label className={`profile-field ${fieldErrors.first_name ? 'profile-field-invalid' : ''}`} htmlFor="profile-first-name">
               <span>First name</span>
               <input
                 className="profile-input"
                 id="profile-first-name"
                 value={profileForm.first_name}
                 onChange={(event) => handleProfileFieldChange('first_name', event.target.value)}
+                onBlur={(event) => handleProfileFieldBlur('first_name', event.target.value)}
+                aria-invalid={Boolean(fieldErrors.first_name)}
               />
+              {fieldErrors.first_name ? <p className="profile-field-error">{fieldErrors.first_name}</p> : null}
             </label>
 
-            <label className="profile-field" htmlFor="profile-last-name">
+            <label className={`profile-field ${fieldErrors.last_name ? 'profile-field-invalid' : ''}`} htmlFor="profile-last-name">
               <span>Last name</span>
               <input
                 className="profile-input"
                 id="profile-last-name"
                 value={profileForm.last_name}
                 onChange={(event) => handleProfileFieldChange('last_name', event.target.value)}
+                onBlur={(event) => handleProfileFieldBlur('last_name', event.target.value)}
+                aria-invalid={Boolean(fieldErrors.last_name)}
               />
+              {fieldErrors.last_name ? <p className="profile-field-error">{fieldErrors.last_name}</p> : null}
             </label>
 
-            <label className="profile-field" htmlFor="profile-phone">
+            <label className={`profile-field ${fieldErrors.phone ? 'profile-field-invalid' : ''}`} htmlFor="profile-phone">
               <span>Phone</span>
               <input
                 className="profile-input"
                 id="profile-phone"
+                inputMode="tel"
+                maxLength={15}
+                placeholder="e.g. 0821234567"
                 value={profileForm.phone}
                 onChange={(event) => handleProfileFieldChange('phone', event.target.value)}
+                onBlur={(event) => handleProfileFieldBlur('phone', event.target.value)}
+                aria-invalid={Boolean(fieldErrors.phone)}
               />
+              {fieldErrors.phone ? <p className="profile-field-error">{fieldErrors.phone}</p> : null}
             </label>
 
-            <label className="profile-field" htmlFor="profile-location">
+            <label className={`profile-field ${fieldErrors.location ? 'profile-field-invalid' : ''}`} htmlFor="profile-location">
               <span>Location</span>
               <input
                 className="profile-input"
                 id="profile-location"
                 value={profileForm.location}
                 onChange={(event) => handleProfileFieldChange('location', event.target.value)}
+                onBlur={(event) => handleProfileFieldBlur('location', event.target.value)}
+                aria-invalid={Boolean(fieldErrors.location)}
               />
+              {fieldErrors.location ? <p className="profile-field-error">{fieldErrors.location}</p> : null}
             </label>
 
-            <label className="profile-field" htmlFor="profile-id-number">
+            <label className={`profile-field ${fieldErrors.id_number ? 'profile-field-invalid' : ''}`} htmlFor="profile-id-number">
               <span>ID number</span>
               <input
                 className="profile-input"
                 id="profile-id-number"
+                inputMode="numeric"
+                maxLength={13}
+                placeholder="13 digits"
                 value={profileForm.id_number}
                 onChange={(event) => handleProfileFieldChange('id_number', event.target.value)}
+                onBlur={(event) => handleProfileFieldBlur('id_number', event.target.value)}
+                aria-invalid={Boolean(fieldErrors.id_number)}
               />
+              {fieldErrors.id_number ? <p className="profile-field-error">{fieldErrors.id_number}</p> : null}
             </label>
 
-            <label className="profile-field" htmlFor="profile-date-of-birth">
+            <label className={`profile-field ${fieldErrors.date_of_birth ? 'profile-field-invalid' : ''}`} htmlFor="profile-date-of-birth">
               <span>Date of birth</span>
               <input
                 className="profile-input"
@@ -890,7 +1302,10 @@ export default function ApplicantProfile({ onLogout }) {
                 type="date"
                 value={profileForm.date_of_birth}
                 onChange={(event) => handleProfileFieldChange('date_of_birth', event.target.value)}
+                onBlur={(event) => handleProfileFieldBlur('date_of_birth', event.target.value)}
+                aria-invalid={Boolean(fieldErrors.date_of_birth)}
               />
+              {fieldErrors.date_of_birth ? <p className="profile-field-error">{fieldErrors.date_of_birth}</p> : null}
             </label>
           </div>
         </section>
@@ -918,23 +1333,34 @@ export default function ApplicantProfile({ onLogout }) {
                 </div>
 
                 <div className="education-row-grid">
-                  <label className="profile-field" htmlFor={`education-institution-${index}`}>
+                  <label
+                    className={`profile-field ${educationFieldErrors[`${index}-institution`] ? 'profile-field-invalid' : ''}`}
+                    htmlFor={`education-institution-${index}`}
+                  >
                     <span>Institution</span>
                     <input
                       className="profile-input"
                       id={`education-institution-${index}`}
                       value={row.institution}
                       onChange={(event) => handleEducationRowChange(index, 'institution', event.target.value)}
+                      aria-invalid={Boolean(educationFieldErrors[`${index}-institution`])}
                     />
+                    {educationFieldErrors[`${index}-institution`] ? (
+                      <p className="profile-field-error">{educationFieldErrors[`${index}-institution`]}</p>
+                    ) : null}
                   </label>
 
-                  <label className="profile-field" htmlFor={`education-qualification-${index}`}>
+                  <label
+                    className={`profile-field ${educationFieldErrors[`${index}-qualification_id`] ? 'profile-field-invalid' : ''}`}
+                    htmlFor={`education-qualification-${index}`}
+                  >
                     <span>Qualification</span>
                     <select
                       className="profile-input"
                       id={`education-qualification-${index}`}
                       value={row.qualification_id}
                       onChange={(event) => handleEducationRowChange(index, 'qualification_id', event.target.value)}
+                      aria-invalid={Boolean(educationFieldErrors[`${index}-qualification_id`])}
                     >
                       <option value="">Select qualification</option>
                       {qualificationOptions.map((qualification) => (
@@ -943,15 +1369,22 @@ export default function ApplicantProfile({ onLogout }) {
                         </option>
                       ))}
                     </select>
+                    {educationFieldErrors[`${index}-qualification_id`] ? (
+                      <p className="profile-field-error">{educationFieldErrors[`${index}-qualification_id`]}</p>
+                    ) : null}
                   </label>
 
-                  <label className="profile-field" htmlFor={`education-nqf-level-${index}`}>
+                  <label
+                    className={`profile-field ${educationFieldErrors[`${index}-nqf_level`] ? 'profile-field-invalid' : ''}`}
+                    htmlFor={`education-nqf-level-${index}`}
+                  >
                     <span>NQF level</span>
                     <select
                       className="profile-input"
                       id={`education-nqf-level-${index}`}
                       value={row.nqf_level}
                       onChange={(event) => handleEducationRowChange(index, 'nqf_level', event.target.value)}
+                      aria-invalid={Boolean(educationFieldErrors[`${index}-nqf_level`])}
                     >
                       <option value="">Select NQF level</option>
                       {nqfLevels.map((level) => (
@@ -960,18 +1393,30 @@ export default function ApplicantProfile({ onLogout }) {
                         </option>
                       ))}
                     </select>
+                    {educationFieldErrors[`${index}-nqf_level`] ? (
+                      <p className="profile-field-error">{educationFieldErrors[`${index}-nqf_level`]}</p>
+                    ) : null}
                   </label>
 
-                  <label className="profile-field" htmlFor={`education-year-${index}`}>
+                  <label
+                    className={`profile-field ${educationFieldErrors[`${index}-year_completed`] ? 'profile-field-invalid' : ''}`}
+                    htmlFor={`education-year-${index}`}
+                  >
                     <span>Year completed</span>
                     <input
                       className="profile-input"
                       id={`education-year-${index}`}
                       type="number"
+                      min={1900}
+                      max={new Date().getFullYear() + 1}
                       placeholder="2025"
                       value={row.year_completed}
                       onChange={(event) => handleEducationRowChange(index, 'year_completed', event.target.value)}
+                      aria-invalid={Boolean(educationFieldErrors[`${index}-year_completed`])}
                     />
+                    {educationFieldErrors[`${index}-year_completed`] ? (
+                      <p className="profile-field-error">{educationFieldErrors[`${index}-year_completed`]}</p>
+                    ) : null}
                   </label>
                 </div>
               </section>
@@ -982,43 +1427,35 @@ export default function ApplicantProfile({ onLogout }) {
         <section className="user-panel profile-card profile-card-skills">
           <h2>Skills</h2>
           <p className="user-panel-copy">
-            Start with a few common skills. Search to reveal more fields or add your own custom skill.
+            Select skills from the comprehensive library below. Search or click "View all skills" to explore more options.
           </p>
 
-          <div className="skills-create-row">
-            <input
-              className="profile-input"
-              value={skillDraft}
-              onChange={(event) => setSkillDraft(event.target.value)}
-              placeholder="Add a new skill (e.g. CRM Administration)"
-              aria-label="Add custom skill"
-            />
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <label className="profile-field profile-search-field" htmlFor="skill-search" style={{ flex: 1, margin: 0 }}>
+              <span style={{ display: 'block', marginBottom: '0.25rem' }}>Search available skills</span>
+              <input
+                id="skill-search"
+                className="profile-input"
+                value={skillSearch}
+                onChange={(event) => setSkillSearch(event.target.value)}
+                placeholder="Type to filter skill library"
+              />
+            </label>
             <button
               type="button"
               className="user-action-btn user-action-btn-inline"
-              onClick={handleCreateSkill}
-              disabled={isAddingSkill}
+              onClick={() => setShowAllSkills(!showAllSkills)}
+              style={{ marginTop: '1.5rem' }}
             >
-              {isAddingSkill ? 'Adding...' : 'Add skill'}
+              {showAllSkills ? 'Show fewer' : 'View all skills'}
             </button>
           </div>
 
-          <label className="profile-field profile-search-field" htmlFor="skill-search">
-            <span>Search available skills</span>
-            <input
-              id="skill-search"
-              className="profile-input"
-              value={skillSearch}
-              onChange={(event) => setSkillSearch(event.target.value)}
-              placeholder="Type to filter skill library"
-            />
-          </label>
-
           <div className="skill-pill-group skill-pill-group-selected" aria-label="Selected skills">
-            {selectedSkillTags.length === 0 ? (
+            {allSelectedSkills.length === 0 ? (
               <p className="user-item-meta">No skills selected yet.</p>
             ) : (
-              selectedSkillTags.map((skillTag) => (
+              allSelectedSkills.map((skillTag) => (
                 <button
                   key={skillTag.id}
                   type="button"
@@ -1041,14 +1478,7 @@ export default function ApplicantProfile({ onLogout }) {
                   key={skillTag.id}
                   type="button"
                   className={`skill-pill ${selectedSkillTagIds.includes(skillTag.id) ? 'skill-pill-active' : ''}`}
-                  onClick={() => {
-                    if (skillTag.isSuggested) {
-                      void handleSelectSuggestedSkill(skillTag.name)
-                      return
-                    }
-
-                    toggleSkillSelection(skillTag.id)
-                  }}
+                  onClick={() => toggleSkillSelection(skillTag.id)}
                   aria-pressed={selectedSkillTagIds.includes(skillTag.id)}
                 >
                   {skillTag.name}
@@ -1133,7 +1563,7 @@ export default function ApplicantProfile({ onLogout }) {
             onClick={handleSaveFullProfile}
             disabled={isSavingProfile}
           >
-            {isSavingProfile ? 'Saving...' : 'Save full profile'}
+            {showSavedConfirmation ? '✓ Saved' : isSavingProfile ? 'Saving...' : 'Save full profile'}
           </button>
 
           <input

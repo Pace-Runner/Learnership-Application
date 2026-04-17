@@ -572,9 +572,32 @@
   box-sizing: border-box;
 }
 
+.profile-input[aria-invalid='true'] {
+  border-color: rgba(255, 151, 151, 0.92);
+  background: rgba(255, 120, 120, 0.13);
+  box-shadow: inset 0 0 0 1px rgba(255, 126, 126, 0.2);
+}
+
 .profile-input:focus {
   outline: 2px solid rgba(173, 217, 255, 0.55);
   outline-offset: 1px;
+}
+
+.profile-input[aria-invalid='true']:focus {
+  outline: 2px solid rgba(255, 173, 173, 0.75);
+}
+
+.profile-field-invalid {
+  background: linear-gradient(180deg, rgba(255, 114, 114, 0.08), rgba(255, 114, 114, 0.02));
+  border-radius: 12px;
+  padding: 0.28rem 0.34rem 0.42rem;
+}
+
+.profile-field-error {
+  margin: 0.1rem 0 0;
+  color: #ffd4d4;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .profile-input::placeholder {
