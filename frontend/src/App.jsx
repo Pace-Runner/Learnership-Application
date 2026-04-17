@@ -13,6 +13,7 @@ import Admin from './pages/Admin'
 import Dashboard from './pages/Dashboard'
 import ApplicantProfile from './pages/ApplicantProfile'
 import Provider from './pages/Provider'
+import ProviderListingForm from './pages/ProviderListingForm'
 import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
 const AdminDashboardShell = Admin
 
@@ -495,35 +496,35 @@ return (
             <article className="signal-card tone-dark">
               <h3>Discover</h3>
               <p>APPLICANT VIEW</p>
-              <div className="card-art" aria-hidden="true"></div>
+              <span className="card-art" aria-hidden="true"></span>
               <small>Find learnerships that match your interests and readiness level.</small>
             </article>
 
             <article className="signal-card tone-cyan">
               <h3>Publish</h3>
               <p>PROVIDER VIEW</p>
-              <div className="card-art" aria-hidden="true"></div>
+              <span className="card-art" aria-hidden="true"></span>
               <small>Create listings and track engagement from qualified candidates.</small>
             </article>
 
             <article className="signal-card tone-orange">
               <h3>Moderate</h3>
               <p>ADMIN VIEW</p>
-              <div className="card-art" aria-hidden="true"></div>
+              <span className="card-art" aria-hidden="true"></span>
               <small>Flag risk, request fixes, and approve opportunities confidently.</small>
             </article>
 
             <article className="signal-card tone-light">
               <h3>Move</h3>
               <p>OUTCOMES</p>
-              <div className="card-art" aria-hidden="true"></div>
+              <span className="card-art" aria-hidden="true"></span>
               <small>Turn applications into skills, credentials, and workplace entry points.</small>
             </article>
           </div>
         </section>
 
         <section className="page-three">
-          <div className="dot-plane" aria-hidden="true"></div>
+          <span className="dot-plane" aria-hidden="true"></span>
           <div className="focus-copy scroll-animate">
             <p className="mini-label">Built for momentum</p>
             <h2>
@@ -556,6 +557,12 @@ return (
 <Route path="/provider" element={
   <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
     <Provider onLogout={handleLogout} />
+  </ProtectedRoute>
+} />
+
+<Route path="/provider/listings/new" element={
+  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
+    <ProviderListingForm />
   </ProtectedRoute>
 } />
 

@@ -1,44 +1,185 @@
-// Provider workspace - manage learnership listings and applicants
-// Shows quick actions, stats, and listing overview
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
+import './UserPages.css'
 
-const providerStats = [
-  { label: 'Active listings', value: '09' },
-  { label: 'New applicants', value: '31' },
-  { label: 'Listings needing review', value: '04' },
-]
+const providerActions = ['Create a new listing', 'Review applicants', 'Publish selected listing']
 
-const listingOverview = [
+const fallbackListings = [
   {
-    type: 'Learnership',
+    id: 'sample-1',
     title: 'Business Administration NQF 4',
-    meta: 'Cape Town | Applicants applied: 14 | Shortlisted: 6',
-    detail: 'Best applicants: Thandi Mokoena, Ayanda P., Nathi Dlamini',
-    status: 'Needs screening notes',
-  },
-  {
-    type: 'Apprenticeship',
-    title: 'Electrical Trade Apprenticeship',
-    meta: 'Durban | Applicants applied: 8 | Interview-ready: 3',
-    detail: 'Best applicants: Kabelo M., Sipho T., Lerato N.',
-    status: 'Interview slots open',
-  },
-  {
     type: 'Learnership',
-    title: 'Retail Operations NQF 3',
-    meta: 'Johannesburg | Applicants applied: 9 | Profile matches: 5',
-    detail: 'Best applicants: Ayesha K., Zinhle M., Musa R.',
-    status: 'Awaiting posting copy',
+    location: 'Cape Town',
+    duration: '12 months',
+    status: 'Pending',
+    closing_date: '2026-05-28',
+  },
+  {
+    id: 'sample-2',
+    title: 'Electrical Trade Apprenticeship',
+    type: 'Apprenticeship',
+    location: 'Durban',
+    duration: '18 months',
+    status: 'Approved',
+    closing_date: '2026-06-10',
   },
 ]
 
-const providerActions = [
-  'Create a new listing',
-  'Review applicants',
-  'Publish selected listing',
-]
+function getStatusClass(status) {
+  if (status === 'Approved') return 'status-chip status-chip-approved'
+  if (status === 'Removed') return 'status-chip status-chip-removed'
+  return 'status-chip status-chip-pending'
+}
 
-// Provider workspace component  
+function formatClosingDate(value) {
+  if (!value) return 'Not specified'
+  return value
+}
+
+function formatRandAmount(value) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return 'R0'
+  return `R${parsed.toLocaleString('en-ZA', { maximumFractionDigits: 2 })}`
+}
+
 export default function Provider({ onLogout }) {
+  const navigate = useNavigate()
+  const [listings, setListings] = useState([])
+  const [isLoadingListings, setIsLoadingListings] = useState(true)
+  const [listingsError, setListingsError] = useState('')
+
+  const handleCreateListing = () => {
+    navigate('/provider/listings/new')
+
+    // Fallback for environments where SPA navigation is blocked by runtime state.
+    if (window.location.pathname !== '/provider/listings/new') {
+      window.location.assign('/provider/listings/new')
+    }
+  }
+
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchProviderListings = async () => {
+      setIsLoadingListings(true)
+      setListingsError('')
+
+      if (!hasSupabaseConfig) {
+        if (isMounted) {
+          setListings(fallbackListings)
+          setIsLoadingListings(false)
+        }
+        return
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      const email = sessionData?.session?.user?.email
+
+      if (sessionError || !email) {
+        if (isMounted) {
+          setListings([])
+          setListingsError('Could not load your provider account details.')
+          setIsLoadingListings(false)
+        }
+        return
+      }
+
+      const { data: userRow, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+
+      if (userError || !userRow?.id) {
+        if (isMounted) {
+          setListings([])
+          setListingsError('Provider user record was not found.')
+          setIsLoadingListings(false)
+        }
+        return
+      }
+
+      const { data: providerRow, error: providerError } = await supabase
+        .from('provider_profiles')
+        .select('id')
+        .eq('user_id', userRow.id)
+        .maybeSingle()
+
+      if (providerError) {
+        if (isMounted) {
+          setListings([])
+          setListingsError('Provider profile was not found. Please contact support.')
+          setIsLoadingListings(false)
+        }
+        return
+      }
+
+      let providerId = providerRow?.id
+
+      if (!providerId) {
+        const { data: createdProvider, error: createProviderError } = await supabase
+          .from('provider_profiles')
+          .insert({
+            user_id: userRow.id,
+            organisation_name: 'New Provider Organisation',
+            contact_email: email,
+          })
+          .select('id')
+          .single()
+
+        if (createProviderError || !createdProvider?.id) {
+          if (isMounted) {
+            setListings([])
+            setListingsError('Provider profile could not be created. Please try again.')
+            setIsLoadingListings(false)
+          }
+          return
+        }
+
+        providerId = createdProvider.id
+      }
+
+      const { data: opportunityRows, error: opportunityError } = await supabase
+        .from('opportunities')
+        .select('id,title,type,stipend,location,duration,closing_date,status,created_at')
+        .eq('provider_id', providerId)
+        .order('created_at', { ascending: false })
+
+      if (opportunityError) {
+        if (isMounted) {
+          setListings([])
+          setListingsError('Your listings could not be loaded right now.')
+          setIsLoadingListings(false)
+        }
+        return
+      }
+
+      if (isMounted) {
+        setListings(opportunityRows || [])
+        setIsLoadingListings(false)
+      }
+    }
+
+    fetchProviderListings()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const providerStats = useMemo(() => {
+    const activeCount = listings.filter((item) => item.status !== 'Removed').length
+    const pendingCount = listings.filter((item) => item.status === 'Pending').length
+    const approvedCount = listings.filter((item) => item.status === 'Approved').length
+
+    return [
+      { label: 'Active listings', value: String(activeCount).padStart(2, '0') },
+      { label: 'Pending approval', value: String(pendingCount).padStart(2, '0') },
+      { label: 'Approved listings', value: String(approvedCount).padStart(2, '0') },
+    ]
+  }, [listings])
+
   return (
     <main className="user-page provider-theme provider-shell">
       <section className="user-page-inner">
@@ -53,7 +194,7 @@ export default function Provider({ onLogout }) {
           </section>
 
           <nav className="user-nav-actions" aria-label="Provider actions">
-            <button type="button" className="user-link-btn">
+            <button type="button" className="user-link-btn" onClick={handleCreateListing}>
               New Listing
             </button>
             <button onClick={onLogout} className="user-logout-btn">
@@ -75,9 +216,15 @@ export default function Provider({ onLogout }) {
           <menu className="provider-action-row">
             {providerActions.map((action) => (
               <li key={action}>
-                <button type="button" className="user-action-btn">
-                  {action}
-                </button>
+                {action === 'Create a new listing' ? (
+                  <button type="button" className="user-action-btn provider-action-link" onClick={handleCreateListing}>
+                    {action}
+                  </button>
+                ) : (
+                  <button type="button" className="user-action-btn">
+                    {action}
+                  </button>
+                )}
               </li>
             ))}
           </menu>
@@ -97,22 +244,33 @@ export default function Provider({ onLogout }) {
             <header className="provider-panel-head">
               <section>
                 <p className="provider-panel-kicker">Listing overview</p>
-                <h2>Applicants by listing</h2>
+                <h2>Your submitted listings</h2>
               </section>
-              <span className="status-chip status-chip-soft">Focused on posting workflow</span>
+              <span className="status-chip status-chip-soft">Status updates</span>
             </header>
 
-            <ul className="user-list provider-list">
-              {listingOverview.map((item) => (
-                <li key={item.title}>
-                  <span>{item.type}</span>
-                  <strong>{item.title}</strong>
-                  <small className="user-item-meta">{item.meta}</small>
-                  <small className="provider-detail">{item.detail}</small>
-                  <small className="status-chip">{item.status}</small>
-                </li>
-              ))}
-            </ul>
+            {isLoadingListings ? <p className="user-panel-copy">Loading your listings...</p> : null}
+            {!isLoadingListings && listingsError ? <p className="user-panel-copy">{listingsError}</p> : null}
+
+            {!isLoadingListings && !listingsError ? (
+              listings.length === 0 ? (
+                <p className="user-panel-copy">You have not submitted any listings yet.</p>
+              ) : (
+                <ul className="user-list provider-list">
+                  {listings.map((item) => (
+                    <li key={item.id}>
+                      <span>{item.type || 'Opportunity'}</span>
+                      <strong>{item.title || 'Untitled listing'}</strong>
+                      <small className="user-item-meta">Stipend: {formatRandAmount(item.stipend)}</small>
+                      <small className="user-item-meta">Location: {item.location || 'Not specified'}</small>
+                      <small className="user-item-meta">Duration: {item.duration || 'Not specified'}</small>
+                      <small className="provider-detail">Closing date: {formatClosingDate(item.closing_date)}</small>
+                      <small className={getStatusClass(item.status)}>Status: {item.status || 'Pending'}</small>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : null}
           </article>
 
           <article className="user-panel provider-panel">

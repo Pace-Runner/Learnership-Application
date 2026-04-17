@@ -119,6 +119,21 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.status-chip-pending {
+  border-color: rgba(255, 204, 128, 0.6);
+  background: rgba(255, 204, 128, 0.14);
+}
+
+.status-chip-approved {
+  border-color: rgba(126, 234, 163, 0.6);
+  background: rgba(126, 234, 163, 0.14);
+}
+
+.status-chip-removed {
+  border-color: rgba(255, 140, 140, 0.6);
+  background: rgba(255, 140, 140, 0.14);
+}
+
 .provider-note {
   border-left: 2px solid rgba(255, 183, 135, 0.8);
   padding-left: 0.7rem;
@@ -388,6 +403,83 @@
   font-size: 0.8rem;
   cursor: pointer;
   transition: transform 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.provider-action-link {
+  display: block;
+  text-decoration: none;
+}
+
+.provider-form-panel {
+  margin-top: 1rem;
+}
+
+.provider-listing-form {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.provider-listing-form label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(204, 225, 252, 0.9);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.provider-listing-form input,
+.provider-listing-form select,
+.provider-listing-form textarea {
+  border: 1px solid rgba(160, 203, 255, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eff7ff;
+  padding: 0.62rem 0.72rem;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.provider-listing-form textarea {
+  resize: vertical;
+}
+
+.provider-money-input-wrap {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.provider-money-prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(160, 203, 255, 0.45);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eff7ff;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.86rem;
+}
+
+.provider-money-input-wrap input {
+  border-radius: 0 10px 10px 0;
+}
+
+.provider-money-hint {
+  color: rgba(205, 223, 247, 0.9);
+  font-size: 0.76rem;
+}
+
+.provider-field-error,
+.provider-submit-error {
+  color: #ffd6d6;
+  font-size: 0.78rem;
+}
+
+.provider-submit-btn {
+  margin-top: 0.5rem;
+  text-align: center;
 }
 
 .user-action-btn:hover {
