@@ -5,6 +5,23 @@ import { MemoryRouter } from 'react-router-dom'
 import Dashboard from './Dashboard'
 import ApplicantProfile from './ApplicantProfile'
 
+const sampleApprovedListings = [
+  {
+    id: 'approved-1',
+    title: 'Business Administration NQF 4',
+    description: 'Office support and administration track',
+    location: 'Cape Town',
+    status: 'Approved',
+  },
+  {
+    id: 'approved-2',
+    title: 'Junior IT Support Internship',
+    description: 'Desktop support and troubleshooting',
+    location: 'Johannesburg',
+    status: 'Approved',
+  },
+]
+
 afterEach(() => {
   cleanup()
 })
@@ -15,7 +32,7 @@ describe('Applicant tests', () => {
 
     render(
       <MemoryRouter>
-        <Dashboard onLogout={onLogout} />
+        <Dashboard onLogout={onLogout} listings={sampleApprovedListings} />
       </MemoryRouter>
     )
 
@@ -27,7 +44,7 @@ describe('Applicant tests', () => {
     const onLogout = vi.fn()
     render(
       <MemoryRouter>
-        <Dashboard onLogout={onLogout} />
+        <Dashboard onLogout={onLogout} listings={sampleApprovedListings} />
       </MemoryRouter>
     )
 
@@ -40,12 +57,13 @@ describe('Applicant tests', () => {
     const onLogout = vi.fn()
     render(
       <MemoryRouter>
-        <Dashboard onLogout={onLogout} />
+        <Dashboard onLogout={onLogout} listings={sampleApprovedListings} />
       </MemoryRouter>
     )
 
     expect(screen.getByText('Current Listings and Internships')).toBeTruthy()
     expect(screen.getByPlaceholderText('Search by title, location, or sector')).toBeTruthy()
+    expect(screen.getByLabelText('Filter listing type')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy()
     expect(screen.queryByText('Focus Areas')).toBeNull()
   })
@@ -54,7 +72,7 @@ describe('Applicant tests', () => {
     const onLogout = vi.fn()
     render(
       <MemoryRouter>
-        <Dashboard onLogout={onLogout} />
+        <Dashboard onLogout={onLogout} listings={sampleApprovedListings} />
       </MemoryRouter>
     )
 
@@ -67,7 +85,7 @@ describe('Applicant tests', () => {
     const onLogout = vi.fn()
     render(
       <MemoryRouter>
-        <Dashboard onLogout={onLogout} />
+        <Dashboard onLogout={onLogout} listings={sampleApprovedListings} />
       </MemoryRouter>
     )
 

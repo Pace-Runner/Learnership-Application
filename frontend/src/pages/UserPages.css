@@ -317,6 +317,11 @@
   font-family: 'Manrope', 'Segoe UI', sans-serif;
 }
 
+.listing-search-form select option {
+  background: #12233f;
+  color: #f3f8ff;
+}
+
 .search-btn {
   text-align: center;
 }
@@ -829,7 +834,6 @@ select.profile-input {
   .skills-create-row {
     grid-template-columns: 1fr;
   }
-
   .provider-panel-head {
     flex-direction: column;
   }
