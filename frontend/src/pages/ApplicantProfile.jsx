@@ -96,10 +96,6 @@ function isCvFile(file) {
   return extensionOk || typeOk
 }
 
-function normalizeSkillName(value) {
-  return value.replace(/\s+/g, ' ').trim()
-}
-
 function getFriendlySupabaseError(error, fallbackMessage) {
   if (!error) {
     return fallbackMessage
@@ -153,9 +149,7 @@ export default function ApplicantProfile({ onLogout }) {
   const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [uploadMessage, setUploadMessage] = useState('')
   const [showSavedConfirmation, setShowSavedConfirmation] = useState(false)
-  const [skillDraft, setSkillDraft] = useState('')
   const [skillSearch, setSkillSearch] = useState('')
-  const [skillError, setSkillError] = useState('')
   const [showAllSkills, setShowAllSkills] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [educationFieldErrors, setEducationFieldErrors] = useState({})
@@ -185,10 +179,6 @@ export default function ApplicantProfile({ onLogout }) {
     const value = `${firstInitial}${lastInitial}`.toUpperCase()
     return value || 'AP'
   }, [profileForm.first_name, profileForm.last_name])
-  const selectedSkillTags = useMemo(
-    () => skillTagOptions.filter((skillTag) => selectedSkillTagIds.includes(skillTag.id)),
-    [selectedSkillTagIds, skillTagOptions],
-  )
   const recommendedSkillTags = useMemo(
     () =>
       skillSuggestionLibrary.map((name) => ({
@@ -662,82 +652,6 @@ export default function ApplicantProfile({ onLogout }) {
     })
   }
 
-  const handleCreateSkill = async (skillName = skillDraft) => {
-    if (!hasSupabaseConfig || !userId) {
-      setSkillError('Sign in and configure Supabase before adding skills.')
-      return
-    }
-
-    const normalizedName = normalizeSkillName(skillName)
-    if (!normalizedName) {
-      setSkillError('Enter a skill name first.')
-      return
-    }
-
-    const existingSkill = skillTagOptions.find(
-      (skillTag) => skillTag.name.toLowerCase() === normalizedName.toLowerCase(),
-    )
-
-    if (existingSkill) {
-      setSkillError('')
-      setSelectedSkillTagIds((current) => {
-        if (current.includes(existingSkill.id)) {
-          return current
-        }
-        return [...current, existingSkill.id]
-      })
-      setSkillDraft('')
-      return
-    }
-
-    setIsAddingSkill(true)
-    setSkillError('')
-
-    const { data: insertedSkill, error } = await supabase
-      .from('skill_tags')
-      .insert({ name: normalizedName })
-      .select('id,name')
-      .single()
-
-    if (error || !insertedSkill?.id) {
-      const { data: fallbackSkill } = await supabase
-        .from('skill_tags')
-        .select('id,name')
-        .ilike('name', normalizedName)
-        .maybeSingle()
-
-      if (!fallbackSkill?.id) {
-        setIsAddingSkill(false)
-        setSkillError(getFriendlySupabaseError(error, 'Could not create this skill right now. Please try again.'))
-        return
-      }
-
-      setSkillTagOptions((current) =>
-        [...current, fallbackSkill].sort((left, right) => left.name.localeCompare(right.name)),
-      )
-      setSelectedSkillTagIds((current) => {
-        if (current.includes(fallbackSkill.id)) {
-          return current
-        }
-        return [...current, fallbackSkill.id]
-      })
-      setSkillDraft('')
-      setIsAddingSkill(false)
-      return
-    }
-
-    setSkillTagOptions((current) =>
-      [...current, insertedSkill].sort((left, right) => left.name.localeCompare(right.name)),
-    )
-    setSelectedSkillTagIds((current) => [...current, insertedSkill.id])
-    setSkillDraft('')
-    setIsAddingSkill(false)
-  }
-
-  const handleSelectSuggestedSkill = async (skillName) => {
-    await handleCreateSkill(skillName)
-  }
-
   const validateProfileForm = () => {
     if (!profileForm.first_name.trim()) return 'First name is required.'
     if (!profileForm.last_name.trim()) return 'Last name is required.'
@@ -1150,7 +1064,6 @@ export default function ApplicantProfile({ onLogout }) {
             {uploadMessage ? <p className="user-item-meta">{uploadMessage}</p> : null}
             {isLoadingDropdowns ? <p className="user-item-meta">Loading qualification and skills data...</p> : null}
             {dropdownError ? <p className="user-item-meta">{dropdownError}</p> : null}
-            {skillError ? <p className="user-item-meta">{skillError}</p> : null}
             <p className="user-intro">
               Keep your profile complete so applications are easier to review by employers and training
               providers.
