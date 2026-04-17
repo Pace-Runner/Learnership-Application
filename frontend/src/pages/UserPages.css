@@ -25,8 +25,8 @@
 
 .applicant-theme {
   background:
-    radial-gradient(circle at 8% 12%, rgba(114, 173, 255, 0.24), rgba(7, 16, 34, 0) 34%),
-    radial-gradient(circle at 88% 16%, rgba(73, 188, 191, 0.2), rgba(7, 16, 34, 0) 36%),
+    radial-gradient(circle at 8% 12%, rgba(114, 173, 255, 0.18), rgba(7, 16, 34, 0) 34%),
+    radial-gradient(circle at 88% 16%, rgba(73, 188, 191, 0.14), rgba(7, 16, 34, 0) 36%),
     #071022;
 }
 
@@ -325,11 +325,12 @@
   border: 1px solid rgba(180, 210, 255, 0.34);
   border-radius: 18px;
   padding: 1rem;
-  background: rgba(8, 24, 49, 0.68);
+  background: linear-gradient(180deg, rgba(11, 28, 54, 0.72), rgba(8, 22, 44, 0.66));
+  box-shadow: 0 12px 30px rgba(4, 11, 24, 0.18);
 }
 
 .user-panel-alt {
-  background: rgba(11, 32, 63, 0.68);
+  background: linear-gradient(180deg, rgba(12, 32, 61, 0.76), rgba(8, 24, 48, 0.68));
 }
 
 .user-panel h2 {
@@ -490,7 +491,234 @@
 }
 
 .profile-shell {
-  padding-top: 5.2rem;
+  padding-top: 4.2rem;
+  padding-bottom: 5rem;
+}
+
+.profile-overview-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 0.8rem;
+}
+
+.profile-card-personal {
+  background: linear-gradient(180deg, rgba(12, 31, 59, 0.8), rgba(8, 22, 44, 0.78));
+}
+
+.profile-card-education {
+  background: linear-gradient(180deg, rgba(10, 28, 54, 0.84), rgba(7, 20, 41, 0.78));
+}
+
+.profile-card-skills {
+  background: linear-gradient(180deg, rgba(11, 29, 56, 0.83), rgba(8, 23, 46, 0.77));
+}
+
+.profile-card-documents {
+  background: linear-gradient(180deg, rgba(10, 27, 52, 0.82), rgba(7, 20, 40, 0.78));
+}
+
+.profile-identity-card {
+  justify-items: start;
+}
+
+.profile-name-pill {
+  margin: 0;
+  padding: 0.35rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(171, 210, 255, 0.45);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(232, 244, 255, 0.95);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-fields-grid {
+  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.profile-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.profile-field span {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(204, 225, 252, 0.9);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.profile-input {
+  border: 1px solid rgba(160, 203, 255, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #eff7ff;
+  padding: 0.62rem 0.72rem;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.profile-input:focus {
+  outline: 2px solid rgba(173, 217, 255, 0.55);
+  outline-offset: 1px;
+}
+
+.profile-input::placeholder {
+  color: rgba(207, 227, 250, 0.6);
+}
+
+.profile-input option {
+  color: #10223d;
+}
+
+select.profile-input {
+  appearance: auto;
+}
+
+.profile-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.education-grid-stack {
+  margin-top: 0.8rem;
+  display: grid;
+  gap: 0.62rem;
+}
+
+.education-row-card {
+  border: 1px solid rgba(172, 208, 255, 0.24);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.025);
+  display: grid;
+  gap: 0.62rem;
+}
+
+.education-row-title {
+  margin: 0;
+  color: rgba(218, 235, 255, 0.92);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.education-row-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.skills-create-row {
+  margin-top: 0.78rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+}
+
+.profile-search-field {
+  margin-top: 0.62rem;
+}
+
+.skill-pill-group {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.skill-pill-group-selected {
+  padding: 0.65rem;
+  border: 1px solid rgba(157, 201, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.skill-pill-group-suggested {
+  padding: 0.65rem;
+  border: 1px solid rgba(157, 201, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.skill-pill {
+  border: 1px solid rgba(168, 206, 255, 0.45);
+  border-radius: 999px;
+  padding: 0.42rem 0.72rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(232, 243, 255, 0.95);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.skill-pill:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.skill-pill-active {
+  border-color: rgba(133, 225, 190, 0.72);
+  background: rgba(133, 225, 190, 0.15);
+}
+
+.user-action-btn-inline {
+  width: auto;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.user-action-btn-muted {
+  border-color: rgba(178, 200, 229, 0.32);
+  color: rgba(224, 236, 251, 0.92);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.user-panel-copy + .skills-create-row {
+  margin-top: 0.2rem;
+}
+
+.doc-open-btn {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.doc-open-btn strong {
+  color: #ffffff;
+  text-decoration: underline;
+  text-decoration-color: rgba(189, 223, 255, 0.8);
+}
+
+.profile-save-btn {
+  margin-top: 1rem;
+  width: 100%;
+  text-align: center;
+  background: linear-gradient(145deg, #f4f9ff, #ddecff);
+  color: #173961;
+  border-color: rgba(228, 241, 255, 0.95);
+}
+
+.profile-save-btn:hover {
+  background: #ffffff;
 }
 
 .profile-grid {
@@ -578,7 +806,7 @@
 
 @media (max-width: 900px) {
   .user-page {
-    padding: 5.2rem 1rem 1.2rem;
+    padding: 4.6rem 1rem 3.4rem;
   }
 
   .user-hero {
@@ -588,6 +816,7 @@
   .user-stat-grid,
   .user-content-grid,
   .provider-grid,
+  .profile-overview-grid,
   .profile-grid,
   .doc-action-row,
   .listing-search-form,
@@ -595,7 +824,18 @@
     grid-template-columns: 1fr;
   }
 
+  .profile-fields-grid,
+  .education-row-grid,
+  .skills-create-row {
+    grid-template-columns: 1fr;
+  }
+
   .provider-panel-head {
     flex-direction: column;
+  }
+
+  .profile-section-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

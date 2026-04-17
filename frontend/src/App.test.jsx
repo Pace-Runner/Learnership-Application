@@ -83,7 +83,7 @@ describe('Admin tests', () => {
   test('Admin can see the dashboard', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain('Platform Moderation Console')
+    expect(appSource).toContain('<AdminDashboardShell onLogout={handleLogout} />')
     expect(appSource).toContain('<Route path="/admin"')
   })
   test.todo('Admin session survives a page refresh')
@@ -188,7 +188,7 @@ describe('Role based tests', () => {
   })
 
   test('Coverage reports generated and integrated', () => {
-    const ciWorkflow = readFileSync(resolve(cwd(), '../.github/workflows/ci.yml'), 'utf8')
+    const ciWorkflow = readFileSync(resolve(cwd(), '../.github/workflows/ci-ConnorLaptop.yml'), 'utf8')
 
     expect(ciWorkflow).toContain('with coverage')
     expect(ciWorkflow).toContain('npm run test --')

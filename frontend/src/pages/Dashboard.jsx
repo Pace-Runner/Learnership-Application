@@ -87,6 +87,10 @@ export default function Dashboard({ onLogout, listings }) {
       return availableListings
     }
 
+    if (dbApprovedListings.length === 0) {
+      return availableListings
+    }
+
     return dbApprovedListings
   }, [dbApprovedListings, hasListingsProp, listings])
 

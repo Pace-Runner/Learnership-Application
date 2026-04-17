@@ -72,6 +72,8 @@ function App() {
   const [isScrolled, setIsScrolled] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const oauthRedirectTo =
+    import.meta.env.VITE_AUTH_REDIRECT_URL?.trim() || `${window.location.origin}/`
 
   // Query users table to get applicant/provider/admin role based on email
   const getRoleForEmail = useCallback(async (email) => {
@@ -319,13 +321,13 @@ function App() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: oauthRedirectTo,
       },
     })
 
     if (error) {
       setIsLoadingAuth(false)
-      setAuthError('Google sign-in failed. Check Supabase Google provider configuration.')
+      setAuthError('Google sign-in failed. Verify Supabase redirect URLs include your local host and VITE_AUTH_REDIRECT_URL value.')
     }
   }
 

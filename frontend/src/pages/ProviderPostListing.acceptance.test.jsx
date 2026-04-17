@@ -20,6 +20,20 @@ const mockState = {
 }
 
 function buildTableQuery(tableName) {
+  if (tableName === 'nqf_qualifications') {
+    return {
+      select: vi.fn(() => ({
+        order: vi.fn(async () => ({
+          data: [
+            { id: 'qual-1', title: 'Business Administration', nqf_level: 4, saqa_id: 'SAQA-001' },
+            { id: 'qual-2', title: 'IT Support', nqf_level: 5, saqa_id: 'SAQA-002' },
+          ],
+          error: null,
+        })),
+      })),
+    }
+  }
+
   if (tableName === 'users') {
     return {
       select: vi.fn(() => ({
@@ -123,6 +137,8 @@ async function fillValidForm() {
   fireEvent.change(screen.getByLabelText('Stipend'), { target: { value: '4500' } })
   fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'Johannesburg' } })
   fireEvent.change(screen.getByLabelText('Duration'), { target: { value: '12 months' } })
+  fireEvent.change(screen.getByLabelText('Qualification'), { target: { value: 'qual-1' } })
+  fireEvent.change(screen.getByLabelText('NQF level required'), { target: { value: '4' } })
   fireEvent.change(screen.getByLabelText('Requirements'), {
     target: { value: 'NQF level 4, basic spreadsheet skills' },
   })
@@ -154,6 +170,8 @@ describe('Provider Post a Listing acceptance tests', () => {
     expect(screen.getByLabelText('Stipend')).toBeTruthy()
     expect(screen.getByLabelText('Location')).toBeTruthy()
     expect(screen.getByLabelText('Duration')).toBeTruthy()
+    expect(screen.getByLabelText('Qualification')).toBeTruthy()
+    expect(screen.getByLabelText('NQF level required')).toBeTruthy()
     expect(screen.getByLabelText('Requirements')).toBeTruthy()
     expect(screen.getByLabelText('Closing date')).toBeTruthy()
   })
@@ -161,8 +179,8 @@ describe('Provider Post a Listing acceptance tests', () => {
   test('2. Listing type dropdown contains the correct options', () => {
     renderListingForm()
 
-    const optionValues = screen
-      .getAllByRole('option')
+    const typeSelect = screen.getByLabelText('Type')
+    const optionValues = Array.from(typeSelect.querySelectorAll('option'))
       .map((option) => option.textContent)
       .filter(Boolean)
 
@@ -176,6 +194,8 @@ describe('Provider Post a Listing acceptance tests', () => {
 
     expect(await screen.findByText('Title is required.')).toBeTruthy()
     expect(screen.getByText('Description is required.')).toBeTruthy()
+    expect(screen.getByText('Qualification is required.')).toBeTruthy()
+    expect(screen.getByText('NQF level is required.')).toBeTruthy()
     expect(screen.getByText('Requirements are required.')).toBeTruthy()
   })
 
@@ -193,6 +213,10 @@ describe('Provider Post a Listing acceptance tests', () => {
 
   test('5/6/7. Successful submission saves listing, sets Pending, and links the signed-in provider', async () => {
     renderListingForm()
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading qualification options...')).toBeNull()
+    })
 
     await fillValidForm()
     fireEvent.click(screen.getByRole('button', { name: 'Submit listing' }))
@@ -215,6 +239,7 @@ describe('Provider Post a Listing acceptance tests', () => {
     expect(mockState.insertedRequirementsPayload.description).toBe(
       'NQF level 4, basic spreadsheet skills',
     )
+    expect(mockState.insertedRequirementsPayload.nqf_level_required).toBe(4)
   })
 
   test('8/9. Submitted listings appear in provider dashboard with visible Pending status', async () => {

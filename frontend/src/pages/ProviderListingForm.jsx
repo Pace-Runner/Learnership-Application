@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
@@ -23,6 +23,8 @@ const initialFormState = {
   location: '',
   duration: '',
   requirements: '',
+  qualification_id: '',
+  nqf_level_required: '',
   closing_date: '',
 }
 
@@ -35,6 +37,10 @@ function validateForm(formValues, minDate) {
   if (!formValues.location.trim()) nextErrors.location = 'Location is required.'
   if (!formValues.duration.trim()) nextErrors.duration = 'Duration is required.'
   if (!formValues.requirements.trim()) nextErrors.requirements = 'Requirements are required.'
+  if (!formValues.qualification_id) nextErrors.qualification_id = 'Qualification is required.'
+  if (!formValues.nqf_level_required) {
+    nextErrors.nqf_level_required = 'NQF level is required.'
+  }
   if (!formValues.closing_date) {
     nextErrors.closing_date = 'Closing date is required.'
   } else if (formValues.closing_date < minDate) {
@@ -57,6 +63,9 @@ export default function ProviderListingForm() {
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [qualificationOptions, setQualificationOptions] = useState([])
+  const [isLoadingQualifications, setIsLoadingQualifications] = useState(true)
+  const [qualificationError, setQualificationError] = useState('')
 
   const minClosingDate = useMemo(() => {
     const now = new Date()
@@ -64,6 +73,43 @@ export default function ProviderListingForm() {
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const day = String(now.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
+  }, [])
+
+  useEffect(() => {
+    if (!hasSupabaseConfig) {
+      setQualificationOptions([])
+      setIsLoadingQualifications(false)
+      setQualificationError('Supabase is not configured for qualification loading.')
+      return
+    }
+
+    let isMounted = true
+    setIsLoadingQualifications(true)
+    setQualificationError('')
+
+    supabase
+      .from('nqf_qualifications')
+      .select('id,title,nqf_level,saqa_id')
+      .order('nqf_level', { ascending: true })
+      .then(({ data, error }) => {
+        if (!isMounted) {
+          return
+        }
+
+        if (error) {
+          setQualificationOptions([])
+          setQualificationError('Qualification options could not be loaded.')
+          setIsLoadingQualifications(false)
+          return
+        }
+
+        setQualificationOptions(data || [])
+        setIsLoadingQualifications(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const handleChange = (event) => {
@@ -183,7 +229,9 @@ export default function ProviderListingForm() {
     const { error: requirementsError } = await supabase.from('opportunity_requirements').insert({
       opportunity_id: opportunityRow.id,
       description: formValues.requirements.trim(),
+      nqf_level_required: Number(formValues.nqf_level_required),
     })
+
 
     if (requirementsError) {
       await supabase.from('opportunities').delete().eq('id', opportunityRow.id)
@@ -295,6 +343,44 @@ export default function ProviderListingForm() {
               aria-invalid={Boolean(errors.duration)}
             />
             {errors.duration ? <small className="provider-field-error">{errors.duration}</small> : null}
+
+            <label htmlFor="listing-qualification">Qualification</label>
+            {isLoadingQualifications ? (
+              <small className="provider-money-hint">Loading qualification options...</small>
+            ) : null}
+            {qualificationError ? <small className="provider-field-error">{qualificationError}</small> : null}
+            <select
+              id="listing-qualification"
+              name="qualification_id"
+              value={formValues.qualification_id}
+              onChange={handleChange}
+              aria-invalid={Boolean(errors.qualification_id)}
+            >
+              <option value="">Select qualification</option>
+              {qualificationOptions.map((qualification) => (
+                <option key={qualification.id} value={qualification.id}>
+                  {qualification.title} (NQF {qualification.nqf_level})
+                </option>
+              ))}
+            </select>
+            {errors.qualification_id ? <small className="provider-field-error">{errors.qualification_id}</small> : null}
+
+            <label htmlFor="listing-nqf-level">NQF level required</label>
+            <select
+              id="listing-nqf-level"
+              name="nqf_level_required"
+              value={formValues.nqf_level_required}
+              onChange={handleChange}
+              aria-invalid={Boolean(errors.nqf_level_required)}
+            >
+              <option value="">Select NQF level</option>
+              {Array.from({ length: 10 }, (_, index) => index + 1).map((level) => (
+                <option key={level} value={String(level)}>
+                  NQF level {level}
+                </option>
+              ))}
+            </select>
+            {errors.nqf_level_required ? <small className="provider-field-error">{errors.nqf_level_required}</small> : null}
 
             <label htmlFor="listing-requirements">Requirements</label>
             <textarea

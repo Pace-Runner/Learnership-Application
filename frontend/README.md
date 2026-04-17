@@ -7,6 +7,7 @@ Create `frontend/.env` from `frontend/.env.example`.
 ```env
 VITE_SUPABASE_URL=https://rgkvcwvubnhffuwnxxas.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_AUTH_REDIRECT_URL=http://localhost:5173/
 ```
 
 You can copy the anon key from Supabase: Project Settings -> API -> Project API keys.
@@ -24,6 +25,14 @@ Important: replace seeded admin emails in the insert block with your real Google
 In Supabase:
 1. Authentication -> Providers -> Google -> Enable.
 2. Paste Google Client ID and Client Secret.
+3. Authentication -> URL Configuration -> add all local dev URLs to Redirect URLs:
+
+```text
+http://localhost:5173/
+http://127.0.0.1:5173/
+```
+
+If you open Vite using a LAN IP (for example `http://192.168.x.x:5173`), add that exact URL as well.
 
 In Google Cloud Console OAuth Client (Web application):
 1. Add this exact redirect URI:

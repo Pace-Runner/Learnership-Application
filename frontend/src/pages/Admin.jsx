@@ -75,27 +75,7 @@ export default function Admin({
       setReviewAction('')
       setActionReason('')
     }
-  }, [visibleListings])
-
-  if (!isAuthenticated) {
-    return (
-      <main className="admin-page">
-        <section className="admin-shell">
-          <p>Redirecting to home</p>
-        </section>
-      </main>
-    )
-  }
-
-  if (userRole !== 'Admin') {
-    return (
-      <main className="admin-page">
-        <section className="admin-shell">
-          <p>Access denied. Admins only.</p>
-        </section>
-      </main>
-    )
-  }
+  }, [visibleListings, selectedListingId])
 
   const effectiveAdminId = currentAdminId || resolvedAdminId || ''
   const selectedListing = visibleListings.find((listing) => listing.id === selectedListingId) || null
@@ -391,6 +371,26 @@ export default function Admin({
     URL.revokeObjectURL(url)
     setErrorMessage('')
     setStatusMessage(`${historyView === 'approved' ? 'Approved' : 'Removed'} listings report exported.`)
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="admin-page">
+        <section className="admin-shell">
+          <p>Redirecting to home</p>
+        </section>
+      </main>
+    )
+  }
+
+  if (userRole !== 'Admin') {
+    return (
+      <main className="admin-page">
+        <section className="admin-shell">
+          <p>Access denied. Admins only.</p>
+        </section>
+      </main>
+    )
   }
 
   return (
