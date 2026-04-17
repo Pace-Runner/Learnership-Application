@@ -2,7 +2,7 @@
 // PURPOSE: Display available learnership listings and quick stats
 // NOTE: Currently shows static/placeholder data; ready for Supabase integration
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
@@ -39,16 +39,50 @@ function normalizeApprovedListing(row) {
     id: row.id,
     title: row.title || 'Untitled opportunity',
     type: row.type || 'Not specified',
+    description: row.description || '',
     meta: row.meta,
     location: row.location || 'Not specified',
     closingDate: row.closingDate || row.closing_date || 'Not specified',
+    status: row.status || 'Approved',
   }
+}
+
+function filterApprovedListings(listings, searchTerm, selectedType) {
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase()
+
+  return listings.filter((listing) => {
+    if (listing?.status && listing.status !== 'Approved') {
+      return false
+    }
+
+    const title = String(listing?.title || '').toLowerCase()
+    const description = String(listing?.description || '').toLowerCase()
+    const listingLocation = String(listing?.location || '').toLowerCase()
+    const listingType = String(listing?.type || '')
+
+    const matchesSearch = !normalizedSearchTerm
+      || title.includes(normalizedSearchTerm)
+      || description.includes(normalizedSearchTerm)
+      || listingLocation.includes(normalizedSearchTerm)
+
+    const matchesType = selectedType === 'All' || listingType === selectedType
+
+    return matchesSearch && matchesType
+  })
 }
 
 // Applicant workspace component
 export default function Dashboard({ onLogout, listings }) {
   const hasListingsProp = Array.isArray(listings)
   const [dbApprovedListings, setDbApprovedListings] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedType, setSelectedType] = useState('All')
+  const [submittedSearchTerm, setSubmittedSearchTerm] = useState('')
+  const [submittedType, setSubmittedType] = useState('All')
+  const [searchError, setSearchError] = useState('')
+  const [isLoadingListings, setIsLoadingListings] = useState(false)
+  const [isApplyingSearch, setIsApplyingSearch] = useState(false)
+  const searchFeedbackTimeoutRef = useRef(null)
 
   useEffect(() => {
     if (hasListingsProp || !hasSupabaseConfig) {
@@ -58,17 +92,28 @@ export default function Dashboard({ onLogout, listings }) {
     let isMounted = true
 
     const fetchApprovedListings = async () => {
+      setIsLoadingListings(true)
+      setSearchError('')
+
       const { data, error } = await supabase
         .from('opportunities')
-        .select('id,title,type,location,closing_date,status')
+        .select('id,title,type,description,location,closing_date,status')
         .eq('status', 'Approved')
         .order('created_at', { ascending: false })
 
-      if (!isMounted || error) {
+      if (!isMounted) {
+        return
+      }
+
+      if (error) {
+        setSearchError('We could not load listings right now. Please try again.')
+        setDbApprovedListings([])
+        setIsLoadingListings(false)
         return
       }
 
       setDbApprovedListings((data || []).map(normalizeApprovedListing))
+      setIsLoadingListings(false)
     }
 
     fetchApprovedListings()
@@ -78,21 +123,43 @@ export default function Dashboard({ onLogout, listings }) {
     }
   }, [hasListingsProp])
 
+  useEffect(() => {
+    return () => {
+      if (searchFeedbackTimeoutRef.current) {
+        window.clearTimeout(searchFeedbackTimeoutRef.current)
+      }
+    }
+  }, [])
+
   const approvedListings = useMemo(() => {
     if (hasListingsProp) {
-      return listings.filter((listing) => listing?.status === 'Approved')
+      return filterApprovedListings(listings, submittedSearchTerm, submittedType)
     }
 
     if (!hasSupabaseConfig) {
-      return availableListings
+      return filterApprovedListings(availableListings, submittedSearchTerm, submittedType)
     }
 
-    if (dbApprovedListings.length === 0) {
-      return availableListings
+    return filterApprovedListings(dbApprovedListings, submittedSearchTerm, submittedType)
+  }, [dbApprovedListings, hasListingsProp, listings, submittedSearchTerm, submittedType])
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault()
+    setIsApplyingSearch(true)
+    setSubmittedSearchTerm(searchTerm)
+    setSubmittedType(selectedType)
+
+    if (searchFeedbackTimeoutRef.current) {
+      window.clearTimeout(searchFeedbackTimeoutRef.current)
     }
 
-    return dbApprovedListings
-  }, [dbApprovedListings, hasListingsProp, listings])
+    searchFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setIsApplyingSearch(false)
+      searchFeedbackTimeoutRef.current = null
+    }, 450)
+  }
+
+  const hasActiveSearch = Boolean(submittedSearchTerm.trim() || submittedType !== 'All')
 
   return (
     <main className="user-page applicant-theme user-discovery-shell">
@@ -123,11 +190,21 @@ export default function Dashboard({ onLogout, listings }) {
       </section>
 
       <section className="listing-search-panel" aria-label="Listing search">
-        <form className="listing-search-form" onSubmit={(event) => event.preventDefault()}>
+        <form className="listing-search-form" onSubmit={handleSearchSubmit}>
           <label htmlFor="listing-search" className="sr-only">Search listings</label>
-          <input id="listing-search" type="search" placeholder="Search by title, location, or sector" />
+          <input
+            id="listing-search"
+            type="search"
+            placeholder="Search by title, location, or sector"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
           <label htmlFor="listing-filter" className="sr-only">Filter listing type</label>
-          <select id="listing-filter" defaultValue="All">
+          <select
+            id="listing-filter"
+            value={selectedType}
+            onChange={(event) => setSelectedType(event.target.value)}
+          >
             {listingFilters.map((filter) => (
               <option key={filter} value={filter}>{filter}</option>
             ))}
@@ -139,8 +216,17 @@ export default function Dashboard({ onLogout, listings }) {
       <section className="user-content-grid">
         <article className="user-panel">
           <h2>Current Listings and Internships</h2>
-          {approvedListings.length === 0 ? (
-            <p className="user-panel-copy">No approved listings available yet.</p>
+          {searchError ? <p className="user-panel-copy">{searchError}</p> : null}
+          {isLoadingListings ? (
+            <p className="user-panel-copy">Loading approved listings...</p>
+          ) : isApplyingSearch ? (
+            <p className="user-panel-copy">Searching approved listings...</p>
+          ) : approvedListings.length === 0 ? (
+            <p className="user-panel-copy">
+              {hasActiveSearch
+                ? 'No approved listings matched your search.'
+                : 'No approved listings available yet.'}
+            </p>
           ) : (
             <ul className="user-list">
               {approvedListings.map((item) => (
