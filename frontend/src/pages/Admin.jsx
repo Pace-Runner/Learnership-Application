@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 
-function getPendingListings(listings) {
+function getPendingListings(listings) 
+{
   return listings.filter((listing) => listing?.status === 'Pending')
 }
 
-function buildAdminActionPayload(adminId, actionType, targetId, reason) {
+
+
+function buildAdminActionPayload(adminId, actionType, targetId, reason) 
+{
+  // Keep the audit payload shape aligned with the admin_actions table.
   const payload = {
     admin_id: adminId || null,
     action_type: actionType,
@@ -20,7 +25,14 @@ function buildAdminActionPayload(adminId, actionType, targetId, reason) {
   return payload
 }
 
-function normalizeListing(row) {
+
+
+
+
+
+function normalizeListing(row) 
+{
+  // API rows can come from joins or mocked props, so normalize once for the UI.
   const providerFromJoin = row?.provider_profiles?.organisation_name
   return {
     id: row.id,
@@ -33,6 +45,11 @@ function normalizeListing(row) {
   }
 }
 
+
+
+
+
+
 export default function Admin({
   onLogout = () => {},
   listings,
@@ -42,7 +59,14 @@ export default function Admin({
   currentAdminId = '',
   userRole = 'Admin',
   isAuthenticated = true,
-}) {
+}) 
+
+
+
+
+
+
+{
   const hasProvidedListings = Array.isArray(listings)
   const pendingListings = useMemo(
     () => getPendingListings(hasProvidedListings ? listings : []),
@@ -63,13 +87,17 @@ export default function Admin({
   const [historyView, setHistoryView] = useState('approved')
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
 
-  useEffect(() => {
+  useEffect(() => 
+  {
+    // In test/mocked mode, trust the supplied listings and keep local view in sync.
     if (hasProvidedListings) {
       setVisibleListings(pendingListings)
     }
   }, [hasProvidedListings, pendingListings])
 
-  useEffect(() => {
+
+  useEffect(() => 
+    {
     if (!visibleListings.some((listing) => listing.id === selectedListingId)) {
       setSelectedListingId('')
       setReviewAction('')
@@ -81,17 +109,24 @@ export default function Admin({
   const selectedListing = visibleListings.find((listing) => listing.id === selectedListingId) || null
   const historyItems = historyView === 'approved' ? approvedHistory : removedHistory
 
+
+
   const resolveAdminId = useCallback(async () => {
+    // Only resolve from auth when we are running against Supabase directly.
     if (!hasSupabaseConfig || hasProvidedListings) {
       return
     }
 
-    const {
+
+
+    const 
+    {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser()
 
-    if (userError || !user?.email) {
+    if (userError || !user?.email) 
+    {
       return
     }
 
@@ -101,10 +136,12 @@ export default function Admin({
       .eq('email', user.email)
       .maybeSingle()
 
-    if (userRecord?.id) {
+    if (userRecord?.id) 
+    {
       setResolvedAdminId(userRecord.id)
       return
     }
+
 
     const { data: upsertedAdmin } = await supabase
       .from('users')
@@ -112,17 +149,21 @@ export default function Admin({
       .select('id')
       .maybeSingle()
 
-    if (upsertedAdmin?.id) {
+    if (upsertedAdmin?.id) 
+    {
       setResolvedAdminId(upsertedAdmin.id)
     }
   }, [hasProvidedListings])
 
+
+  
   const fetchPendingListings = useCallback(async () => {
     if (hasProvidedListings) {
       return
     }
 
-    if (!hasSupabaseConfig) {
+    if (!hasSupabaseConfig) 
+    {
       setVisibleListings([])
       setErrorMessage('Supabase config missing. Cannot load moderation queue.')
       return
@@ -137,7 +178,8 @@ export default function Admin({
       .eq('status', 'Pending')
       .order('created_at', { ascending: true })
 
-    if (error) {
+    if (error) 
+    {
       setVisibleListings([])
       setErrorMessage('Could not load pending listings. Check Supabase RLS policies.')
       setIsQueueLoading(false)
@@ -149,7 +191,8 @@ export default function Admin({
   }, [hasProvidedListings])
 
   const fetchAdminInsights = useCallback(async () => {
-    if (hasProvidedListings || !hasSupabaseConfig || !effectiveAdminId) {
+    if (hasProvidedListings || !hasSupabaseConfig || !effectiveAdminId) 
+    {
       return
     }
 
@@ -171,7 +214,9 @@ export default function Admin({
     const targetIds = [...new Set((actions || []).map((action) => action.target_id).filter(Boolean))]
     let titleMap = {}
 
-    if (targetIds.length) {
+    if (targetIds.length) 
+    {
+      // Backfill human-friendly titles for history cards.
       const { data: opportunities } = await supabase
         .from('opportunities')
         .select('id,title')
@@ -179,6 +224,7 @@ export default function Admin({
 
       titleMap = Object.fromEntries((opportunities || []).map((item) => [item.id, item.title]))
     }
+
 
     setApprovedCount(approvedActions.length)
     setRemovedCount(removedActions.length)
@@ -234,9 +280,13 @@ export default function Admin({
     const reason = actionReason.trim()
     const payload = buildAdminActionPayload(effectiveAdminId, 'approved', listing.id, reason)
 
-    if (typeof onApproveListing === 'function') {
+    // Support injected handlers in tests while still allowing direct DB writes in app mode.
+    if (typeof onApproveListing === 'function') 
+    {
       onApproveListing(listing.id)
-    } else {
+    } 
+    else 
+    {
       const updateError = await persistListingStatus(listing.id, 'Approved')
       if (updateError) {
         setErrorMessage('Could not approve listing. Check database permissions.')
@@ -244,9 +294,12 @@ export default function Admin({
       }
     }
 
-    if (typeof onLogAdminAction === 'function') {
+    if (typeof onLogAdminAction === 'function') 
+    {
       onLogAdminAction(payload)
-    } else {
+    } 
+    else 
+    {
       const logError = await persistAdminAction(payload)
       if (logError) {
         setErrorMessage('Listing approved, but action log failed.')
@@ -260,19 +313,26 @@ export default function Admin({
   const removeSingleListing = async (listing, reason) => {
     const payload = buildAdminActionPayload(effectiveAdminId, 'removed', listing.id, reason)
 
-    if (typeof onRemoveListing === 'function') {
+    if (typeof onRemoveListing === 'function') 
+    {
       onRemoveListing(listing.id, reason)
-    } else {
+    } 
+    else 
+    {
       const updateError = await persistListingStatus(listing.id, 'Removed')
-      if (updateError) {
+      if (updateError) 
+      {
         setErrorMessage('Could not remove listing. Check database permissions.')
         return false
       }
     }
 
-    if (typeof onLogAdminAction === 'function') {
+    if (typeof onLogAdminAction === 'function') 
+    {
       onLogAdminAction(payload)
-    } else {
+    } 
+    else 
+    {
       const logError = await persistAdminAction(payload)
       if (logError) {
         setErrorMessage('Listing removed, but action log failed.')
@@ -316,26 +376,34 @@ export default function Admin({
     await fetchAdminInsights()
   }
 
-  const handleConfirmAction = async () => {
-    if (!selectedListing) {
+  const handleConfirmAction = async () => 
+    {
+    if (!selectedListing) 
+    {
       setErrorMessage('Choose a listing first.')
       return
     }
 
-    if (!reviewAction) {
+    if (!reviewAction) 
+    {
       setErrorMessage('Choose approve or remove first.')
       return
     }
 
-    if (!actionReason.trim()) {
+    if (!actionReason.trim()) 
+    {
       setErrorMessage('Please provide a reason before confirming.')
       return
     }
 
+    // Use one submit path so validation and loading state stay consistent.
     setIsSubmittingAction(true)
-    if (reviewAction === 'approved') {
+    if (reviewAction === 'approved') 
+    {
       await handleApprove(selectedListing)
-    } else {
+    } 
+    else 
+    {
       await handleRemove(selectedListing)
     }
     setIsSubmittingAction(false)
@@ -348,7 +416,8 @@ export default function Admin({
   }
 
   const handleExportModerationReport = () => {
-    if (historyItems.length === 0) {
+    if (historyItems.length === 0) 
+    {
       setErrorMessage('No items available in this view to export.')
       return
     }
@@ -356,6 +425,7 @@ export default function Admin({
     const header = ['listing_id', 'title', 'action', 'performed_at']
     const rows = historyItems.map((item) => [item.id, item.title, historyView, item.createdAt || ''])
 
+    // Escape CSV values so commas/quotes in listing names do not break downloads.
     const csv = [header, ...rows]
       .map((row) => row.map((value) => `"${String(value || '').replace(/"/g, '""')}"`).join(','))
       .join('\n')
@@ -373,7 +443,8 @@ export default function Admin({
     setStatusMessage(`${historyView === 'approved' ? 'Approved' : 'Removed'} listings report exported.`)
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated) 
+  {
     return (
       <main className="admin-page">
         <section className="admin-shell">
@@ -383,7 +454,8 @@ export default function Admin({
     )
   }
 
-  if (userRole !== 'Admin') {
+  if (userRole !== 'Admin') 
+  {
     return (
       <main className="admin-page">
         <section className="admin-shell">
