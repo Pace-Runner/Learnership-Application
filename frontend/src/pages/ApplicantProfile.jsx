@@ -232,6 +232,7 @@ export default function ApplicantProfile({ onLogout }) {
       return
     }
 
+    // Load real qualification and skill options so profile selections come from seeded tables.
     const [{ data: qualifications, error: qualificationsError }, { data: tags, error: tagsError }] =
       await Promise.all([
         supabase
@@ -969,7 +970,7 @@ export default function ApplicantProfile({ onLogout }) {
     const file = event.target.files?.[0]
     if (!file || !userId) return
 
-    // CVs are restricted by type and size before we attempt storage upload.
+    // CV uploads are limited to PDF/DOC/DOCX and a small size so providers only receive supported documents.
     if (!isCvFile(file)) {
       setUploadMessage('Only PDF and DOCX files are allowed for CV uploads.')
       event.target.value = ''
@@ -1002,7 +1003,7 @@ export default function ApplicantProfile({ onLogout }) {
       cv_url: filePath,
     }))
 
-    // Persist CV path in profile so it can be loaded on next visit.
+    // Persist the uploaded CV path onto the applicant profile so it can be reopened later from the profile page.
     await supabase.from('applicant_profiles').update({ cv_url: filePath }).eq('user_id', userId)
     await resolveCvLink(userId, filePath)
 
