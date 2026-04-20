@@ -4,6 +4,11 @@ import { MemoryRouter } from 'react-router-dom'
 
 const applicantState = vi.hoisted(() => ({
   userId: 'user-1',
+  authEmail: '',
+  qualificationError: null,
+  skillTagsError: null,
+  qualificationDelayMs: 0,
+  skillTagsDelayMs: 0,
   profile: {
     id: 'profile-1',
     user_id: 'user-1',
@@ -67,6 +72,8 @@ const applicantSpies = vi.hoisted(() => ({
 }))
 
 vi.mock('../lib/supabaseClient', () => {
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
   const supabase = {
     auth: {
       getUser: applicantSpies.getUser,
@@ -75,7 +82,12 @@ vi.mock('../lib/supabaseClient', () => {
       if (table === 'nqf_qualifications') {
         return {
           select: () => ({
-            order: async () => ({ data: applicantState.qualifications, error: null }),
+            order: async () => {
+              if (applicantState.qualificationDelayMs > 0) {
+                await delay(applicantState.qualificationDelayMs)
+              }
+              return { data: applicantState.qualifications, error: applicantState.qualificationError }
+            },
           }),
         }
       }
@@ -83,7 +95,12 @@ vi.mock('../lib/supabaseClient', () => {
       if (table === 'skill_tags') {
         return {
           select: () => ({
-            order: async () => ({ data: applicantState.skillTags, error: null }),
+            order: async () => {
+              if (applicantState.skillTagsDelayMs > 0) {
+                await delay(applicantState.skillTagsDelayMs)
+              }
+              return { data: applicantState.skillTags, error: applicantState.skillTagsError }
+            },
           }),
           insert: applicantSpies.skillTagsInsert.mockImplementation((payload) => ({
             select: () => ({
@@ -196,6 +213,9 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  if (!HTMLElement.prototype.scrollIntoView) {
+    HTMLElement.prototype.scrollIntoView = vi.fn()
+  }
   applicantState.profile = {
     id: 'profile-1',
     user_id: 'user-1',
@@ -217,8 +237,16 @@ beforeEach(() => {
     },
   ]
   applicantState.skills = [{ skill_tag_id: 'skill-1' }]
+  applicantState.authEmail = ''
+  applicantState.qualificationError = null
+  applicantState.skillTagsError = null
+  applicantState.qualificationDelayMs = 0
+  applicantState.skillTagsDelayMs = 0
 
-  applicantSpies.getUser.mockResolvedValue({ data: { user: { id: applicantState.userId } }, error: null })
+  applicantSpies.getUser.mockResolvedValue({
+    data: { user: { id: applicantState.userId, email: applicantState.authEmail } },
+    error: null,
+  })
   applicantSpies.profileSelectMaybeSingle.mockResolvedValue({ data: applicantState.profile, error: null })
   applicantSpies.educationOrder.mockResolvedValue({ data: applicantState.education, error: null })
   applicantSpies.skillsEq.mockResolvedValue({ data: applicantState.skills, error: null })
@@ -398,5 +426,208 @@ describe('ApplicantProfile coverage', () => {
 
     expect(screen.getByDisplayValue('Neo')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Remove Communication' })).toBeTruthy()
+  })
+
+  test('blocks submission when required fields are missing', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save full profile' }))
+
+    const messages = await screen.findAllByText('First name is required.')
+    expect(messages.length).toBeGreaterThan(0)
+    expect(applicantSpies.profileUpdateEq).not.toHaveBeenCalled()
+    expect(applicantSpies.profileInsertSingle).not.toHaveBeenCalled()
+  })
+
+  test('supports multiple education entries and saves all of them', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+    fireEvent.click(screen.getByRole('button', { name: 'Add education entry' }))
+
+    fireEvent.change(screen.getByLabelText('Institution', { selector: '#education-institution-1' }), {
+      target: { value: 'Cape Peninsula University of Technology' },
+    })
+    fireEvent.change(screen.getByLabelText('Qualification', { selector: '#education-qualification-1' }), {
+      target: { value: 'qual-2' },
+    })
+    fireEvent.change(screen.getByLabelText('NQF level', { selector: '#education-nqf-level-1' }), {
+      target: { value: '6' },
+    })
+    fireEvent.change(screen.getByLabelText('Year completed', { selector: '#education-year-1' }), {
+      target: { value: '2025' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save full profile' }))
+
+    await waitFor(() => expect(applicantSpies.educationInsert).toHaveBeenCalled())
+    const payload = applicantSpies.educationInsert.mock.calls.at(-1)?.[0] || []
+    expect(payload.length).toBe(2)
+    expect(payload.some((row) => row.institution.includes('Cape Peninsula'))).toBe(true)
+  })
+
+  test('allows selecting multiple skills and saves all selected values', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+    fireEvent.click(screen.getByRole('button', { name: 'View all skills' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Excel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save full profile' }))
+
+    await waitFor(() => expect(applicantSpies.skillsInsert).toHaveBeenCalled())
+    const payload = applicantSpies.skillsInsert.mock.calls.at(-1)?.[0] || []
+    const selectedIds = payload.map((row) => row.skill_tag_id)
+    expect(selectedIds).toContain('skill-1')
+    expect(selectedIds).toContain('skill-2')
+  })
+
+  test('edits an existing profile and re-saves updated values', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+    fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'Durban' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save full profile' }))
+
+    await waitFor(() => expect(applicantSpies.profileUpdateEq).toHaveBeenCalled())
+    const updatePayload = applicantSpies.profileUpdate.mock.calls.at(-1)?.[0]
+    expect(updatePayload.location).toBe('Durban')
+  })
+
+  test('rejects oversized CV files before upload', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+    const fileInputs = document.querySelectorAll('input[type="file"]')
+    const cvInput = fileInputs[1]
+
+    const largeFile = new File(['tiny'], 'too-large.pdf', { type: 'application/pdf' })
+    Object.defineProperty(largeFile, 'size', { value: 5 * 1024 * 1024 + 1 })
+
+    fireEvent.change(cvInput, { target: { files: [largeFile] } })
+
+    expect(screen.getByText('The selected CV is too large. Maximum size is 5MB.')).toBeTruthy()
+    expect(applicantSpies.docsStorageUpload).not.toHaveBeenCalled()
+  })
+
+  test('unauthenticated users cannot start CV upload', async () => {
+    applicantSpies.getUser.mockResolvedValue({ data: { user: null }, error: null })
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Profile and documents')
+    fireEvent.click(screen.getByRole('button', { name: 'Upload CV' }))
+
+    expect(screen.getByText('Please sign in first. Uploads are only available for authenticated users.')).toBeTruthy()
+    expect(applicantSpies.docsStorageUpload).not.toHaveBeenCalled()
+  })
+
+  test('shows loading state while dropdown data is fetching', async () => {
+    applicantState.qualificationDelayMs = 30
+    applicantState.skillTagsDelayMs = 30
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Loading qualification and skills data...')).toBeTruthy()
+    await screen.findByDisplayValue('Taylor')
+  })
+
+  test('shows dropdown error when qualification or skills fetch fails', async () => {
+    applicantState.qualificationError = { message: 'failed' }
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Could not load qualification and skills options right now.')).toBeTruthy()
+  })
+
+  test('renders NQF level options from 1 to 10 in education section', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+    const nqfSelect = screen.getByLabelText('NQF level', { selector: '#education-nqf-level-0' })
+    const optionLabels = Array.from(nqfSelect.querySelectorAll('option')).map((option) => option.textContent)
+
+    expect(optionLabels).toContain('NQF level 1')
+    expect(optionLabels).toContain('NQF level 10')
+    expect(optionLabels.filter((label) => String(label).startsWith('NQF level ')).length).toBe(10)
+  })
+
+  test('replaces old CV url when a second valid CV is uploaded', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+    const fileInputs = document.querySelectorAll('input[type="file"]')
+    const cvInput = fileInputs[1]
+
+    fireEvent.change(cvInput, {
+      target: { files: [new File(['cv1'], 'first-cv.pdf', { type: 'application/pdf' })] },
+    })
+    await waitFor(() => expect(applicantSpies.docsStorageUpload).toHaveBeenCalledTimes(1))
+
+    fireEvent.change(cvInput, {
+      target: { files: [new File(['cv2'], 'second-cv.pdf', { type: 'application/pdf' })] },
+    })
+    await waitFor(() => expect(applicantSpies.docsStorageUpload).toHaveBeenCalledTimes(2))
+
+    const latestUpdatePayload = applicantSpies.profileUpdate.mock.calls.at(-1)?.[0]
+    expect(latestUpdatePayload.cv_url).toContain('second-cv.pdf')
   })
 })

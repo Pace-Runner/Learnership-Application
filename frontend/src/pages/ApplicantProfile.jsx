@@ -127,6 +127,7 @@ function getFriendlySupabaseError(error, fallbackMessage) {
   return error.message || fallbackMessage
 }
 
+// Main applicant page: handles profile form state, uploads, validation, and saves.
 export default function ApplicantProfile({ onLogout }) {
   const [userId, setUserId] = useState('')
   const [profileId, setProfileId] = useState('')
@@ -254,6 +255,8 @@ export default function ApplicantProfile({ onLogout }) {
     setIsLoadingDropdowns(false)
   }, [])
 
+  // Turns a stored CV value into a browser-openable link.
+  // If we stored only a file path, we generate a short-lived signed URL from Supabase Storage.
   const resolveCvLink = useCallback(async (authUserId, storedCvValue) => {
     if (!storedCvValue) {
       setCvLinkUrl('')
@@ -265,6 +268,7 @@ export default function ApplicantProfile({ onLogout }) {
       return
     }
 
+    // Supports both old values (filename only) and new values (full storage path).
     const normalizedPath = storedCvValue.includes('/') ? storedCvValue : `${authUserId}/${storedCvValue}`
     const { data, error } = await supabase.storage.from(DOCS_BUCKET).createSignedUrl(normalizedPath, 60 * 10)
 
@@ -310,6 +314,8 @@ export default function ApplicantProfile({ onLogout }) {
     setIsLoadingFiles(false)
   }, [])
 
+  // Ensures we can map the logged-in auth user to a row in the public `users` table.
+  // Returns a stable user id used by profile tables.
   const resolveDatabaseUserId = useCallback(async (authUser) => {
     const authUserId = authUser?.id || ''
     const authUserEmail = authUser?.email || ''
@@ -322,6 +328,7 @@ export default function ApplicantProfile({ onLogout }) {
       return authUserId
     }
 
+    // 1) Try to find the user row by email.
     const { data: userRow, error: userLookupError } = await supabase
       .from('users')
       .select('id')
@@ -337,6 +344,7 @@ export default function ApplicantProfile({ onLogout }) {
       return userRow.id
     }
 
+    // 2) If not found, create a users row so foreign keys from profile tables can work.
     const { data: insertedUser, error: userInsertError } = await supabase
       .from('users')
       .insert({
@@ -349,6 +357,7 @@ export default function ApplicantProfile({ onLogout }) {
 
     if (userInsertError) {
       console.error('Users insert error:', userInsertError)
+      // If create failed due to a race/duplicate, try one last lookup and continue.
       const { data: existingUser } = await supabase
         .from('users')
         .select('id')
@@ -740,6 +749,7 @@ export default function ApplicantProfile({ onLogout }) {
       return
     }
 
+    // Stop early if required fields are incomplete or invalid.
     const validationError = validateProfileForm()
     if (validationError) {
       console.warn('❌ Validation error:', validationError)
@@ -772,6 +782,7 @@ export default function ApplicantProfile({ onLogout }) {
         data: { user: authUser },
       } = await supabase.auth.getUser()
 
+      // Map auth identity to a row in `users` so profile foreign keys stay valid.
       const databaseUserId = await resolveDatabaseUserId(authUser)
       if (!databaseUserId) {
         setUploadMessage('Could not save profile because your user account is not linked in the database.')
@@ -779,6 +790,7 @@ export default function ApplicantProfile({ onLogout }) {
         return
       }
 
+      // Build the payload exactly how applicant_profiles expects it.
       const profilePayload = {
         user_id: databaseUserId,
         first_name: profileForm.first_name.trim(),
@@ -793,6 +805,7 @@ export default function ApplicantProfile({ onLogout }) {
 
       let resolvedProfileId = profileId
 
+      // Update existing profile when we already have an id, otherwise create one.
       if (resolvedProfileId) {
         const { error: updateError } = await supabase
           .from('applicant_profiles')
@@ -823,6 +836,7 @@ export default function ApplicantProfile({ onLogout }) {
         setProfileId(insertedProfile.id)
       }
 
+      // Replace child records to keep education/skills aligned with current form state.
       const [deleteEdu, deleteSkills] = await Promise.all([
         supabase.from('applicant_education').delete().eq('applicant_id', resolvedProfileId),
         supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId),
@@ -905,6 +919,7 @@ export default function ApplicantProfile({ onLogout }) {
 
     setUploadMessage('Uploading profile picture...')
 
+    // Store one profile picture per user by reusing the same file key.
     const extension = file.name.split('.').pop() || 'jpg'
     const filePath = `${userId}/profile.${extension}`
 
@@ -927,6 +942,7 @@ export default function ApplicantProfile({ onLogout }) {
 
     setUploadMessage(`Uploading ${files.length} document${files.length > 1 ? 's' : ''}...`)
 
+    // Upload each document with a timestamp prefix to avoid filename collisions.
     for (const file of files) {
       const safeName = file.name.replace(/\s+/g, '_')
       const filePath = `${userId}/${Date.now()}-${safeName}`
@@ -953,6 +969,7 @@ export default function ApplicantProfile({ onLogout }) {
     const file = event.target.files?.[0]
     if (!file || !userId) return
 
+    // CVs are restricted by type and size before we attempt storage upload.
     if (!isCvFile(file)) {
       setUploadMessage('Only PDF and DOCX files are allowed for CV uploads.')
       event.target.value = ''
@@ -985,6 +1002,7 @@ export default function ApplicantProfile({ onLogout }) {
       cv_url: filePath,
     }))
 
+    // Persist CV path in profile so it can be loaded on next visit.
     await supabase.from('applicant_profiles').update({ cv_url: filePath }).eq('user_id', userId)
     await resolveCvLink(userId, filePath)
 
@@ -1006,6 +1024,7 @@ export default function ApplicantProfile({ onLogout }) {
       return
     }
 
+    // If the deleted file is the active CV, clear the database reference too.
     const isCurrentCv = profileForm.cv_url.endsWith(fileName)
     if (isCurrentCv) {
       await supabase.from('applicant_profiles').update({ cv_url: null }).eq('user_id', userId)
@@ -1042,6 +1061,7 @@ export default function ApplicantProfile({ onLogout }) {
   const openDocument = async (fileName) => {
     if (!userId || !fileName) return
 
+    // Signed URLs keep private storage objects secure while still viewable in-browser.
     const { data, error } = await supabase.storage
       .from(DOCS_BUCKET)
       .createSignedUrl(`${userId}/${fileName}`, 60 * 10)
