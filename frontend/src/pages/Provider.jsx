@@ -195,10 +195,10 @@ export default function Provider({ onLogout }) {
         providerId = createdProvider.id
       }
 
+      // Load only the signed-in provider's listings so the dashboard reflects that provider's current submission statuses.
       if (isMounted) {
         setProviderId(providerId)
       }
-
       const { data: opportunityRows, error: opportunityError } = await supabase
         .from('opportunities')
         .select('id,title,type,stipend,location,duration,closing_date,status,created_at')
@@ -232,6 +232,7 @@ export default function Provider({ onLogout }) {
     const pendingCount = listings.filter((item) => item.status === 'Pending').length
     const approvedCount = listings.filter((item) => item.status === 'Approved').length
 
+    // These dashboard totals give providers a quick view of what is still pending review versus already approved.
     return [
       { label: 'Active listings', value: String(activeCount).padStart(2, '0') },
       { label: 'Pending approval', value: String(pendingCount).padStart(2, '0') },

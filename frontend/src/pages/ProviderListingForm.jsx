@@ -83,6 +83,7 @@ export default function ProviderListingForm() {
       return
     }
 
+    // Reuse the same qualification source as the applicant flow so provider requirements stay aligned to NQF data.
     let isMounted = true
     setIsLoadingQualifications(true)
     setQualificationError('')
@@ -158,6 +159,7 @@ export default function ProviderListingForm() {
       return
     }
 
+    // Each listing is tied to the signed-in provider profile before the opportunity row is created.
     const { data: userRow, error: userError } = await supabase
       .from('users')
       .select('id')
@@ -204,6 +206,7 @@ export default function ProviderListingForm() {
       providerId = createdProvider.id
     }
 
+    // New provider listings always start as Pending so the admin moderation flow can approve them later.
     const { data: opportunityRow, error: opportunityError } = await supabase
       .from('opportunities')
       .insert({
@@ -226,6 +229,7 @@ export default function ProviderListingForm() {
       return
     }
 
+    // If saving the linked requirement fails, remove the parent listing so the database is not left half-saved.
     const { error: requirementsError } = await supabase.from('opportunity_requirements').insert({
       opportunity_id: opportunityRow.id,
       description: formValues.requirements.trim(),

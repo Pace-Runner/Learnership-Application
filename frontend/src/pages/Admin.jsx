@@ -172,6 +172,7 @@ export default function Admin({
     setIsQueueLoading(true)
     setErrorMessage('')
 
+    // The moderation queue is intentionally restricted to Pending listings because Approved/Removed items move to history.
     const { data, error } = await supabase
       .from('opportunities')
       .select('id,title,type,location,closing_date,status,provider_id,provider_profiles:provider_id(organisation_name)')
@@ -268,6 +269,7 @@ export default function Admin({
       return
     }
 
+    // Every moderation decision is logged so approved and removed actions can be audited later.
     const { error } = await supabase.from('admin_actions').insert(payload)
     return error
   }
@@ -396,7 +398,7 @@ export default function Admin({
       return
     }
 
-    // Use one submit path so validation and loading state stay consistent.
+    // Approval/removal goes through one confirmation path so both status changes and admin action logging stay in sync.
     setIsSubmittingAction(true)
     if (reviewAction === 'approved') 
     {
