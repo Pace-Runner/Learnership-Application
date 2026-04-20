@@ -185,7 +185,7 @@ describe('Role based tests', () => {
   })
 
   test('Coverage reports generated and integrated', () => {
-    const ciWorkflow = readFileSync(resolve(cwd(), '../.github/workflows/ci-ConnorLaptop.yml'), 'utf8')
+    const ciWorkflow = readFileSync(resolve(cwd(), '../.github/workflows/ci.yml'), 'utf8')
 
     expect(ciWorkflow).toContain('with coverage')
     expect(ciWorkflow).toContain('npm run test --')

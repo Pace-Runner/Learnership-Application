@@ -70,7 +70,7 @@ jobs:
         working-directory: ./frontend
 
       - name: Run applicant tests with coverage
-        run: npm run test -- src/App.test.jsx src/pages/UserPages.test.jsx
+        run: npm run test -- src/App.test.jsx src/pages/UserPages.test.jsx src/pages/ApplicantProfile.coverage.test.jsx src/pages/ApplicantSearchListings.test.jsx
         working-directory: ./frontend
 
   provider-tests:
@@ -92,7 +92,7 @@ jobs:
         working-directory: ./frontend
 
       - name: Run provider tests with coverage
-        run: npm run test -- src/pages/ProviderPage.test.jsx
+        run: npm run test -- src/pages/ProviderPage.test.jsx src/pages/ProviderPostListing.acceptance.test.jsx src/pages/ProviderEditDeleteListing.acceptance.test.jsx
         working-directory: ./frontend
 
   admin-tests:
