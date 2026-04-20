@@ -51,6 +51,7 @@ function filterApprovedListings(listings, searchTerm, selectedType) {
   const normalizedSearchTerm = searchTerm.trim().toLowerCase()
 
   return listings.filter((listing) => {
+    // Applicants should never see pending or removed opportunities in the search results.
     if (listing?.status && listing.status !== 'Approved') {
       return false
     }
@@ -95,6 +96,7 @@ export default function Dashboard({ onLogout, listings }) {
       setIsLoadingListings(true)
       setSearchError('')
 
+      // Pull the approved opportunities once, then let the dashboard handle the search/filtering client-side.
       const { data, error } = await supabase
         .from('opportunities')
         .select('id,title,type,description,location,closing_date,status')
@@ -145,6 +147,7 @@ export default function Dashboard({ onLogout, listings }) {
 
   const handleSearchSubmit = (event) => {
     event.preventDefault()
+    // Store the submitted search separately so typing in the form does not instantly change the visible results.
     setIsApplyingSearch(true)
     setSubmittedSearchTerm(searchTerm)
     setSubmittedType(selectedType)
@@ -217,6 +220,7 @@ export default function Dashboard({ onLogout, listings }) {
         <article className="user-panel">
           <h2>Current Listings and Internships</h2>
           {searchError ? <p className="user-panel-copy">{searchError}</p> : null}
+          {/* Keep the panel explicit about whether it is loading, applying a search, empty, or ready to show results. */}
           {isLoadingListings ? (
             <p className="user-panel-copy">Loading approved listings...</p>
           ) : isApplyingSearch ? (
