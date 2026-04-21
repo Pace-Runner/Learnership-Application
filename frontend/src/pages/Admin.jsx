@@ -96,7 +96,7 @@ export default function Admin({
   const [removedHistory, setRemovedHistory] = useState([])
   const [historyView, setHistoryView] = useState('approved')
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
-  const [userManagementView, setUserManagementView] = useState('')
+  const [userManagementView, setUserManagementView] = useState('all')
   const [gmailSearchQuery, setGmailSearchQuery] = useState('')
   const [allUsers, setAllUsers] = useState([])
   const [adminUsers, setAdminUsers] = useState([])
@@ -364,12 +364,12 @@ export default function Admin({
   }, [fetchAdminInsights])
 
   useEffect(() => {
-    if (!isSuperAdmin || !userManagementView) {
+    if (!isSuperAdmin) {
       return
     }
 
     fetchUsersForManagement()
-  }, [isSuperAdmin, userManagementView, fetchUsersForManagement])
+  }, [isSuperAdmin, fetchUsersForManagement])
 
   const persistListingStatus = async (listingId, status) => {
     if (!hasSupabaseConfig) {
@@ -778,72 +778,66 @@ export default function Admin({
               </button>
             </div>
 
-            {userManagementView ? (
-              <>
-                <label className="admin-report-filter-field" htmlFor="super-admin-gmail-search">
-                  Search Gmail
-                  <input
-                    id="super-admin-gmail-search"
-                    type="text"
-                    placeholder="Search by Gmail address"
-                    autoComplete="off"
-                    spellCheck="false"
-                    value={gmailSearchQuery}
-                    onChange={(event) => setGmailSearchQuery(event.target.value)}
-                  />
-                </label>
+            <label className="admin-report-filter-field" htmlFor="super-admin-gmail-search">
+              Search Gmail
+              <input
+                id="super-admin-gmail-search"
+                type="text"
+                placeholder="Search by Gmail address"
+                autoComplete="off"
+                spellCheck="false"
+                value={gmailSearchQuery}
+                onChange={(event) => setGmailSearchQuery(event.target.value)}
+              />
+            </label>
 
-                {isUsersLoading ? (
-                  <p className="admin-note">Loading users...</p>
-                ) : filteredUsers.length === 0 ? (
-                  <p className="admin-note">No users found for this Gmail search.</p>
-                ) : (
-                  <ul className="admin-list admin-list-scroll" aria-label="User management results">
-                    {filteredUsers.map((user) => {
-                      const isAdmin = user.role === 'Admin'
-                      const isSuperAdminUser = user.role === 'SuperAdmin'
-
-                      return (
-                        <li key={user.id} className="admin-list-item">
-                          <section className="admin-selection-panel" aria-label={`User ${user.email}`}>
-                            <h3>{user.email}</h3>
-                            <p>Role: {user.role}</p>
-                            {user.createdAt ? <p>Created: {new Date(user.createdAt).toLocaleDateString()}</p> : null}
-                            {userManagementView === 'admins' ? (
-                              <button
-                                type="button"
-                                onClick={() => demoteAdminToApplicant(user)}
-                                disabled={isUpdatingUserRole}
-                              >
-                                {isUpdatingUserRole ? 'Updating...' : 'Demote from admin'}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => promoteUserToAdmin(user)}
-                                disabled={isUpdatingUserRole || isAdmin || isSuperAdminUser}
-                              >
-                                {isUpdatingUserRole
-                                  ? 'Updating...'
-                                  : isSuperAdminUser
-                                    ? 'Super admin role locked'
-                                    : isAdmin
-                                      ? 'Already admin'
-                                      : 'Promote to admin'}
-                              </button>
-                            )}
-                          </section>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-
-                <p className="admin-note">{userManagementStatus || userManagementError || 'Manage admin access using Gmail search.'}</p>
-              </>
+            {isUsersLoading ? (
+              <p className="admin-note">Loading users...</p>
+            ) : filteredUsers.length === 0 ? (
+              <p className="admin-note">No users found for this Gmail search.</p>
             ) : (
-              <p className="admin-note">Choose a user management action to begin.</p>
+              <ul className="admin-list admin-list-scroll" aria-label="User management results">
+                {filteredUsers.map((user) => {
+                  const isAdmin = user.role === 'Admin'
+                  const isSuperAdminUser = user.role === 'SuperAdmin'
+
+                  return (
+                    <li key={user.id} className="admin-list-item">
+                      <section className="admin-selection-panel" aria-label={`User ${user.email}`}>
+                        <h3>{user.email}</h3>
+                        <p>Role: {user.role}</p>
+                        {user.createdAt ? <p>Created: {new Date(user.createdAt).toLocaleDateString()}</p> : null}
+                        {userManagementView === 'admins' ? (
+                          <button
+                            type="button"
+                            onClick={() => demoteAdminToApplicant(user)}
+                            disabled={isUpdatingUserRole}
+                          >
+                            {isUpdatingUserRole ? 'Updating...' : 'Demote from admin'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => promoteUserToAdmin(user)}
+                            disabled={isUpdatingUserRole || isAdmin || isSuperAdminUser}
+                          >
+                            {isUpdatingUserRole
+                              ? 'Updating...'
+                              : isSuperAdminUser
+                                ? 'Super admin role locked'
+                                : isAdmin
+                                  ? 'Already admin'
+                                  : 'Promote to admin'}
+                          </button>
+                        )}
+                      </section>
+                    </li>
+                  )
+                })}
+              </ul>
             )}
+
+            <p className="admin-note">{userManagementStatus || userManagementError || 'Manage admin access using Gmail search.'}</p>
           </section>
         ) : null}
       </section>
