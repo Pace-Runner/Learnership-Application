@@ -27,6 +27,7 @@ const AdminDashboardShell = Admin
 // 4. All checks pass → render the protected content
 function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   const location = useLocation()
+  const allowedRoles = Array.isArray(allowedRole) ? allowedRole : [allowedRole]
 
   // Show loading state while session is being verified from browser cookies
   if (isLoading) {
@@ -44,7 +45,7 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
 
   // Role mismatch: user is logged in but lacks permission for this page
   // Example: Applicant (role="Applicant") trying to access /admin (allowedRole="Admin")
-  if (role !== allowedRole) {
+  if (!allowedRoles.includes(role)) {
     return <Navigate to="/" replace state={{ from: location }} />
   }
 
@@ -55,6 +56,7 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
 // Redirect logic: where should each role go after logging in?
 function getLandingRoute(role) {
   if (role === 'Admin') return '/admin'
+  if (role === 'SuperAdmin') return '/admin'
   if (role === 'Provider') return '/provider'
   return '/dashboard'
 }
@@ -597,8 +599,8 @@ return (
 } />
 
 <Route path="/admin" element={
-  <ProtectedRoute role={role} allowedRole="Admin" signedIn={signedIn} isLoading={isLoadingAuth}>
-    <AdminDashboardShell onLogout={handleLogout} />
+  <ProtectedRoute role={role} allowedRole={['Admin', 'SuperAdmin']} signedIn={signedIn} isLoading={isLoadingAuth}>
+    <AdminDashboardShell onLogout={handleLogout} userRole={role} />
   </ProtectedRoute>
 } />
 

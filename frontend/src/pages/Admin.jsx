@@ -90,6 +90,15 @@ function normalizeListing(row)
   }
 }
 
+function normalizeUser(row) {
+  return {
+    id: row?.id || '',
+    email: row?.email || '',
+    role: row?.role || 'Applicant',
+    createdAt: row?.created_at || '',
+  }
+}
+
 
 
 
@@ -139,6 +148,14 @@ export default function Admin({
   const [placementRate, setPlacementRate] = useState(0)
   const [isReportsLoading, setIsReportsLoading] = useState(false)
   const [reportErrorMessage, setReportErrorMessage] = useState('')
+  const [userManagementView, setUserManagementView] = useState('')
+  const [gmailSearchQuery, setGmailSearchQuery] = useState('')
+  const [allUsers, setAllUsers] = useState([])
+  const [adminUsers, setAdminUsers] = useState([])
+  const [isUsersLoading, setIsUsersLoading] = useState(false)
+  const [isUpdatingUserRole, setIsUpdatingUserRole] = useState(false)
+  const [userManagementError, setUserManagementError] = useState('')
+  const [userManagementStatus, setUserManagementStatus] = useState('')
 
   useEffect(() => 
   {
@@ -162,6 +179,17 @@ export default function Admin({
   const selectedListing = visibleListings.find((listing) => listing.id === selectedListingId) || null
   const historyItems = historyView === 'approved' ? approvedHistory : removedHistory
   const hasProvidedApplications = Array.isArray(reportApplications)
+  const isSuperAdmin = userRole === 'SuperAdmin'
+  const usersForCurrentView = userManagementView === 'admins' ? adminUsers : allUsers
+  const filteredUsers = useMemo(() => {
+    const normalizedQuery = gmailSearchQuery.trim().toLowerCase()
+
+    if (!normalizedQuery) {
+      return usersForCurrentView
+    }
+
+    return usersForCurrentView.filter((user) => user.email.toLowerCase().includes(normalizedQuery))
+  }, [gmailSearchQuery, usersForCurrentView])
 
 
 
@@ -360,6 +388,84 @@ export default function Admin({
     setIsReportsLoading(false)
   }, [hasProvidedApplications, reportApplications, reportStartDate, reportEndDate])
 
+  const fetchUsersForManagement = useCallback(async () => {
+    if (!isSuperAdmin) {
+      return
+    }
+
+    if (!hasSupabaseConfig) {
+      setUserManagementError('Supabase config missing. Cannot load users.')
+      setAllUsers([])
+      setAdminUsers([])
+      return
+    }
+
+    setIsUsersLoading(true)
+    setUserManagementError('')
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('id,email,role,created_at')
+      .order('email', { ascending: true })
+
+    if (error) {
+      setUserManagementError('Could not load users. Check Supabase RLS policies.')
+      setAllUsers([])
+      setAdminUsers([])
+      setIsUsersLoading(false)
+      return
+    }
+
+    const normalizedUsers = (data || []).map(normalizeUser)
+    setAllUsers(normalizedUsers)
+    setAdminUsers(normalizedUsers.filter((user) => user.role === 'Admin'))
+    setIsUsersLoading(false)
+  }, [isSuperAdmin])
+
+  const promoteUserToAdmin = async (user) => {
+    if (!isSuperAdmin || !user?.id || user.role === 'Admin' || user.role === 'SuperAdmin') {
+      return
+    }
+
+    setIsUpdatingUserRole(true)
+    setUserManagementError('')
+    setUserManagementStatus('')
+
+    const { error } = await supabase.from('users').update({ role: 'Admin' }).eq('id', user.id)
+
+    if (error) {
+      setUserManagementError('Could not promote user to admin. Please verify permissions.')
+      setIsUpdatingUserRole(false)
+      return
+    }
+
+    setUserManagementStatus(`Promoted ${user.email} to admin.`)
+    await fetchUsersForManagement()
+    setIsUpdatingUserRole(false)
+  }
+
+  const demoteAdminToApplicant = async (user) => {
+    if (!isSuperAdmin || !user?.id || user.role !== 'Admin') {
+      return
+    }
+
+    setIsUpdatingUserRole(true)
+    setUserManagementError('')
+    setUserManagementStatus('')
+
+    const { error } = await supabase.from('users').update({ role: 'Applicant' }).eq('id', user.id)
+
+    if (error) {
+      setUserManagementError('Could not demote admin. Please verify permissions.')
+      setIsUpdatingUserRole(false)
+      return
+    }
+
+    setUserManagementStatus(`Demoted ${user.email} to applicant.`)
+    await fetchUsersForManagement()
+    setIsUpdatingUserRole(false)
+  }
+
   useEffect(() => {
     resolveAdminId()
     fetchPendingListings()
@@ -372,6 +478,14 @@ export default function Admin({
   useEffect(() => {
     fetchReportMetrics()
   }, [fetchReportMetrics])
+
+  useEffect(() => {
+    if (!isSuperAdmin || !userManagementView) {
+      return
+    }
+
+    fetchUsersForManagement()
+  }, [isSuperAdmin, userManagementView, fetchUsersForManagement])
 
   const persistListingStatus = async (listingId, status) => {
     if (!hasSupabaseConfig) {
@@ -579,7 +693,7 @@ export default function Admin({
     )
   }
 
-  if (userRole !== 'Admin') 
+  if (!['Admin', 'SuperAdmin'].includes(userRole)) 
   {
     return (
       <main className="admin-page">
@@ -607,7 +721,7 @@ export default function Admin({
 
           <aside className="admin-status-card" aria-label="Session status">
             <p>Signed in as</p>
-            <strong>Admin</strong>
+            <strong>{userRole}</strong>
             <span>Google OAuth session active</span>
             <button onClick={onLogout} className="admin-btn">
               Logout
@@ -814,6 +928,106 @@ export default function Admin({
             </p>
           </aside>
         </section>
+
+        {isSuperAdmin ? (
+          <section className="admin-panel" aria-label="Super admin user management">
+            <header className="admin-panel-head">
+              <h2>Super Admin User Management</h2>
+            </header>
+
+            <div className="admin-action-list" aria-label="Super admin user actions">
+              <button
+                type="button"
+                className={userManagementView === 'all' ? 'is-active' : ''}
+                onClick={() => {
+                  setUserManagementView('all')
+                  setGmailSearchQuery('')
+                  setUserManagementError('')
+                  setUserManagementStatus('')
+                }}
+              >
+                Find users to promote
+              </button>
+              <button
+                type="button"
+                className={userManagementView === 'admins' ? 'is-active' : ''}
+                onClick={() => {
+                  setUserManagementView('admins')
+                  setGmailSearchQuery('')
+                  setUserManagementError('')
+                  setUserManagementStatus('')
+                }}
+              >
+                View current admins to demote
+              </button>
+            </div>
+
+            {userManagementView ? (
+              <>
+                <label className="admin-report-filter-field" htmlFor="super-admin-gmail-search">
+                  Search Gmail
+                  <input
+                    id="super-admin-gmail-search"
+                    type="email"
+                    placeholder="Search by Gmail address"
+                    value={gmailSearchQuery}
+                    onChange={(event) => setGmailSearchQuery(event.target.value)}
+                  />
+                </label>
+
+                {isUsersLoading ? (
+                  <p className="admin-note">Loading users...</p>
+                ) : filteredUsers.length === 0 ? (
+                  <p className="admin-note">No users found for this Gmail search.</p>
+                ) : (
+                  <ul className="admin-list admin-list-scroll" aria-label="User management results">
+                    {filteredUsers.map((user) => {
+                      const isAdmin = user.role === 'Admin'
+                      const isSuperAdminUser = user.role === 'SuperAdmin'
+
+                      return (
+                        <li key={user.id} className="admin-list-item">
+                          <section className="admin-selection-panel" aria-label={`User ${user.email}`}>
+                            <h3>{user.email}</h3>
+                            <p>Role: {user.role}</p>
+                            {user.createdAt ? <p>Created: {new Date(user.createdAt).toLocaleDateString()}</p> : null}
+                            {userManagementView === 'admins' ? (
+                              <button
+                                type="button"
+                                onClick={() => demoteAdminToApplicant(user)}
+                                disabled={isUpdatingUserRole}
+                              >
+                                {isUpdatingUserRole ? 'Updating...' : 'Demote from admin'}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => promoteUserToAdmin(user)}
+                                disabled={isUpdatingUserRole || isAdmin || isSuperAdminUser}
+                              >
+                                {isUpdatingUserRole
+                                  ? 'Updating...'
+                                  : isSuperAdminUser
+                                    ? 'Super admin role locked'
+                                    : isAdmin
+                                      ? 'Already admin'
+                                      : 'Promote to admin'}
+                              </button>
+                            )}
+                          </section>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+
+                <p className="admin-note">{userManagementStatus || userManagementError || 'Manage admin access using Gmail search.'}</p>
+              </>
+            ) : (
+              <p className="admin-note">Choose a user management action to begin.</p>
+            )}
+          </section>
+        ) : null}
       </section>
     </main>
   )

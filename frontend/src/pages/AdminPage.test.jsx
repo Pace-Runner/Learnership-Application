@@ -34,13 +34,15 @@ test('ADMIN-ACCEPTANCE-1: Admin email addresses are seeded in database with Admi
   const schemaSql = readFileSync(resolve(cwd(), '../supabase/schema.sql'), 'utf8')
 
   expect(schemaSql).toContain('create table if not exists users')
-  expect(schemaSql).toContain("role text check (role in ('Applicant', 'Provider', 'Admin'))")
+  expect(schemaSql).toContain("role text check (role in ('Applicant', 'Provider', 'Admin', 'SuperAdmin'))")
+  expect(schemaSql).toContain("'superadmin@yourdomain.com', 'SuperAdmin'")
 })
 
 test('ADMIN-ACCEPTANCE-2: OAuth callback checks email against admin list and assigns Admin role', () => {
   const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
   expect(appSource).toContain("if (role === 'Admin')")
+  expect(appSource).toContain("if (role === 'SuperAdmin')")
   expect(appSource).toContain('handleRoleSelection')
 })
 
@@ -49,12 +51,13 @@ test('ADMIN-ACCEPTANCE-3: Admin dashboard shell exists at /admin route with mode
 
   expect(appSource).toContain('<Route path="/admin"')
   expect(appSource).toContain('if (role === \'Admin\') return \'/admin\'')
+  expect(appSource).toContain('if (role === \'SuperAdmin\') return \'/admin\'')
 })
 
 test('ADMIN-ACCEPTANCE-4: Non-admin users visiting /admin are redirected away', () => {
   const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-  expect(appSource).toContain('role !== allowedRole')
+  expect(appSource).toContain('!allowedRoles.includes(role)')
   expect(appSource).toContain('Navigate to')
 })
 
