@@ -5,7 +5,7 @@ create extension if not exists pgcrypto;
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   email text unique not null,
-  role text check (role in ('Applicant', 'Provider', 'Admin')) not null default 'Applicant',
+  role text check (role in ('Applicant', 'Provider', 'Admin', 'SuperAdmin')) not null default 'Applicant',
   created_at timestamp default now()
 );
 
@@ -136,6 +136,7 @@ create table if not exists admin_actions (
 
 -- Chunk 9: Seed admin emails
 insert into users (email, role) values
+  ('superadmin@yourdomain.com', 'SuperAdmin'),
   ('connor@yourdomain.com', 'Admin'),
   ('anotheradmin@yourdomain.com', 'Admin')
 on conflict (email) do update set role = excluded.role;

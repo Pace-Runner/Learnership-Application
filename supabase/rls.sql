@@ -2,6 +2,21 @@
 
 alter table users enable row level security;
 
+-- Super admins can read all users for user management.
+drop policy if exists "users_select_super_admin" on users;
+create policy "users_select_super_admin"
+  on users
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from users me
+      where me.email = auth.jwt() ->> 'email'
+        and me.role = 'SuperAdmin'
+    )
+  );
+
 -- Authenticated users can read only their own row.
 drop policy if exists "users_select_own" on users;
 create policy "users_select_own"
@@ -26,6 +41,29 @@ create policy "users_update_own"
   to authenticated
   using (email = auth.jwt() ->> 'email')
   with check (email = auth.jwt() ->> 'email');
+
+-- Super admins can manage user roles across the platform.
+drop policy if exists "users_update_super_admin" on users;
+create policy "users_update_super_admin"
+  on users
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from users me
+      where me.email = auth.jwt() ->> 'email'
+        and me.role = 'SuperAdmin'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from users me
+      where me.email = auth.jwt() ->> 'email'
+        and me.role = 'SuperAdmin'
+    )
+  );
 
 -- Enable RLS on applicant_profiles
 alter table applicant_profiles enable row level security;
