@@ -259,12 +259,10 @@ function App() {
   // WHEN: User has loaded auth state, is signed in, has a role, and is on home page
   // REDIRECTS: Admin → /admin, Provider → /provider, Applicant → /dashboard
   useEffect(() => {
-    const redirectedFromProtectedRoute = Boolean(location.state?.from)
-
-    if (!isLoadingAuth && signedIn && role && location.pathname === '/' && !redirectedFromProtectedRoute) {
+    if (!isLoadingAuth && signedIn && role && location.pathname === '/') {
       navigate(getLandingRoute(role), { replace: true })
     }
-  }, [isLoadingAuth, signedIn, role, location.pathname, location.state, navigate])
+  }, [isLoadingAuth, signedIn, role, location.pathname, navigate])
 
   // Clear session and reset all state when logging out
   const handleLogout = async () => {
