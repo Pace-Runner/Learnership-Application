@@ -1,51 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 
-const PLACED_APPLICATION_STATUSES = new Set(['Accepted', 'Offered'])
-
-function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function getIsoDateDaysAgo(days) {
-  const date = new Date()
-  date.setDate(date.getDate() - days)
-  return date.toISOString().slice(0, 10)
-}
-
-function getPlacementRate(totalApplications, placedApplications) {
-  if (totalApplications === 0) {
-    return 0
-  }
-
-  return Math.round((placedApplications / totalApplications) * 1000) / 10
-}
-
-function normalizeApplication(row) {
-  return {
-    status: row?.status || '',
-    appliedAt: row?.appliedAt || row?.applied_at || '',
-  }
-}
-
-function isWithinDateRange(value, startDate, endDate) {
-  if (!value) {
-    return false
-  }
-
-  const datePart = String(value).slice(0, 10)
-
-  if (startDate && datePart < startDate) {
-    return false
-  }
-
-  if (endDate && datePart > endDate) {
-    return false
-  }
-
-  return true
-}
-
 function getPendingListings(listings) 
 {
   return listings.filter((listing) => listing?.status === 'Pending')
@@ -141,13 +96,6 @@ export default function Admin({
   const [removedHistory, setRemovedHistory] = useState([])
   const [historyView, setHistoryView] = useState('approved')
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
-  const [reportStartDate, setReportStartDate] = useState(getIsoDateDaysAgo(30))
-  const [reportEndDate, setReportEndDate] = useState(getTodayIsoDate())
-  const [reportApplicationVolume, setReportApplicationVolume] = useState(0)
-  const [placedApplicationCount, setPlacedApplicationCount] = useState(0)
-  const [placementRate, setPlacementRate] = useState(0)
-  const [isReportsLoading, setIsReportsLoading] = useState(false)
-  const [reportErrorMessage, setReportErrorMessage] = useState('')
   const [userManagementView, setUserManagementView] = useState('')
   const [gmailSearchQuery, setGmailSearchQuery] = useState('')
   const [allUsers, setAllUsers] = useState([])
@@ -178,7 +126,6 @@ export default function Admin({
   const effectiveAdminId = currentAdminId || resolvedAdminId || ''
   const selectedListing = visibleListings.find((listing) => listing.id === selectedListingId) || null
   const historyItems = historyView === 'approved' ? approvedHistory : removedHistory
-  const hasProvidedApplications = Array.isArray(reportApplications)
   const isSuperAdmin = ['SuperAdmin', 'SAdmin'].includes(userRole)
   const displayRole = isSuperAdmin ? 'SuperAdmin' : userRole
   const usersForCurrentView = userManagementView === 'admins' ? adminUsers : allUsers
@@ -329,66 +276,6 @@ export default function Admin({
     )
   }, [effectiveAdminId, hasProvidedListings])
 
-  const fetchReportMetrics = useCallback(async () => {
-    if (hasProvidedApplications) {
-      const normalizedApplications = reportApplications.map(normalizeApplication)
-      const filteredApplications = normalizedApplications.filter((application) =>
-        isWithinDateRange(application.appliedAt, reportStartDate, reportEndDate),
-      )
-      const placedCount = filteredApplications.filter((application) =>
-        PLACED_APPLICATION_STATUSES.has(application.status),
-      ).length
-
-      setReportApplicationVolume(filteredApplications.length)
-      setPlacedApplicationCount(placedCount)
-      setPlacementRate(getPlacementRate(filteredApplications.length, placedCount))
-      setReportErrorMessage('')
-      return
-    }
-
-    if (!hasSupabaseConfig) {
-      setReportApplicationVolume(0)
-      setPlacedApplicationCount(0)
-      setPlacementRate(0)
-      setReportErrorMessage('Supabase config missing. Cannot load reports.')
-      return
-    }
-
-    setIsReportsLoading(true)
-    setReportErrorMessage('')
-
-    let query = supabase.from('applications').select('status,applied_at')
-
-    if (reportStartDate) {
-      query = query.gte('applied_at', `${reportStartDate}T00:00:00`)
-    }
-
-    if (reportEndDate) {
-      query = query.lte('applied_at', `${reportEndDate}T23:59:59`)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
-      setReportApplicationVolume(0)
-      setPlacedApplicationCount(0)
-      setPlacementRate(0)
-      setReportErrorMessage('Could not load application reports. Check Supabase RLS policies.')
-      setIsReportsLoading(false)
-      return
-    }
-
-    const normalizedApplications = (data || []).map(normalizeApplication)
-    const placedCount = normalizedApplications.filter((application) =>
-      PLACED_APPLICATION_STATUSES.has(application.status),
-    ).length
-
-    setReportApplicationVolume(normalizedApplications.length)
-    setPlacedApplicationCount(placedCount)
-    setPlacementRate(getPlacementRate(normalizedApplications.length, placedCount))
-    setIsReportsLoading(false)
-  }, [hasProvidedApplications, reportApplications, reportStartDate, reportEndDate])
-
   const fetchUsersForManagement = useCallback(async () => {
     if (!isSuperAdmin) {
       return
@@ -475,10 +362,6 @@ export default function Admin({
   useEffect(() => {
     fetchAdminInsights()
   }, [fetchAdminInsights])
-
-  useEffect(() => {
-    fetchReportMetrics()
-  }, [fetchReportMetrics])
 
   useEffect(() => {
     if (!isSuperAdmin || !userManagementView) {
@@ -678,11 +561,6 @@ export default function Admin({
     setStatusMessage(`${historyView === 'approved' ? 'Approved' : 'Removed'} listings report exported.`)
   }
 
-  const handleReportDateRangeReset = () => {
-    setReportStartDate(getIsoDateDaysAgo(30))
-    setReportEndDate(getTodayIsoDate())
-  }
-
   if (!isAuthenticated) 
   {
     return (
@@ -729,69 +607,6 @@ export default function Admin({
             </button>
           </aside>
         </header>
-
-        <section className="admin-kpi-row" aria-label="Moderation metrics">
-          <article className="admin-kpi">
-            <span>Total Applications Submitted</span>
-            <strong>{reportApplicationVolume}</strong>
-          </article>
-          <article className="admin-kpi">
-            <span>Placed Applications</span>
-            <strong>{placedApplicationCount}</strong>
-          </article>
-          <article className="admin-kpi">
-            <span>Placement Rate</span>
-            <strong>{`${placementRate}%`}</strong>
-          </article>
-          <article className="admin-kpi">
-            <span>Pending Reviews</span>
-            <strong>{visibleListings.length}</strong>
-          </article>
-          <article className="admin-kpi">
-            <span>Approved Opportunities</span>
-            <strong>{approvedCount}</strong>
-          </article>
-          <article className="admin-kpi">
-            <span>Removed Opportunities</span>
-            <strong>{removedCount}</strong>
-          </article>
-        </section>
-
-        <section className="admin-report-filter-row" aria-label="Reports date range filter">
-          <label className="admin-report-filter-field" htmlFor="report-start-date">
-            Report start date
-            <input
-              id="report-start-date"
-              type="date"
-              value={reportStartDate}
-              max={reportEndDate || undefined}
-              onChange={(event) => setReportStartDate(event.target.value)}
-            />
-          </label>
-          <label className="admin-report-filter-field" htmlFor="report-end-date">
-            Report end date
-            <input
-              id="report-end-date"
-              type="date"
-              value={reportEndDate}
-              min={reportStartDate || undefined}
-              onChange={(event) => setReportEndDate(event.target.value)}
-            />
-          </label>
-          <div className="admin-report-filter-actions">
-            <button type="button" className="admin-action-btn" onClick={fetchReportMetrics}>
-              Apply date range
-            </button>
-            <button type="button" className="admin-ghost-btn" onClick={handleReportDateRangeReset}>
-              Reset to last 30 days
-            </button>
-          </div>
-          <p className="admin-report-note">
-            {isReportsLoading
-              ? 'Loading reports...'
-              : reportErrorMessage || 'Placement rate is calculated as placed applications divided by total applications in range.'}
-          </p>
-        </section>
 
         <section className="admin-content-row">
           <section className="admin-panel" aria-label="Moderation queue">
@@ -969,8 +784,10 @@ export default function Admin({
                   Search Gmail
                   <input
                     id="super-admin-gmail-search"
-                    type="email"
+                    type="text"
                     placeholder="Search by Gmail address"
+                    autoComplete="off"
+                    spellCheck="false"
                     value={gmailSearchQuery}
                     onChange={(event) => setGmailSearchQuery(event.target.value)}
                   />
