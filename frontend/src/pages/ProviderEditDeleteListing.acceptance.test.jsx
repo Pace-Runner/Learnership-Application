@@ -353,7 +353,7 @@ describe('Provider Edit/Delete listing acceptance tests', () => {
     expect(appSource).toContain('<Route path="/provider/listings/:listingId/edit"')
     expect(appSource).toContain('allowedRole="Provider"')
     expect(appSource).toContain('if (!signedIn)')
-    expect(appSource).toContain('if (role !== allowedRole)')
+    expect(appSource).toContain('if (!allowedRoles.includes(resolvedRole))')
     expect(appSource).toContain('Navigate to="/"')
   })
 })

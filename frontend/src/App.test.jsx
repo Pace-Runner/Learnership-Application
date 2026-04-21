@@ -42,7 +42,7 @@ describe('Provider tests', () => {
   test('Provider selection leads to provider route', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+    expect(appSource).toContain("if (normalizedRole === 'Provider') return '/provider'")
     expect(appSource).toContain('<Route path="/provider"')
   })
 
@@ -67,7 +67,7 @@ describe('Admin tests', () => {
   test('Wrong role gets redirected away from /admin', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain('role !== allowedRole')
+    expect(appSource).toContain('!allowedRoles.includes(resolvedRole)')
     expect(appSource).toContain('<Route path="/admin"')
     expect(appSource).toContain('Navigate to="/"')
   })
@@ -76,14 +76,14 @@ describe('Admin tests', () => {
   test('Admin lands on /admin after login', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
+    expect(appSource).toContain("if (normalizedRole === 'Admin') return '/admin'")
     expect(appSource).toContain('<Route path="/admin"')
   })
 
   test('Admin can see the dashboard', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain('<AdminDashboardShell onLogout={handleLogout} />')
+    expect(appSource).toContain('<AdminDashboardShell onLogout={handleLogout} userRole={role} />')
     expect(appSource).toContain('<Route path="/admin"')
   })
   test.todo('Admin session survives a page refresh')
@@ -102,13 +102,13 @@ describe('Role based tests', () => {
   test('Provider role redirects to /provider', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+    expect(appSource).toContain("if (normalizedRole === 'Provider') return '/provider'")
   })
 
   test('Admin role redirects to /admin', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
+    expect(appSource).toContain("if (normalizedRole === 'Admin') return '/admin'")
   })
 
   test('Unauthenticated users blocked from protected routes', () => {
@@ -124,7 +124,7 @@ describe('Role based tests', () => {
 
     expect(appSource).toContain('function ProtectedRoute')
     expect(appSource).toContain('!signedIn')
-    expect(appSource).toContain('role !== allowedRole')
+    expect(appSource).toContain('!allowedRoles.includes(resolvedRole)')
   })
 
   test('Redirect logic implemented for unauthorized access', () => {
@@ -138,8 +138,10 @@ describe('Role based tests', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toContain('function getLandingRoute(role)')
-    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
-    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+    expect(appSource).toContain("const normalizedRole = normalizeRole(role)")
+    expect(appSource).toContain("if (normalizedRole === 'Admin') return '/admin'")
+    expect(appSource).toContain("if (normalizedRole === 'SuperAdmin') return '/admin'")
+    expect(appSource).toContain("if (normalizedRole === 'Provider') return '/provider'")
     expect(appSource).toContain("return '/dashboard'")
   })
   test.todo('Protected route middleware prevents cross-role navigation')
@@ -160,7 +162,7 @@ describe('Role based tests', () => {
   test('Admin route mounts Admin dashboard', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain('<AdminDashboardShell onLogout={handleLogout} />')
+    expect(appSource).toContain('<AdminDashboardShell onLogout={handleLogout} userRole={role} />')
   })
 
   test('Dashboard route mounts Applicant dashboard', () => {
@@ -174,7 +176,7 @@ describe('Role based tests', () => {
 
     expect(appSource).toMatch(/allowedRole="Applicant"/)
     expect(appSource).toMatch(/allowedRole="Provider"/)
-    expect(appSource).toMatch(/allowedRole="Admin"/)
+    expect(appSource).toContain("allowedRole={['Admin', 'SuperAdmin']}")
   })
 
   test('Vitest + v8 coverage configured', () => {

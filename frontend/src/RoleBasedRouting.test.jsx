@@ -140,6 +140,19 @@ describe('Role-based routing runtime behavior', () => {
     })
   })
 
+  test('renders admin workspace when signed-in user has legacy SAdmin role value', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { email: 'sadmin@example.com' } } },
+      error: null,
+    })
+    mockRoleLookup.mockResolvedValue({ data: { role: 'SAdmin' }, error: null })
+
+    renderApp('/admin')
+    await waitFor(() => {
+      expect(screen.getByText('Admin Workspace')).toBeTruthy()
+    })
+  })
+
   test('renders provider workspace when signed-in user has Provider role', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: { user: { email: 'provider@example.com' } } },

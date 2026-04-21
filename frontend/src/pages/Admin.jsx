@@ -179,7 +179,8 @@ export default function Admin({
   const selectedListing = visibleListings.find((listing) => listing.id === selectedListingId) || null
   const historyItems = historyView === 'approved' ? approvedHistory : removedHistory
   const hasProvidedApplications = Array.isArray(reportApplications)
-  const isSuperAdmin = userRole === 'SuperAdmin'
+  const isSuperAdmin = ['SuperAdmin', 'SAdmin'].includes(userRole)
+  const displayRole = isSuperAdmin ? 'SuperAdmin' : userRole
   const usersForCurrentView = userManagementView === 'admins' ? adminUsers : allUsers
   const filteredUsers = useMemo(() => {
     const normalizedQuery = gmailSearchQuery.trim().toLowerCase()
@@ -693,7 +694,7 @@ export default function Admin({
     )
   }
 
-  if (!['Admin', 'SuperAdmin'].includes(userRole)) 
+  if (!['Admin', 'SuperAdmin', 'SAdmin'].includes(userRole)) 
   {
     return (
       <main className="admin-page">
@@ -721,7 +722,7 @@ export default function Admin({
 
           <aside className="admin-status-card" aria-label="Session status">
             <p>Signed in as</p>
-            <strong>{userRole}</strong>
+            <strong>{displayRole}</strong>
             <span>Google OAuth session active</span>
             <button onClick={onLogout} className="admin-btn">
               Logout

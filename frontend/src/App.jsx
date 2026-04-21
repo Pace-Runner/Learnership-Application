@@ -18,6 +18,32 @@ import ProviderListingEdit from './pages/ProviderListingEdit'
 import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
 const AdminDashboardShell = Admin
 
+function normalizeRole(roleValue) {
+  if (!roleValue) {
+    return null
+  }
+
+  const normalizedRole = String(roleValue).trim().toLowerCase()
+
+  if (['superadmin', 'sadmin', 'super admin', 'super_admin'].includes(normalizedRole)) {
+    return 'SuperAdmin'
+  }
+
+  if (normalizedRole === 'admin') {
+    return 'Admin'
+  }
+
+  if (normalizedRole === 'provider') {
+    return 'Provider'
+  }
+
+  if (normalizedRole === 'applicant') {
+    return 'Applicant'
+  }
+
+  return roleValue
+}
+
 // ProtectedRoute: Guard component that restricts access to role-specific pages
 // USAGE: <ProtectedRoute role={role} allowedRole="Admin" signedIn={signedIn} isLoading={isLoadingAuth}><Admin /></ProtectedRoute>
 // LOGIC:
@@ -27,7 +53,8 @@ const AdminDashboardShell = Admin
 // 4. All checks pass → render the protected content
 function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   const location = useLocation()
-  const allowedRoles = Array.isArray(allowedRole) ? allowedRole : [allowedRole]
+  const allowedRoles = (Array.isArray(allowedRole) ? allowedRole : [allowedRole]).map(normalizeRole)
+  const resolvedRole = normalizeRole(role)
 
   // Show loading state while session is being verified from browser cookies
   if (isLoading) {
@@ -45,7 +72,7 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
 
   // Role mismatch: user is logged in but lacks permission for this page
   // Example: Applicant (role="Applicant") trying to access /admin (allowedRole="Admin")
-  if (!allowedRoles.includes(role)) {
+  if (!allowedRoles.includes(resolvedRole)) {
     return <Navigate to="/" replace state={{ from: location }} />
   }
 
@@ -55,9 +82,11 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
 
 // Redirect logic: where should each role go after logging in?
 function getLandingRoute(role) {
-  if (role === 'Admin') return '/admin'
-  if (role === 'SuperAdmin') return '/admin'
-  if (role === 'Provider') return '/provider'
+  const normalizedRole = normalizeRole(role)
+
+  if (normalizedRole === 'Admin') return '/admin'
+  if (normalizedRole === 'SuperAdmin') return '/admin'
+  if (normalizedRole === 'Provider') return '/provider'
   return '/dashboard'
 }
 
@@ -99,7 +128,7 @@ function App() {
       throw fetchError
     }
 
-    return userRecord?.role ?? null
+    return normalizeRole(userRecord?.role ?? null)
   }, [])
 
   // AUTH BOOTSTRAP: Restore user session on app load and listen for auth changes
