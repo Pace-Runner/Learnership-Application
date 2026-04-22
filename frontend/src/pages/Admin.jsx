@@ -79,6 +79,60 @@ function triggerFileDownload(blob, fileName) {
   URL.revokeObjectURL(url)
 }
 
+function buildLocalExportRows(visibleListings, approvedHistory, removedHistory) {
+  const pendingRows = (visibleListings || []).map((listing) => ({
+    id: listing.id,
+    title: listing.title,
+    provider: listing.provider || 'Unknown provider',
+    status: 'Pending',
+    actionType: 'Pending',
+    actionByAdminId: '',
+    actionAt: '',
+  }))
+
+  const approvedRows = (approvedHistory || []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    provider: 'Unknown provider',
+    status: 'Approved',
+    actionType: 'Approved',
+    actionByAdminId: '',
+    actionAt: item.createdAt || '',
+  }))
+
+  const removedRows = (removedHistory || []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    provider: 'Unknown provider',
+    status: 'Removed',
+    actionType: 'Removed',
+    actionByAdminId: '',
+    actionAt: item.createdAt || '',
+  }))
+
+  const mergedRows = [...pendingRows, ...approvedRows, ...removedRows]
+  const dedupedById = new Map()
+
+  mergedRows.forEach((row) => {
+    if (!row.id) {
+      return
+    }
+
+    const existingRow = dedupedById.get(row.id)
+    if (!existingRow) {
+      dedupedById.set(row.id, row)
+      return
+    }
+
+    // Prefer non-pending states when the same listing appears in local fallback sources.
+    if (existingRow.status === 'Pending' && row.status !== 'Pending') {
+      dedupedById.set(row.id, row)
+    }
+  })
+
+  return Array.from(dedupedById.values())
+}
+
 function normalizeUser(row) {
   return {
     id: row?.id || '',
@@ -588,7 +642,7 @@ export default function Admin({
     }
 
     if (!hasSupabaseConfig) {
-      throw new Error('Supabase config missing')
+      return buildLocalExportRows(visibleListings, approvedHistory, removedHistory)
     }
 
     const { data: listingsData, error: listingsError } = await supabase
@@ -598,7 +652,7 @@ export default function Admin({
       .order('updated_at', { ascending: false })
 
     if (listingsError) {
-      throw listingsError
+      return buildLocalExportRows(visibleListings, approvedHistory, removedHistory)
     }
 
     const normalizedListings = (listingsData || []).map((row) => ({
@@ -612,20 +666,22 @@ export default function Admin({
     let latestActionByListingId = {}
 
     if (listingIds.length) {
-      const { data: actionRows } = await supabase
+      const { data: actionRows, error: actionsError } = await supabase
         .from('admin_actions')
         .select('target_id,action_type,admin_id,created_at')
         .eq('target_type', 'listing')
         .in('target_id', listingIds)
         .in('action_type', ['approved', 'removed'])
 
-      latestActionByListingId = (actionRows || []).reduce((accumulator, action) => {
-        const existingAction = accumulator[action.target_id]
-        if (!existingAction || new Date(action.created_at) > new Date(existingAction.created_at)) {
-          accumulator[action.target_id] = action
-        }
-        return accumulator
-      }, {})
+      if (!actionsError) {
+        latestActionByListingId = (actionRows || []).reduce((accumulator, action) => {
+          const existingAction = accumulator[action.target_id]
+          if (!existingAction || new Date(action.created_at) > new Date(existingAction.created_at)) {
+            accumulator[action.target_id] = action
+          }
+          return accumulator
+        }, {})
+      }
     }
 
     return normalizedListings
@@ -642,7 +698,7 @@ export default function Admin({
           actionAt: matchedAction?.created_at || '',
         }
       })
-  }, [hasProvidedListings, listings])
+  }, [approvedHistory, hasProvidedListings, listings, removedHistory, visibleListings])
 
   const handleExportModerationReport = async () => {
     setIsExportingReport(true)
@@ -890,20 +946,6 @@ export default function Admin({
               >
                 Removed listings
               </button>
-              <label className="admin-report-filter-field" htmlFor="admin-export-format">
-                Export format
-                <select
-                  id="admin-export-format"
-                  value={exportFormat}
-                  onChange={(event) => setExportFormat(event.target.value)}
-                >
-                  <option value="csv">CSV</option>
-                  <option value="pdf">PDF</option>
-                </select>
-              </label>
-              <button type="button" onClick={handleExportModerationReport} disabled={isExportingReport}>
-                {isExportingReport ? 'Exporting...' : 'Export report'}
-              </button>
             </nav>
             <section className="admin-history-panel" aria-label="Admin action history">
               <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
@@ -919,6 +961,26 @@ export default function Admin({
                   ))}
                 </ul>
               )}
+            </section>
+            <section className="admin-history-panel" aria-label="Moderation report export">
+              <h3>Export moderation report</h3>
+              <p className="admin-note">
+                Includes pending, approved, and removed listings for the platform.
+              </p>
+              <label className="admin-report-filter-field" htmlFor="admin-export-format">
+                Export format
+                <select
+                  id="admin-export-format"
+                  value={exportFormat}
+                  onChange={(event) => setExportFormat(event.target.value)}
+                >
+                  <option value="csv">CSV</option>
+                  <option value="pdf">PDF</option>
+                </select>
+              </label>
+              <button type="button" onClick={handleExportModerationReport} disabled={isExportingReport}>
+                {isExportingReport ? 'Exporting...' : 'Export report'}
+              </button>
             </section>
             <p className="admin-note">
               Provider listings are moderated here once they are approved into production flow.
