@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { jsPDF } from 'jspdf'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 
 function getPendingListings(listings) 
@@ -43,6 +44,39 @@ function normalizeListing(row)
     closingDate: row.closingDate || row.closing_date || 'Not specified',
     status: row.status,
   }
+}
+
+function normalizeModerationStatus(statusValue) {
+  const normalized = String(statusValue || '').toLowerCase()
+
+  if (normalized === 'pending') {
+    return 'Pending'
+  }
+
+  if (normalized === 'approved') {
+    return 'Approved'
+  }
+
+  if (normalized === 'removed') {
+    return 'Removed'
+  }
+
+  return null
+}
+
+function escapeCsvCell(value) {
+  return `"${String(value || '').replace(/"/g, '""')}"`
+}
+
+function triggerFileDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 function normalizeUser(row) {
@@ -104,6 +138,8 @@ export default function Admin({
   const [isUpdatingUserRole, setIsUpdatingUserRole] = useState(false)
   const [userManagementError, setUserManagementError] = useState('')
   const [userManagementStatus, setUserManagementStatus] = useState('')
+  const [exportFormat, setExportFormat] = useState('csv')
+  const [isExportingReport, setIsExportingReport] = useState(false)
 
   useEffect(() => 
   {
@@ -533,32 +569,164 @@ export default function Admin({
     setErrorMessage('')
   }
 
-  const handleExportModerationReport = () => {
-    if (historyItems.length === 0) 
-    {
-      setErrorMessage('No items available in this view to export.')
-      return
+  const getModerationExportRows = useCallback(async () => {
+    const allowedStatuses = ['Pending', 'Approved', 'Removed']
+
+    if (hasProvidedListings) {
+      return (listings || [])
+        .map(normalizeListing)
+        .map((listing) => ({
+          id: listing.id,
+          title: listing.title,
+          provider: listing.provider,
+          status: normalizeModerationStatus(listing.status),
+          actionType: normalizeModerationStatus(listing.status),
+          actionByAdminId: '',
+          actionAt: '',
+        }))
+        .filter((row) => allowedStatuses.includes(row.status))
     }
 
-    const header = ['listing_id', 'title', 'action', 'performed_at']
-    const rows = historyItems.map((item) => [item.id, item.title, historyView, item.createdAt || ''])
+    if (!hasSupabaseConfig) {
+      throw new Error('Supabase config missing')
+    }
 
-    // Escape CSV values so commas/quotes in listing names do not break downloads.
-    const csv = [header, ...rows]
-      .map((row) => row.map((value) => `"${String(value || '').replace(/"/g, '""')}"`).join(','))
-      .join('\n')
+    const { data: listingsData, error: listingsError } = await supabase
+      .from('opportunities')
+      .select('id,title,status,provider_id,provider_profiles:provider_id(organisation_name),updated_at')
+      .in('status', allowedStatuses)
+      .order('updated_at', { ascending: false })
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${historyView}-listings-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    if (listingsError) {
+      throw listingsError
+    }
+
+    const normalizedListings = (listingsData || []).map((row) => ({
+      id: row.id,
+      title: row.title || 'Untitled opportunity',
+      provider: row?.provider_profiles?.organisation_name || row.provider_id || 'Unknown provider',
+      status: normalizeModerationStatus(row.status),
+    }))
+
+    const listingIds = normalizedListings.map((listing) => listing.id).filter(Boolean)
+    let latestActionByListingId = {}
+
+    if (listingIds.length) {
+      const { data: actionRows } = await supabase
+        .from('admin_actions')
+        .select('target_id,action_type,admin_id,created_at')
+        .eq('target_type', 'listing')
+        .in('target_id', listingIds)
+        .in('action_type', ['approved', 'removed'])
+
+      latestActionByListingId = (actionRows || []).reduce((accumulator, action) => {
+        const existingAction = accumulator[action.target_id]
+        if (!existingAction || new Date(action.created_at) > new Date(existingAction.created_at)) {
+          accumulator[action.target_id] = action
+        }
+        return accumulator
+      }, {})
+    }
+
+    return normalizedListings
+      .filter((listing) => allowedStatuses.includes(listing.status))
+      .map((listing) => {
+        const matchedAction = latestActionByListingId[listing.id]
+        return {
+          id: listing.id,
+          title: listing.title,
+          provider: listing.provider,
+          status: listing.status,
+          actionType: matchedAction ? normalizeModerationStatus(matchedAction.action_type) : listing.status,
+          actionByAdminId: matchedAction?.admin_id || '',
+          actionAt: matchedAction?.created_at || '',
+        }
+      })
+  }, [hasProvidedListings, listings])
+
+  const handleExportModerationReport = async () => {
+    setIsExportingReport(true)
     setErrorMessage('')
-    setStatusMessage(`${historyView === 'approved' ? 'Approved' : 'Removed'} listings report exported.`)
+    setStatusMessage('')
+
+    try {
+      const exportRows = await getModerationExportRows()
+
+      if (exportRows.length === 0) {
+        setErrorMessage('No pending, approved, or removed listings are available to export.')
+        setIsExportingReport(false)
+        return
+      }
+
+      const reportDate = new Date().toISOString().slice(0, 10)
+      const baseFileName = `moderation-report-${reportDate}`
+      const columns = [
+        'listing_id',
+        'title',
+        'provider',
+        'status',
+        'last_action',
+        'last_action_by_admin_id',
+        'last_action_at',
+      ]
+      const dataRows = exportRows.map((row) => [
+        row.id,
+        row.title,
+        row.provider,
+        row.status,
+        row.actionType,
+        row.actionByAdminId,
+        row.actionAt,
+      ])
+
+      if (exportFormat === 'pdf') {
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+        const leftMargin = 32
+        let cursorY = 40
+
+        pdf.setFontSize(14)
+        pdf.text('Moderation Report', leftMargin, cursorY)
+        cursorY += 18
+        pdf.setFontSize(10)
+        pdf.text(`Generated: ${new Date().toLocaleString()}`, leftMargin, cursorY)
+        cursorY += 24
+
+        pdf.setFontSize(9)
+        pdf.text(columns.join(' | '), leftMargin, cursorY)
+        cursorY += 14
+
+        dataRows.forEach((row) => {
+          if (cursorY > 560) {
+            pdf.addPage()
+            cursorY = 40
+            pdf.setFontSize(9)
+            pdf.text(columns.join(' | '), leftMargin, cursorY)
+            cursorY += 14
+          }
+
+          const rowText = row.map((value) => String(value || '').replace(/\s+/g, ' ').trim()).join(' | ')
+          const wrappedLines = pdf.splitTextToSize(rowText, 760)
+          pdf.text(wrappedLines, leftMargin, cursorY)
+          cursorY += wrappedLines.length * 11 + 4
+        })
+
+        const pdfBlob = pdf.output('blob')
+        triggerFileDownload(pdfBlob, `${baseFileName}.pdf`)
+      } else {
+        const csv = [columns, ...dataRows]
+          .map((row) => row.map((value) => escapeCsvCell(value)).join(','))
+          .join('\n')
+
+        const csvBlob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        triggerFileDownload(csvBlob, `${baseFileName}.csv`)
+      }
+
+      setStatusMessage(`Moderation report exported as ${exportFormat.toUpperCase()}.`)
+    } catch {
+      setErrorMessage('Could not export moderation report. Please check report data access.')
+    }
+
+    setIsExportingReport(false)
   }
 
   if (!isAuthenticated) 
@@ -722,7 +890,20 @@ export default function Admin({
               >
                 Removed listings
               </button>
-              <button type="button" onClick={handleExportModerationReport}>Export moderation report</button>
+              <label className="admin-report-filter-field" htmlFor="admin-export-format">
+                Export format
+                <select
+                  id="admin-export-format"
+                  value={exportFormat}
+                  onChange={(event) => setExportFormat(event.target.value)}
+                >
+                  <option value="csv">CSV</option>
+                  <option value="pdf">PDF</option>
+                </select>
+              </label>
+              <button type="button" onClick={handleExportModerationReport} disabled={isExportingReport}>
+                {isExportingReport ? 'Exporting...' : 'Export report'}
+              </button>
             </nav>
             <section className="admin-history-panel" aria-label="Admin action history">
               <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
