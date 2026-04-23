@@ -70,7 +70,11 @@ describe('Admin moderation queue TDD tests', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /^delete$/i }))
 
-    expect(screen.getByText(/delete workspace coming soon/i)).toBeTruthy()
+    expect(screen.getByText(/this admin removed/i)).toBeTruthy()
+    expect(screen.getByText(/all admins removed/i)).toBeTruthy()
+    expect(screen.getAllByText(/users removed/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/providers removed/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/listings removed/i).length).toBeGreaterThan(0)
   })
 
   test('5. moderation queue can be filtered by type', () => {

@@ -46,7 +46,7 @@ function normalizeListing(row)
 }
 
 const adminTabs = [
-  { id: 'approve-remove', label: 'Approve/Remove' },
+  { id: 'approve-remove', label: 'Approve/Remove Listings' },
   { id: 'delete', label: 'Delete' },
 ]
 
@@ -56,6 +56,48 @@ const queueTypeFilters = [
   { id: 'learnership', label: 'Learnership' },
   { id: 'apprenticeship', label: 'Apprenticeship' },
 ]
+
+const emptyDeleteStats = {
+  admin: {
+    users: 0,
+    providers: 0,
+    listings: 0,
+  },
+  all: {
+    users: 0,
+    providers: 0,
+    listings: 0,
+  },
+}
+
+function buildDeleteStats(actions, currentAdminId, roleByUserId) {
+  const stats = {
+    admin: { ...emptyDeleteStats.admin },
+    all: { ...emptyDeleteStats.all },
+  }
+
+  for (const action of actions || []) {
+    const isCurrentAdminAction = currentAdminId && action.admin_id === currentAdminId
+
+    if (action.target_type === 'listing') {
+      stats.all.listings += 1
+      if (isCurrentAdminAction) {
+        stats.admin.listings += 1
+      }
+      continue
+    }
+
+    if (action.target_type === 'user') {
+      const bucket = roleByUserId[action.target_id] === 'Provider' ? 'providers' : 'users'
+      stats.all[bucket] += 1
+      if (isCurrentAdminAction) {
+        stats.admin[bucket] += 1
+      }
+    }
+  }
+
+  return stats
+}
 
 
 
@@ -99,6 +141,7 @@ export default function Admin({
   const [historyView, setHistoryView] = useState('approved')
   const [activeAdminTab, setActiveAdminTab] = useState('approve-remove')
   const [queueTypeFilter, setQueueTypeFilter] = useState('all')
+  const [deleteStats, setDeleteStats] = useState(emptyDeleteStats)
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
 
   useEffect(() => 
@@ -268,6 +311,43 @@ export default function Admin({
     )
   }, [effectiveAdminId, hasProvidedListings])
 
+  const fetchDeleteInsights = useCallback(async () => {
+    if (hasProvidedListings || !hasSupabaseConfig) {
+      return
+    }
+
+    const { data: removedActions, error: removedActionsError } = await supabase
+      .from('admin_actions')
+      .select('admin_id,target_type,target_id')
+      .eq('action_type', 'removed')
+      .in('target_type', ['listing', 'user'])
+
+    if (removedActionsError) {
+      return
+    }
+
+    const userTargetIds = [
+      ...new Set(
+        (removedActions || [])
+          .filter((action) => action.target_type === 'user')
+          .map((action) => action.target_id)
+          .filter(Boolean),
+      ),
+    ]
+
+    let roleByUserId = {}
+    if (userTargetIds.length) {
+      const { data: targetUsers } = await supabase
+        .from('users')
+        .select('id,role')
+        .in('id', userTargetIds)
+
+      roleByUserId = Object.fromEntries((targetUsers || []).map((user) => [user.id, user.role || '']))
+    }
+
+    setDeleteStats(buildDeleteStats(removedActions || [], effectiveAdminId, roleByUserId))
+  }, [effectiveAdminId, hasProvidedListings])
+
   useEffect(() => {
     resolveAdminId()
     fetchPendingListings()
@@ -275,7 +355,8 @@ export default function Admin({
 
   useEffect(() => {
     fetchAdminInsights()
-  }, [fetchAdminInsights])
+    fetchDeleteInsights()
+  }, [fetchAdminInsights, fetchDeleteInsights])
 
   const persistListingStatus = async (listingId, status) => {
     if (!hasSupabaseConfig) {
@@ -398,6 +479,7 @@ export default function Admin({
     setErrorMessage('')
     setStatusMessage(`Removed ${listing.title}`)
     await fetchAdminInsights()
+    await fetchDeleteInsights()
   }
 
   const handleConfirmAction = async () => 
@@ -468,12 +550,28 @@ export default function Admin({
   }
 
   const renderApproveRemoveTab = () => (
-    <section className="admin-content-row">
-      <section className="admin-panel" aria-label="Moderation queue">
-        <header className="admin-panel-head">
-          <h2>Moderation Queue</h2>
-          <button type="button" onClick={fetchPendingListings}>View all</button>
-        </header>
+    <>
+      <section className="admin-kpi-row" aria-label="Moderation metrics">
+        <article className="admin-kpi">
+          <span>All Pending Review</span>
+          <strong>{visibleListings.length}</strong>
+        </article>
+        <article className="admin-kpi">
+          <span>This Admin Approved Opportunities</span>
+          <strong>{approvedCount}</strong>
+        </article>
+        <article className="admin-kpi">
+          <span>This Admin Removed Opportunities</span>
+          <strong>{removedCount}</strong>
+        </article>
+      </section>
+
+      <section className="admin-content-row">
+        <section className="admin-panel" aria-label="Moderation queue">
+          <header className="admin-panel-head">
+            <h2>Moderation Queue</h2>
+            <button type="button" onClick={fetchPendingListings}>View all</button>
+          </header>
 
         <div className="admin-filter-row" role="tablist" aria-label="Listing type filter">
           {queueTypeFilters.map((filter) => (
@@ -584,43 +682,92 @@ export default function Admin({
         )}
       </section>
 
-      <aside className="admin-panel admin-side-panel" aria-label="Quick actions">
-        <h2>Quick Actions</h2>
-        <nav className="admin-action-list" aria-label="Admin quick actions">
-          <button
-            type="button"
-            className={historyView === 'approved' ? 'is-active' : ''}
-            onClick={() => setHistoryView('approved')}
-          >
-            Approved listings
-          </button>
-          <button
-            type="button"
-            className={historyView === 'removed' ? 'is-active' : ''}
-            onClick={() => setHistoryView('removed')}
-          >
-            Removed listings
-          </button>
-        </nav>
-        <section className="admin-history-panel" aria-label="Admin action history">
-          <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
-          {historyItems.length === 0 ? (
-            <p className="admin-note">No listings in this history yet.</p>
-          ) : (
-            <ul className="admin-history-list">
-              {historyItems.map((item) => (
-                <li key={`${item.id}-${item.createdAt}`}>
-                  <strong>{item.title}</strong>
-                  <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Unknown date'}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+        <aside className="admin-panel admin-side-panel" aria-label="Quick actions">
+          <h2>Quick Actions</h2>
+          <nav className="admin-action-list" aria-label="Admin quick actions">
+            <button
+              type="button"
+              className={historyView === 'approved' ? 'is-active' : ''}
+              onClick={() => setHistoryView('approved')}
+            >
+              Approved listings
+            </button>
+            <button
+              type="button"
+              className={historyView === 'removed' ? 'is-active' : ''}
+              onClick={() => setHistoryView('removed')}
+            >
+              Removed listings
+            </button>
+          </nav>
+          <section className="admin-history-panel" aria-label="Admin action history">
+            <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
+            {historyItems.length === 0 ? (
+              <p className="admin-note">No listings in this history yet.</p>
+            ) : (
+              <ul className="admin-history-list">
+                {historyItems.map((item) => (
+                  <li key={`${item.id}-${item.createdAt}`}>
+                    <strong>{item.title}</strong>
+                    <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Unknown date'}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <p className="admin-note">
+            Provider listings are moderated here once they are approved into production flow.
+          </p>
+        </aside>
+      </section>
+    </>
+  )
+
+  const renderDeleteTab = () => (
+    <section className="admin-delete-section" aria-label="Delete insights">
+      <section className="admin-panel">
+        <h2>Delete</h2>
+
+        <section className="admin-delete-group" aria-label="This admin delete metrics">
+          <h3>This Admin Removed</h3>
+          <section className="admin-kpi-row">
+            <article className="admin-kpi">
+              <span>Users Removed</span>
+              <strong>{deleteStats.admin.users}</strong>
+            </article>
+            <article className="admin-kpi">
+              <span>Providers Removed</span>
+              <strong>{deleteStats.admin.providers}</strong>
+            </article>
+            <article className="admin-kpi">
+              <span>Listings Removed</span>
+              <strong>{deleteStats.admin.listings}</strong>
+            </article>
+          </section>
         </section>
+
+        <section className="admin-delete-group" aria-label="All admin delete metrics">
+          <h3>All Admins Removed</h3>
+          <section className="admin-kpi-row">
+            <article className="admin-kpi">
+              <span>Users Removed</span>
+              <strong>{deleteStats.all.users}</strong>
+            </article>
+            <article className="admin-kpi">
+              <span>Providers Removed</span>
+              <strong>{deleteStats.all.providers}</strong>
+            </article>
+            <article className="admin-kpi">
+              <span>Listings Removed</span>
+              <strong>{deleteStats.all.listings}</strong>
+            </article>
+          </section>
+        </section>
+
         <p className="admin-note">
-          Provider listings are moderated here once they are approved into production flow.
+          Provider removals are counted from removed user actions where the target user role is Provider.
         </p>
-      </aside>
+      </section>
     </section>
   )
 
@@ -671,21 +818,6 @@ export default function Admin({
           </aside>
         </header>
 
-        <section className="admin-kpi-row" aria-label="Moderation metrics">
-          <article className="admin-kpi">
-            <span>Pending Reviews</span>
-            <strong>{visibleListings.length}</strong>
-          </article>
-          <article className="admin-kpi">
-            <span>Approved Opportunities</span>
-            <strong>{approvedCount}</strong>
-          </article>
-          <article className="admin-kpi">
-            <span>Removed Opportunities</span>
-            <strong>{removedCount}</strong>
-          </article>
-        </section>
-
         <section className="admin-toolbar" aria-label="Admin sections">
           <nav className="admin-tab-list" role="tablist" aria-label="Admin tabs">
             {adminTabs.map((tab) => (
@@ -715,12 +847,7 @@ export default function Admin({
         {activeAdminTab === 'approve-remove' ? (
           renderApproveRemoveTab()
         ) : (
-          <section className="admin-panel admin-tab-placeholder" aria-label="Delete workspace">
-            <div>
-              <h2>Delete</h2>
-              <p className="admin-note">Delete workspace coming soon.</p>
-            </div>
-          </section>
+          renderDeleteTab()
         )}
       </section>
     </main>
