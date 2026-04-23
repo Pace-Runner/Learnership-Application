@@ -746,6 +746,64 @@
   gap: 0.75rem;
 }
 
+.admin-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.admin-tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.admin-tab-list button,
+.admin-download-btn,
+.admin-filter-row button {
+  border: 1px solid rgba(182, 214, 255, 0.48);
+  background: rgba(246, 251, 255, 0.92);
+  color: #143457;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.admin-tab-list button,
+.admin-download-btn {
+  padding: 0.64rem 0.9rem;
+}
+
+.admin-tab-list button.is-active,
+.admin-filter-row button.is-active,
+.admin-action-list button.is-active {
+  background: rgba(125, 198, 255, 0.9);
+  color: #0a2541;
+}
+
+.admin-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+}
+
+.admin-filter-row button {
+  padding: 0.5rem 0.7rem;
+}
+
+.admin-tab-placeholder {
+  min-height: 28rem;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
 .admin-panel {
   border-radius: 16px;
   padding: 1rem;
@@ -1121,6 +1179,10 @@
     grid-template-columns: 1fr;
   }
 
+  .admin-toolbar {
+    align-items: flex-start;
+  }
+
   .admin-kpi-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1134,6 +1196,15 @@
   .admin-panel-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .admin-toolbar {
+    align-items: stretch;
+  }
+
+  .admin-tab-list,
+  .admin-download-btn {
+    width: 100%;
   }
 
   .admin-list-item {

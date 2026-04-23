@@ -45,6 +45,18 @@ function normalizeListing(row)
   }
 }
 
+const adminTabs = [
+  { id: 'approve-remove', label: 'Approve/Remove' },
+  { id: 'delete', label: 'Delete' },
+]
+
+const queueTypeFilters = [
+  { id: 'all', label: 'All' },
+  { id: 'internship', label: 'Internship' },
+  { id: 'learnership', label: 'Learnership' },
+  { id: 'apprenticeship', label: 'Apprenticeship' },
+]
+
 
 
 
@@ -85,6 +97,8 @@ export default function Admin({
   const [approvedHistory, setApprovedHistory] = useState([])
   const [removedHistory, setRemovedHistory] = useState([])
   const [historyView, setHistoryView] = useState('approved')
+  const [activeAdminTab, setActiveAdminTab] = useState('approve-remove')
+  const [queueTypeFilter, setQueueTypeFilter] = useState('all')
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
 
   useEffect(() => 
@@ -95,18 +109,26 @@ export default function Admin({
     }
   }, [hasProvidedListings, pendingListings])
 
+  const effectiveAdminId = currentAdminId || resolvedAdminId || ''
+  const filteredQueueListings = useMemo(() => {
+    if (queueTypeFilter === 'all') {
+      return visibleListings
+    }
+
+    return visibleListings.filter((listing) => (listing.type || '').toLowerCase() === queueTypeFilter)
+  }, [queueTypeFilter, visibleListings])
+
 
   useEffect(() => 
     {
-    if (!visibleListings.some((listing) => listing.id === selectedListingId)) {
+    if (!filteredQueueListings.some((listing) => listing.id === selectedListingId)) {
       setSelectedListingId('')
       setReviewAction('')
       setActionReason('')
     }
-  }, [visibleListings, selectedListingId])
+  }, [filteredQueueListings, selectedListingId])
 
-  const effectiveAdminId = currentAdminId || resolvedAdminId || ''
-  const selectedListing = visibleListings.find((listing) => listing.id === selectedListingId) || null
+  const selectedListing = filteredQueueListings.find((listing) => listing.id === selectedListingId) || null
   const historyItems = historyView === 'approved' ? approvedHistory : removedHistory
 
 
@@ -445,6 +467,163 @@ export default function Admin({
     setStatusMessage(`${historyView === 'approved' ? 'Approved' : 'Removed'} listings report exported.`)
   }
 
+  const renderApproveRemoveTab = () => (
+    <section className="admin-content-row">
+      <section className="admin-panel" aria-label="Moderation queue">
+        <header className="admin-panel-head">
+          <h2>Moderation Queue</h2>
+          <button type="button" onClick={fetchPendingListings}>View all</button>
+        </header>
+
+        <div className="admin-filter-row" role="tablist" aria-label="Listing type filter">
+          {queueTypeFilters.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              role="tab"
+              aria-selected={queueTypeFilter === filter.id}
+              className={queueTypeFilter === filter.id ? 'is-active' : ''}
+              onClick={() => setQueueTypeFilter(filter.id)}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="admin-note">{statusMessage || errorMessage}</div>
+
+        {isQueueLoading ? (
+          <p className="admin-note">Loading pending listings...</p>
+        ) : filteredQueueListings.length === 0 ? (
+          <p className="admin-note">
+            {queueTypeFilter === 'all'
+              ? 'No pending listings to review.'
+              : 'No pending listings match the selected type.'}
+          </p>
+        ) : (
+          <ul className="admin-list admin-list-scroll">
+            {filteredQueueListings.map((listing) => (
+              <li key={listing.id} className="admin-list-item">
+                <button
+                  type="button"
+                  className={`admin-queue-card ${selectedListingId === listing.id ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setSelectedListingId(listing.id)
+                    setReviewAction('')
+                    setActionReason('')
+                    setErrorMessage('')
+                    setStatusMessage('')
+                  }}
+                >
+                  <h3>{listing.title}</h3>
+                  <p>{listing.provider}</p>
+                  <div className="admin-queue-meta">
+                    <span>{listing.type}</span>
+                    <span>{listing.location}</span>
+                    <span>{listing.closingDate}</span>
+                  </div>
+                </button>
+
+                {selectedListingId === listing.id ? (
+                  <section className="admin-selection-panel" aria-label="Selected listing review panel">
+                    <h3>Selected Listing</h3>
+                    <p>{listing.title}</p>
+                    <div className="admin-review-actions">
+                      <button
+                        type="button"
+                        className={reviewAction === 'approved' ? 'is-active' : ''}
+                        onClick={() => {
+                          setReviewAction('approved')
+                          setErrorMessage('')
+                        }}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        className={reviewAction === 'removed' ? 'is-active' : ''}
+                        onClick={() => {
+                          setReviewAction('removed')
+                          setErrorMessage('')
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {reviewAction ? (
+                      <div className="admin-confirm-panel">
+                        <label className="admin-removal-label" htmlFor={`action-reason-${listing.id}`}>
+                          {reviewAction === 'approved' ? 'Approval reason' : 'Removal reason'}
+                        </label>
+                        <textarea
+                          id={`action-reason-${listing.id}`}
+                          value={actionReason}
+                          onChange={(event) => {
+                            setActionReason(event.target.value)
+                            setErrorMessage('')
+                          }}
+                          rows="3"
+                          placeholder={`Explain why this listing should be ${reviewAction === 'approved' ? 'approved' : 'removed'}.`}
+                        />
+                        <div className="admin-confirm-actions">
+                          <button type="button" onClick={handleConfirmAction} disabled={isSubmittingAction}>
+                            {isSubmittingAction ? 'Saving...' : `Confirm ${reviewAction === 'approved' ? 'Approve' : 'Remove'}`}
+                          </button>
+                          <button type="button" className="admin-ghost-btn" onClick={handleCancelAction}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <aside className="admin-panel admin-side-panel" aria-label="Quick actions">
+        <h2>Quick Actions</h2>
+        <nav className="admin-action-list" aria-label="Admin quick actions">
+          <button
+            type="button"
+            className={historyView === 'approved' ? 'is-active' : ''}
+            onClick={() => setHistoryView('approved')}
+          >
+            Approved listings
+          </button>
+          <button
+            type="button"
+            className={historyView === 'removed' ? 'is-active' : ''}
+            onClick={() => setHistoryView('removed')}
+          >
+            Removed listings
+          </button>
+        </nav>
+        <section className="admin-history-panel" aria-label="Admin action history">
+          <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
+          {historyItems.length === 0 ? (
+            <p className="admin-note">No listings in this history yet.</p>
+          ) : (
+            <ul className="admin-history-list">
+              {historyItems.map((item) => (
+                <li key={`${item.id}-${item.createdAt}`}>
+                  <strong>{item.title}</strong>
+                  <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Unknown date'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <p className="admin-note">
+          Provider listings are moderated here once they are approved into production flow.
+        </p>
+      </aside>
+    </section>
+  )
+
   if (!isAuthenticated) 
   {
     return (
@@ -507,142 +686,42 @@ export default function Admin({
           </article>
         </section>
 
-        <section className="admin-content-row">
-          <section className="admin-panel" aria-label="Moderation queue">
-            <header className="admin-panel-head">
-              <h2>Moderation Queue</h2>
-              <button type="button" onClick={fetchPendingListings}>View all</button>
-            </header>
-
-            <div className="admin-note">{statusMessage || errorMessage}</div>
-
-            {isQueueLoading ? (
-              <p className="admin-note">Loading pending listings...</p>
-            ) : visibleListings.length === 0 ? (
-              <p className="admin-note">No pending listings to review.</p>
-            ) : (
-              <ul className="admin-list admin-list-scroll">
-                {visibleListings.map((listing) => (
-                  <li key={listing.id} className="admin-list-item">
-                    <button
-                      type="button"
-                      className={`admin-queue-card ${selectedListingId === listing.id ? 'is-active' : ''}`}
-                      onClick={() => {
-                        setSelectedListingId(listing.id)
-                        setReviewAction('')
-                        setActionReason('')
-                        setErrorMessage('')
-                        setStatusMessage('')
-                      }}
-                    >
-                      <h3>{listing.title}</h3>
-                      <p>{listing.provider}</p>
-                      <div className="admin-queue-meta">
-                        <span>{listing.type}</span>
-                        <span>{listing.location}</span>
-                        <span>{listing.closingDate}</span>
-                      </div>
-                    </button>
-
-                    {selectedListingId === listing.id ? (
-                      <section className="admin-selection-panel" aria-label="Selected listing review panel">
-                        <h3>Selected Listing</h3>
-                        <p>{listing.title}</p>
-                        <div className="admin-review-actions">
-                          <button
-                            type="button"
-                            className={reviewAction === 'approved' ? 'is-active' : ''}
-                            onClick={() => {
-                              setReviewAction('approved')
-                              setErrorMessage('')
-                            }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            className={reviewAction === 'removed' ? 'is-active' : ''}
-                            onClick={() => {
-                              setReviewAction('removed')
-                              setErrorMessage('')
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-
-                        {reviewAction ? (
-                          <div className="admin-confirm-panel">
-                            <label className="admin-removal-label" htmlFor={`action-reason-${listing.id}`}>
-                              {reviewAction === 'approved' ? 'Approval reason' : 'Removal reason'}
-                            </label>
-                            <textarea
-                              id={`action-reason-${listing.id}`}
-                              value={actionReason}
-                              onChange={(event) => {
-                                setActionReason(event.target.value)
-                                setErrorMessage('')
-                              }}
-                              rows="3"
-                              placeholder={`Explain why this listing should be ${reviewAction === 'approved' ? 'approved' : 'removed'}.`}
-                            />
-                            <div className="admin-confirm-actions">
-                              <button type="button" onClick={handleConfirmAction} disabled={isSubmittingAction}>
-                                {isSubmittingAction ? 'Saving...' : `Confirm ${reviewAction === 'approved' ? 'Approve' : 'Remove'}`}
-                              </button>
-                              <button type="button" className="admin-ghost-btn" onClick={handleCancelAction}>
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : null}
-                      </section>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <aside className="admin-panel admin-side-panel" aria-label="Quick actions">
-            <h2>Quick Actions</h2>
-            <nav className="admin-action-list" aria-label="Admin quick actions">
+        <section className="admin-toolbar" aria-label="Admin sections">
+          <nav className="admin-tab-list" role="tablist" aria-label="Admin tabs">
+            {adminTabs.map((tab) => (
               <button
+                key={tab.id}
                 type="button"
-                className={historyView === 'approved' ? 'is-active' : ''}
-                onClick={() => setHistoryView('approved')}
+                role="tab"
+                aria-selected={activeAdminTab === tab.id}
+                className={activeAdminTab === tab.id ? 'is-active' : ''}
+                onClick={() => setActiveAdminTab(tab.id)}
               >
-                Approved listings
+                {tab.label}
               </button>
-              <button
-                type="button"
-                className={historyView === 'removed' ? 'is-active' : ''}
-                onClick={() => setHistoryView('removed')}
-              >
-                Removed listings
-              </button>
-              <button type="button" onClick={handleExportModerationReport}>Export moderation report</button>
-            </nav>
-            <section className="admin-history-panel" aria-label="Admin action history">
-              <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
-              {historyItems.length === 0 ? (
-                <p className="admin-note">No listings in this history yet.</p>
-              ) : (
-                <ul className="admin-history-list">
-                  {historyItems.map((item) => (
-                    <li key={`${item.id}-${item.createdAt}`}>
-                      <strong>{item.title}</strong>
-                      <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Unknown date'}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-            <p className="admin-note">
-              Provider listings are moderated here once they are approved into production flow.
-            </p>
-          </aside>
+            ))}
+          </nav>
+
+          <button
+            type="button"
+            className="admin-download-btn"
+            onClick={handleExportModerationReport}
+            aria-label="Download moderation CSV"
+          >
+            Download CSV
+          </button>
         </section>
+
+        {activeAdminTab === 'approve-remove' ? (
+          renderApproveRemoveTab()
+        ) : (
+          <section className="admin-panel admin-tab-placeholder" aria-label="Delete workspace">
+            <div>
+              <h2>Delete</h2>
+              <p className="admin-note">Delete workspace coming soon.</p>
+            </div>
+          </section>
+        )}
       </section>
     </main>
   )
