@@ -395,46 +395,33 @@ export default function Admin({
       emailByUserId = Object.fromEntries((targetUsers || []).map((user) => [user.id, user.email || '']))
     }
 
-    const listingTargetIds = [
-      ...new Set(
-        (removedActions || [])
-          .filter((action) => action.target_type === 'listing')
-          .map((action) => action.target_id)
-          .filter(Boolean),
-      ),
-    ]
+    const removedUserIdSet = new Set(
+      (removedActions || [])
+        .filter((action) => action.target_type === 'user' && action.target_id)
+        .map((action) => action.target_id),
+    )
+    const removedListingIdSet = new Set(
+      (removedActions || [])
+        .filter((action) => action.target_type === 'listing' && action.target_id)
+        .map((action) => action.target_id),
+    )
 
-    const [applicantProfileResult, providerProfileResult, listingResult] = await Promise.all([
-      userTargetIds.length
-        ? supabase
-            .from('applicant_profiles')
-            .select('user_id,first_name,last_name')
-            .in('user_id', userTargetIds)
-        : Promise.resolve({ data: [] }),
-      userTargetIds.length
-        ? supabase
-            .from('provider_profiles')
-            .select('user_id,organisation_name,contact_email')
-            .in('user_id', userTargetIds)
-        : Promise.resolve({ data: [] }),
-      listingTargetIds.length
-        ? supabase
-            .from('opportunities')
-            .select('id,title')
-            .in('id', listingTargetIds)
-        : Promise.resolve({ data: [] }),
-    ])
+    const [allUsersResult, allApplicantProfilesResult, allProviderProfilesResult, allListingsResult] =
+      await Promise.all([
+        supabase.from('users').select('id,email,role'),
+        supabase.from('applicant_profiles').select('user_id,first_name,last_name'),
+        supabase.from('provider_profiles').select('user_id,organisation_name,contact_email'),
+        supabase.from('opportunities').select('id,title,status'),
+      ])
 
+    const userById = Object.fromEntries((allUsersResult.data || []).map((user) => [user.id, user]))
     const applicantProfileByUserId = Object.fromEntries(
-      (applicantProfileResult.data || []).map((profile) => [profile.user_id, profile]),
+      (allApplicantProfilesResult.data || []).map((profile) => [profile.user_id, profile]),
     )
     const providerProfileByUserId = Object.fromEntries(
-      (providerProfileResult.data || []).map((profile) => [profile.user_id, profile]),
+      (allProviderProfilesResult.data || []).map((profile) => [profile.user_id, profile]),
     )
     const providerUserIdSet = new Set(Object.keys(providerProfileByUserId))
-    const listingTitleById = Object.fromEntries(
-      (listingResult.data || []).map((listing) => [listing.id, listing.title || `Listing ${listing.id}`]),
-    )
 
     const nextDeleteDirectory = {
       applicant: [],
@@ -442,48 +429,57 @@ export default function Admin({
       listing: [],
     }
 
-    for (const action of removedActions || []) {
-      if (action.target_type === 'user') {
-        const isProvider = isProviderUser(action.target_id, roleByUserId, providerUserIdSet)
-        const email = emailByUserId[action.target_id] || ''
-        const fallbackIdLabel = String(action.target_id || '').slice(0, 8)
-
-        if (isProvider) {
-          const profile = providerProfileByUserId[action.target_id]
-          const organisationName = profile?.organisation_name || `Provider ${fallbackIdLabel}`
-          const providerEmail = email || profile?.contact_email || ''
-          nextDeleteDirectory.provider.push({
-            id: action.target_id,
-            primaryLabel: organisationName,
-            secondaryLabel: providerEmail || `ID: ${action.target_id}`,
-            createdAt: action.created_at || '',
-            searchIndex: `${organisationName} ${providerEmail} ${action.target_id}`.toLowerCase(),
-          })
-        } else {
-          const profile = applicantProfileByUserId[action.target_id]
-          const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
-          nextDeleteDirectory.applicant.push({
-            id: action.target_id,
-            primaryLabel: fullName || `Applicant ${fallbackIdLabel}`,
-            secondaryLabel: email || `ID: ${action.target_id}`,
-            createdAt: action.created_at || '',
-            searchIndex: `${fullName} ${profile?.first_name || ''} ${profile?.last_name || ''} ${email} ${action.target_id}`.toLowerCase(),
-          })
-        }
+    for (const user of allUsersResult.data || []) {
+      if (!user?.id || removedUserIdSet.has(user.id)) {
         continue
       }
 
-      if (action.target_type === 'listing') {
-        const title = listingTitleById[action.target_id] || `Listing ${action.target_id}`
-        nextDeleteDirectory.listing.push({
-          id: action.target_id,
-          primaryLabel: title,
-          secondaryLabel: `ID: ${action.target_id}`,
-          createdAt: action.created_at || '',
-          searchIndex: `${title} ${action.target_id}`.toLowerCase(),
+      const isProvider = isProviderUser(user.id, roleByUserId, providerUserIdSet)
+      const fallbackIdLabel = String(user.id).slice(0, 8)
+      const email = user.email || emailByUserId[user.id] || ''
+
+      if (isProvider) {
+        const profile = providerProfileByUserId[user.id]
+        const organisationName = profile?.organisation_name || `Provider ${fallbackIdLabel}`
+        const providerEmail = profile?.contact_email || email
+        nextDeleteDirectory.provider.push({
+          id: user.id,
+          primaryLabel: organisationName,
+          secondaryLabel: providerEmail || `ID: ${user.id}`,
+          createdAt: '',
+          searchIndex: `${organisationName} ${providerEmail} ${user.id}`.toLowerCase(),
+        })
+      } else {
+        const profile = applicantProfileByUserId[user.id]
+        const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
+        nextDeleteDirectory.applicant.push({
+          id: user.id,
+          primaryLabel: fullName || `Applicant ${fallbackIdLabel}`,
+          secondaryLabel: email || `ID: ${user.id}`,
+          createdAt: '',
+          searchIndex: `${fullName} ${profile?.first_name || ''} ${profile?.last_name || ''} ${email} ${user.id}`.toLowerCase(),
         })
       }
     }
+
+    for (const listing of allListingsResult.data || []) {
+      if (!listing?.id || removedListingIdSet.has(listing.id) || listing.status === 'Removed') {
+        continue
+      }
+
+      const title = listing.title || `Listing ${listing.id}`
+      nextDeleteDirectory.listing.push({
+        id: listing.id,
+        primaryLabel: title,
+        secondaryLabel: `ID: ${listing.id}`,
+        createdAt: '',
+        searchIndex: `${title} ${listing.id}`.toLowerCase(),
+      })
+    }
+
+    nextDeleteDirectory.applicant.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
+    nextDeleteDirectory.provider.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
+    nextDeleteDirectory.listing.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
 
     setDeleteStats(
       buildDeleteStats(removedActions || [], effectiveAdminId, roleByUserId, providerUserIdSet),
@@ -908,7 +904,7 @@ export default function Admin({
         </section>
 
         <section className="admin-delete-group" aria-label="Delete search tools">
-          <h3>Search Removed Entries</h3>
+          <h3>Search Available Entries</h3>
 
           <div className="admin-filter-row" role="tablist" aria-label="Delete entity filter">
             {deleteEntityTabs.map((tab) => (
@@ -934,7 +930,7 @@ export default function Admin({
             value={deleteSearchQuery}
             onChange={(event) => setDeleteSearchQuery(event.target.value)}
             placeholder={activeDeleteSearchHints.placeholder}
-            aria-label={`Search removed ${deleteEntityTab} records`}
+            aria-label={`Search ${deleteEntityTab} records`}
           />
 
           <p className="admin-note">
@@ -942,7 +938,7 @@ export default function Admin({
           </p>
 
           {filteredDeleteRecords.length === 0 ? (
-            <p className="admin-note">No removed {deleteEntityTab} records match your search.</p>
+            <p className="admin-note">No {deleteEntityTab} records match your search.</p>
           ) : (
             <ul className="admin-history-list admin-delete-results-list">
               {filteredDeleteRecords.map((record) => (
