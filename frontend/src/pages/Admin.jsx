@@ -97,7 +97,11 @@ const emptyDeleteDirectory = {
   listing: [],
 }
 
-function buildDeleteStats(actions, currentAdminId, roleByUserId) {
+function isProviderUser(targetUserId, roleByUserId, providerUserIdSet) {
+  return roleByUserId[targetUserId] === 'Provider' || providerUserIdSet.has(targetUserId)
+}
+
+function buildDeleteStats(actions, currentAdminId, roleByUserId, providerUserIdSet) {
   const stats = {
     admin: { ...emptyDeleteStats.admin },
     all: { ...emptyDeleteStats.all },
@@ -115,7 +119,9 @@ function buildDeleteStats(actions, currentAdminId, roleByUserId) {
     }
 
     if (action.target_type === 'user') {
-      const bucket = roleByUserId[action.target_id] === 'Provider' ? 'providers' : 'users'
+      const bucket = isProviderUser(action.target_id, roleByUserId, providerUserIdSet)
+        ? 'providers'
+        : 'users'
       stats.all[bucket] += 1
       if (isCurrentAdminAction) {
         stats.admin[bucket] += 1
@@ -359,7 +365,7 @@ export default function Admin({
 
     const { data: removedActions, error: removedActionsError } = await supabase
       .from('admin_actions')
-      .select('admin_id,target_type,target_id')
+      .select('admin_id,target_type,target_id,created_at')
       .eq('action_type', 'removed')
       .in('target_type', ['listing', 'user'])
 
@@ -408,7 +414,7 @@ export default function Admin({
       userTargetIds.length
         ? supabase
             .from('provider_profiles')
-            .select('user_id,organisation_name')
+            .select('user_id,organisation_name,contact_email')
             .in('user_id', userTargetIds)
         : Promise.resolve({ data: [] }),
       listingTargetIds.length
@@ -425,6 +431,7 @@ export default function Admin({
     const providerProfileByUserId = Object.fromEntries(
       (providerProfileResult.data || []).map((profile) => [profile.user_id, profile]),
     )
+    const providerUserIdSet = new Set(Object.keys(providerProfileByUserId))
     const listingTitleById = Object.fromEntries(
       (listingResult.data || []).map((listing) => [listing.id, listing.title || `Listing ${listing.id}`]),
     )
@@ -437,28 +444,30 @@ export default function Admin({
 
     for (const action of removedActions || []) {
       if (action.target_type === 'user') {
-        const isProvider = roleByUserId[action.target_id] === 'Provider'
+        const isProvider = isProviderUser(action.target_id, roleByUserId, providerUserIdSet)
         const email = emailByUserId[action.target_id] || ''
+        const fallbackIdLabel = String(action.target_id || '').slice(0, 8)
 
         if (isProvider) {
           const profile = providerProfileByUserId[action.target_id]
-          const organisationName = profile?.organisation_name || 'Organisation name unavailable'
+          const organisationName = profile?.organisation_name || `Provider ${fallbackIdLabel}`
+          const providerEmail = email || profile?.contact_email || ''
           nextDeleteDirectory.provider.push({
             id: action.target_id,
             primaryLabel: organisationName,
-            secondaryLabel: email || 'Email unavailable',
+            secondaryLabel: providerEmail || `ID: ${action.target_id}`,
             createdAt: action.created_at || '',
-            searchIndex: `${organisationName} ${email}`.toLowerCase(),
+            searchIndex: `${organisationName} ${providerEmail} ${action.target_id}`.toLowerCase(),
           })
         } else {
           const profile = applicantProfileByUserId[action.target_id]
           const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
           nextDeleteDirectory.applicant.push({
             id: action.target_id,
-            primaryLabel: fullName || 'Name unavailable',
-            secondaryLabel: email || 'Email unavailable',
+            primaryLabel: fullName || `Applicant ${fallbackIdLabel}`,
+            secondaryLabel: email || `ID: ${action.target_id}`,
             createdAt: action.created_at || '',
-            searchIndex: `${fullName} ${profile?.first_name || ''} ${profile?.last_name || ''} ${email}`.toLowerCase(),
+            searchIndex: `${fullName} ${profile?.first_name || ''} ${profile?.last_name || ''} ${email} ${action.target_id}`.toLowerCase(),
           })
         }
         continue
@@ -476,7 +485,9 @@ export default function Admin({
       }
     }
 
-    setDeleteStats(buildDeleteStats(removedActions || [], effectiveAdminId, roleByUserId))
+    setDeleteStats(
+      buildDeleteStats(removedActions || [], effectiveAdminId, roleByUserId, providerUserIdSet),
+    )
     setDeleteDirectory(nextDeleteDirectory)
   }, [effectiveAdminId, hasProvidedListings])
 

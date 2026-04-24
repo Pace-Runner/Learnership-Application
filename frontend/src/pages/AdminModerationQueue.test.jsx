@@ -8,7 +8,7 @@ import Dashboard from './Dashboard'
 vi.mock('../lib/supabaseClient', () => {
   return {
     supabase: {
-      from: vi.fn((table) => ({
+      from: vi.fn(() => ({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         in: vi.fn().mockResolvedValue({ data: [], error: null }),
