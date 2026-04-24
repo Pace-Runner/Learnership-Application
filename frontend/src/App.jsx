@@ -229,8 +229,9 @@ function App() {
   // REDIRECTS: Admin → /admin, Provider → /provider, Applicant → /dashboard
   useEffect(() => {
     const redirectedFromProtectedRoute = Boolean(location.state?.from)
+    const keepApplicantOnHome = redirectedFromProtectedRoute && role === 'Applicant'
 
-    if (!isLoadingAuth && signedIn && role && location.pathname === '/' && !redirectedFromProtectedRoute) {
+    if (!isLoadingAuth && signedIn && role && location.pathname === '/' && !keepApplicantOnHome) {
       navigate(getLandingRoute(role), { replace: true })
     }
   }, [isLoadingAuth, signedIn, role, location.pathname, location.state, navigate])

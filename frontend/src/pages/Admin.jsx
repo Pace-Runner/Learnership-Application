@@ -118,7 +118,7 @@ function buildDeleteStats(actions, currentAdminId, roleByUserId, providerUserIdS
       continue
     }
 
-    if (action.target_type === 'user') {
+    if (action.target_type === 'applicant' || action.target_type === 'provider') {
       const bucket = isProviderUser(action.target_id, roleByUserId, providerUserIdSet)
         ? 'providers'
         : 'users'
@@ -363,20 +363,20 @@ export default function Admin({
       return
     }
 
-    const { data: removedActions, error: removedActionsError } = await supabase
+    const { data: deletedActions, error: deletedActionsError } = await supabase
       .from('admin_actions')
       .select('admin_id,target_type,target_id,created_at')
-      .eq('action_type', 'removed')
-      .in('target_type', ['listing', 'user'])
+      .eq('action_type', 'deleted')
+      .in('target_type', ['listing', 'applicant', 'provider'])
 
-    if (removedActionsError) {
+    if (deletedActionsError) {
       return
     }
 
     const userTargetIds = [
       ...new Set(
-        (removedActions || [])
-          .filter((action) => action.target_type === 'user')
+        (deletedActions || [])
+          .filter((action) => action.target_type === 'applicant' || action.target_type === 'provider')
           .map((action) => action.target_id)
           .filter(Boolean),
       ),
@@ -395,13 +395,13 @@ export default function Admin({
       emailByUserId = Object.fromEntries((targetUsers || []).map((user) => [user.id, user.email || '']))
     }
 
-    const removedUserIdSet = new Set(
-      (removedActions || [])
-        .filter((action) => action.target_type === 'user' && action.target_id)
+    const deletedUserIdSet = new Set(
+      (deletedActions || [])
+        .filter((action) => (action.target_type === 'applicant' || action.target_type === 'provider') && action.target_id)
         .map((action) => action.target_id),
     )
-    const removedListingIdSet = new Set(
-      (removedActions || [])
+    const deletedListingIdSet = new Set(
+      (deletedActions || [])
         .filter((action) => action.target_type === 'listing' && action.target_id)
         .map((action) => action.target_id),
     )
@@ -414,7 +414,6 @@ export default function Admin({
         supabase.from('opportunities').select('id,title,status'),
       ])
 
-    const userById = Object.fromEntries((allUsersResult.data || []).map((user) => [user.id, user]))
     const applicantProfileByUserId = Object.fromEntries(
       (allApplicantProfilesResult.data || []).map((profile) => [profile.user_id, profile]),
     )
@@ -430,7 +429,7 @@ export default function Admin({
     }
 
     for (const user of allUsersResult.data || []) {
-      if (!user?.id || removedUserIdSet.has(user.id)) {
+      if (!user?.id || deletedUserIdSet.has(user.id)) {
         continue
       }
 
@@ -463,7 +462,7 @@ export default function Admin({
     }
 
     for (const listing of allListingsResult.data || []) {
-      if (!listing?.id || removedListingIdSet.has(listing.id) || listing.status === 'Removed') {
+      if (!listing?.id || deletedListingIdSet.has(listing.id)) {
         continue
       }
 
@@ -482,7 +481,7 @@ export default function Admin({
     nextDeleteDirectory.listing.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
 
     setDeleteStats(
-      buildDeleteStats(removedActions || [], effectiveAdminId, roleByUserId, providerUserIdSet),
+      buildDeleteStats(deletedActions || [], effectiveAdminId, roleByUserId, providerUserIdSet),
     )
     setDeleteDirectory(nextDeleteDirectory)
   }, [effectiveAdminId, hasProvidedListings])
@@ -868,36 +867,36 @@ export default function Admin({
         <h2>Delete</h2>
 
         <section className="admin-delete-group" aria-label="This admin delete metrics">
-          <h3>This Admin Removed</h3>
+          <h3>This Admin Deleted</h3>
           <section className="admin-kpi-row">
             <article className="admin-kpi">
-              <span>Applicants Removed</span>
+              <span>Applicants Deleted</span>
               <strong>{deleteStats.admin.users}</strong>
             </article>
             <article className="admin-kpi">
-              <span>Providers Removed</span>
+              <span>Providers Deleted</span>
               <strong>{deleteStats.admin.providers}</strong>
             </article>
             <article className="admin-kpi">
-              <span>Listings Removed</span>
+              <span>Listings Deleted</span>
               <strong>{deleteStats.admin.listings}</strong>
             </article>
           </section>
         </section>
 
         <section className="admin-delete-group" aria-label="All admin delete metrics">
-          <h3>All Admins Removed</h3>
+          <h3>All Admins Deleted</h3>
           <section className="admin-kpi-row">
             <article className="admin-kpi">
-              <span>Applicants Removed</span>
+              <span>Applicants Deleted</span>
               <strong>{deleteStats.all.users}</strong>
             </article>
             <article className="admin-kpi">
-              <span>Providers Removed</span>
+              <span>Providers Deleted</span>
               <strong>{deleteStats.all.providers}</strong>
             </article>
             <article className="admin-kpi">
-              <span>Listings Removed</span>
+              <span>Listings Deleted</span>
               <strong>{deleteStats.all.listings}</strong>
             </article>
           </section>
@@ -952,7 +951,7 @@ export default function Admin({
         </section>
 
         <p className="admin-note">
-          Provider removals are counted from removed account actions where the target account role is Provider.
+          Provider deletions are counted from deleted account actions where the target account role is Provider.
         </p>
       </section>
     </section>
