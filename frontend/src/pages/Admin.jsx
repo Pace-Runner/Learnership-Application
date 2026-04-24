@@ -732,7 +732,7 @@ export default function Admin({
           <h3>This Admin Removed</h3>
           <section className="admin-kpi-row">
             <article className="admin-kpi">
-              <span>Users Removed</span>
+              <span>Applicants Removed</span>
               <strong>{deleteStats.admin.users}</strong>
             </article>
             <article className="admin-kpi">
@@ -750,7 +750,7 @@ export default function Admin({
           <h3>All Admins Removed</h3>
           <section className="admin-kpi-row">
             <article className="admin-kpi">
-              <span>Users Removed</span>
+              <span>Applicants Removed</span>
               <strong>{deleteStats.all.users}</strong>
             </article>
             <article className="admin-kpi">

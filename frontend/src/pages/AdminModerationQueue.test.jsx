@@ -72,7 +72,7 @@ describe('Admin moderation queue TDD tests', () => {
 
     expect(screen.getByText(/this admin removed/i)).toBeTruthy()
     expect(screen.getByText(/all admins removed/i)).toBeTruthy()
-    expect(screen.getAllByText(/users removed/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/applicants removed/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/providers removed/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/listings removed/i).length).toBeGreaterThan(0)
   })
