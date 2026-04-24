@@ -4,6 +4,20 @@ import { MemoryRouter } from 'react-router-dom'
 import Admin from './Admin'
 import Dashboard from './Dashboard'
 
+// Mock Supabase client - returns empty data for admin_actions and users queries
+vi.mock('../lib/supabaseClient', () => {
+  return {
+    supabase: {
+      from: vi.fn((table) => ({
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        in: vi.fn().mockResolvedValue({ data: [], error: null }),
+      })),
+    },
+    hasSupabaseConfig: true,
+  }
+})
+
 afterEach(() => {
   cleanup()
 })
@@ -66,7 +80,7 @@ describe('Admin moderation queue TDD tests', () => {
 
     expect(screen.getByRole('tab', { name: /approve\/remove/i })).toBeTruthy()
     expect(screen.getByRole('tab', { name: /^delete$/i })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /download csv/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /download.*csv/i })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('tab', { name: /^delete$/i }))
 

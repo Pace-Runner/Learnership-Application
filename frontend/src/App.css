@@ -815,6 +815,31 @@
   margin-top: 0.8rem;
 }
 
+.admin-delete-search-input {
+  width: 100%;
+  border: 1px solid rgba(170, 205, 255, 0.34);
+  border-radius: 10px;
+  background: rgba(9, 24, 49, 0.62);
+  color: rgba(244, 250, 255, 0.96);
+  padding: 0.62rem 0.7rem;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.admin-delete-search-input::placeholder {
+  color: rgba(190, 218, 250, 0.78);
+}
+
+.admin-delete-search-input:focus {
+  outline: 2px solid rgba(125, 198, 255, 0.58);
+  outline-offset: 1px;
+}
+
+.admin-delete-results-list {
+  margin-top: 0.2rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
 .admin-delete-group h3 {
   margin: 0;
   color: rgba(214, 233, 255, 0.94);

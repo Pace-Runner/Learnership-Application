@@ -57,6 +57,27 @@ const queueTypeFilters = [
   { id: 'apprenticeship', label: 'Apprenticeship' },
 ]
 
+const deleteEntityTabs = [
+  { id: 'applicant', label: 'Applicant' },
+  { id: 'provider', label: 'Provider' },
+  { id: 'listing', label: 'Listing' },
+]
+
+const deleteSearchHints = {
+  applicant: {
+    placeholder: 'Search applicants by Gmail or first/last name',
+    examples: ['thabo', 'naidoo', 'gmail.com'],
+  },
+  provider: {
+    placeholder: 'Search providers by Gmail or organisation name',
+    examples: ['academy', 'group', 'gmail.com'],
+  },
+  listing: {
+    placeholder: 'Search listings by title or listing ID',
+    examples: ['electric', 'learnership', 'a1b2'],
+  },
+}
+
 const emptyDeleteStats = {
   admin: {
     users: 0,
@@ -68,6 +89,12 @@ const emptyDeleteStats = {
     providers: 0,
     listings: 0,
   },
+}
+
+const emptyDeleteDirectory = {
+  applicant: [],
+  provider: [],
+  listing: [],
 }
 
 function buildDeleteStats(actions, currentAdminId, roleByUserId) {
@@ -142,6 +169,9 @@ export default function Admin({
   const [activeAdminTab, setActiveAdminTab] = useState('approve-remove')
   const [queueTypeFilter, setQueueTypeFilter] = useState('all')
   const [deleteStats, setDeleteStats] = useState(emptyDeleteStats)
+  const [deleteEntityTab, setDeleteEntityTab] = useState('applicant')
+  const [deleteSearchQuery, setDeleteSearchQuery] = useState('')
+  const [deleteDirectory, setDeleteDirectory] = useState(emptyDeleteDirectory)
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
 
   useEffect(() => 
@@ -173,6 +203,17 @@ export default function Admin({
 
   const selectedListing = filteredQueueListings.find((listing) => listing.id === selectedListingId) || null
   const historyItems = historyView === 'approved' ? approvedHistory : removedHistory
+  const activeDeleteSearchHints = deleteSearchHints[deleteEntityTab]
+  const filteredDeleteRecords = useMemo(() => {
+    const query = deleteSearchQuery.trim().toLowerCase()
+    const source = deleteDirectory[deleteEntityTab] || []
+
+    if (!query) {
+      return source
+    }
+
+    return source.filter((item) => item.searchIndex.includes(query))
+  }, [deleteDirectory, deleteEntityTab, deleteSearchQuery])
 
 
 
@@ -336,16 +377,107 @@ export default function Admin({
     ]
 
     let roleByUserId = {}
+    let emailByUserId = {}
+
     if (userTargetIds.length) {
       const { data: targetUsers } = await supabase
         .from('users')
-        .select('id,role')
+        .select('id,role,email')
         .in('id', userTargetIds)
 
       roleByUserId = Object.fromEntries((targetUsers || []).map((user) => [user.id, user.role || '']))
+      emailByUserId = Object.fromEntries((targetUsers || []).map((user) => [user.id, user.email || '']))
+    }
+
+    const listingTargetIds = [
+      ...new Set(
+        (removedActions || [])
+          .filter((action) => action.target_type === 'listing')
+          .map((action) => action.target_id)
+          .filter(Boolean),
+      ),
+    ]
+
+    const [applicantProfileResult, providerProfileResult, listingResult] = await Promise.all([
+      userTargetIds.length
+        ? supabase
+            .from('applicant_profiles')
+            .select('user_id,first_name,last_name')
+            .in('user_id', userTargetIds)
+        : Promise.resolve({ data: [] }),
+      userTargetIds.length
+        ? supabase
+            .from('provider_profiles')
+            .select('user_id,organisation_name')
+            .in('user_id', userTargetIds)
+        : Promise.resolve({ data: [] }),
+      listingTargetIds.length
+        ? supabase
+            .from('opportunities')
+            .select('id,title')
+            .in('id', listingTargetIds)
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const applicantProfileByUserId = Object.fromEntries(
+      (applicantProfileResult.data || []).map((profile) => [profile.user_id, profile]),
+    )
+    const providerProfileByUserId = Object.fromEntries(
+      (providerProfileResult.data || []).map((profile) => [profile.user_id, profile]),
+    )
+    const listingTitleById = Object.fromEntries(
+      (listingResult.data || []).map((listing) => [listing.id, listing.title || `Listing ${listing.id}`]),
+    )
+
+    const nextDeleteDirectory = {
+      applicant: [],
+      provider: [],
+      listing: [],
+    }
+
+    for (const action of removedActions || []) {
+      if (action.target_type === 'user') {
+        const isProvider = roleByUserId[action.target_id] === 'Provider'
+        const email = emailByUserId[action.target_id] || ''
+
+        if (isProvider) {
+          const profile = providerProfileByUserId[action.target_id]
+          const organisationName = profile?.organisation_name || 'Organisation name unavailable'
+          nextDeleteDirectory.provider.push({
+            id: action.target_id,
+            primaryLabel: organisationName,
+            secondaryLabel: email || 'Email unavailable',
+            createdAt: action.created_at || '',
+            searchIndex: `${organisationName} ${email}`.toLowerCase(),
+          })
+        } else {
+          const profile = applicantProfileByUserId[action.target_id]
+          const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
+          nextDeleteDirectory.applicant.push({
+            id: action.target_id,
+            primaryLabel: fullName || 'Name unavailable',
+            secondaryLabel: email || 'Email unavailable',
+            createdAt: action.created_at || '',
+            searchIndex: `${fullName} ${profile?.first_name || ''} ${profile?.last_name || ''} ${email}`.toLowerCase(),
+          })
+        }
+        continue
+      }
+
+      if (action.target_type === 'listing') {
+        const title = listingTitleById[action.target_id] || `Listing ${action.target_id}`
+        nextDeleteDirectory.listing.push({
+          id: action.target_id,
+          primaryLabel: title,
+          secondaryLabel: `ID: ${action.target_id}`,
+          createdAt: action.created_at || '',
+          searchIndex: `${title} ${action.target_id}`.toLowerCase(),
+        })
+      }
     }
 
     setDeleteStats(buildDeleteStats(removedActions || [], effectiveAdminId, roleByUserId))
+    setDeleteDirectory(nextDeleteDirectory)
   }, [effectiveAdminId, hasProvidedListings])
 
   useEffect(() => {
@@ -764,8 +896,56 @@ export default function Admin({
           </section>
         </section>
 
+        <section className="admin-delete-group" aria-label="Delete search tools">
+          <h3>Search Removed Entries</h3>
+
+          <div className="admin-filter-row" role="tablist" aria-label="Delete entity filter">
+            {deleteEntityTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={deleteEntityTab === tab.id}
+                className={deleteEntityTab === tab.id ? 'is-active' : ''}
+                onClick={() => {
+                  setDeleteEntityTab(tab.id)
+                  setDeleteSearchQuery('')
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="search"
+            className="admin-delete-search-input"
+            value={deleteSearchQuery}
+            onChange={(event) => setDeleteSearchQuery(event.target.value)}
+            placeholder={activeDeleteSearchHints.placeholder}
+            aria-label={`Search removed ${deleteEntityTab} records`}
+          />
+
+          <p className="admin-note">
+            Try searching: {activeDeleteSearchHints.examples.join(', ')}
+          </p>
+
+          {filteredDeleteRecords.length === 0 ? (
+            <p className="admin-note">No removed {deleteEntityTab} records match your search.</p>
+          ) : (
+            <ul className="admin-history-list admin-delete-results-list">
+              {filteredDeleteRecords.map((record) => (
+                <li key={`${record.id}-${record.createdAt}`}>
+                  <strong>{record.primaryLabel}</strong>
+                  <span>{record.secondaryLabel}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         <p className="admin-note">
-          Provider removals are counted from removed user actions where the target user role is Provider.
+          Provider removals are counted from removed account actions where the target account role is Provider.
         </p>
       </section>
     </section>
