@@ -97,11 +97,7 @@ const emptyDeleteDirectory = {
   listing: [],
 }
 
-function isProviderUser(targetUserId, roleByUserId, providerUserIdSet) {
-  return roleByUserId[targetUserId] === 'Provider' || providerUserIdSet.has(targetUserId)
-}
-
-function buildDeleteStats(actions, currentAdminId, roleByUserId, providerUserIdSet) {
+function buildDeleteStats(actions, currentAdminId, roleByUserId) {
   const stats = {
     admin: { ...emptyDeleteStats.admin },
     all: { ...emptyDeleteStats.all },
@@ -119,7 +115,7 @@ function buildDeleteStats(actions, currentAdminId, roleByUserId, providerUserIdS
     }
 
     if (action.target_type === 'applicant' || action.target_type === 'provider') {
-      const bucket = isProviderUser(action.target_id, roleByUserId, providerUserIdSet)
+      const bucket = roleByUserId[action.target_id] === 'Provider'
         ? 'providers'
         : 'users'
       stats.all[bucket] += 1
@@ -420,8 +416,6 @@ export default function Admin({
     const providerProfileByUserId = Object.fromEntries(
       (allProviderProfilesResult.data || []).map((profile) => [profile.user_id, profile]),
     )
-    const providerUserIdSet = new Set(Object.keys(providerProfileByUserId))
-
     const nextDeleteDirectory = {
       applicant: [],
       provider: [],
@@ -429,15 +423,14 @@ export default function Admin({
     }
 
     for (const user of allUsersResult.data || []) {
-      if (!user?.id || deletedUserIdSet.has(user.id)) {
+      if (!user?.id || deletedUserIdSet.has(user.id) || user.id === effectiveAdminId) {
         continue
       }
 
-      const isProvider = isProviderUser(user.id, roleByUserId, providerUserIdSet)
       const fallbackIdLabel = String(user.id).slice(0, 8)
       const email = user.email || emailByUserId[user.id] || ''
 
-      if (isProvider) {
+      if (user.role === 'Provider') {
         const profile = providerProfileByUserId[user.id]
         const organisationName = profile?.organisation_name || `Provider ${fallbackIdLabel}`
         const providerEmail = profile?.contact_email || email
@@ -448,7 +441,7 @@ export default function Admin({
           createdAt: '',
           searchIndex: `${organisationName} ${providerEmail} ${user.id}`.toLowerCase(),
         })
-      } else {
+      } else if (user.role === 'Applicant') {
         const profile = applicantProfileByUserId[user.id]
         const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
         nextDeleteDirectory.applicant.push({
@@ -462,7 +455,7 @@ export default function Admin({
     }
 
     for (const listing of allListingsResult.data || []) {
-      if (!listing?.id || deletedListingIdSet.has(listing.id)) {
+      if (!listing?.id || deletedListingIdSet.has(listing.id) || listing.status !== 'Approved') {
         continue
       }
 
@@ -481,7 +474,7 @@ export default function Admin({
     nextDeleteDirectory.listing.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
 
     setDeleteStats(
-      buildDeleteStats(deletedActions || [], effectiveAdminId, roleByUserId, providerUserIdSet),
+      buildDeleteStats(deletedActions || [], effectiveAdminId, roleByUserId),
     )
     setDeleteDirectory(nextDeleteDirectory)
   }, [effectiveAdminId, hasProvidedListings])
