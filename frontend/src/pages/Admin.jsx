@@ -97,7 +97,7 @@ const emptyDeleteDirectory = {
   listing: [],
 }
 
-function buildDeleteStats(actions, currentAdminId) {
+function buildDeleteStats(actions, currentAdminId, roleByUserId) {
   const stats = {
     admin: { ...emptyDeleteStats.admin },
     all: { ...emptyDeleteStats.all },
@@ -115,7 +115,9 @@ function buildDeleteStats(actions, currentAdminId) {
     }
 
     if (action.target_type === 'applicant' || action.target_type === 'provider') {
-      const bucket = action.target_type === 'provider' ? 'providers' : 'users'
+      const bucket = roleByUserId[action.target_id] === 'Provider'
+        ? 'providers'
+        : 'users'
       stats.all[bucket] += 1
       if (isCurrentAdminAction) {
         stats.admin[bucket] += 1
@@ -367,38 +369,58 @@ export default function Admin({
       return
     }
 
-    const userTargetIds = [
-      ...new Set(
-        (deletedActions || [])
-          .filter((action) => action.target_type === 'applicant' || action.target_type === 'provider')
-          .map((action) => action.target_id)
-          .filter(Boolean),
-      ),
-    ]
+    const { data: applicantUsers, error: applicantUsersError } = await supabase
+      .from('users')
+      .select('id,email,role')
+      .eq('role', 'Applicant')
 
-    let emailByUserId = {}
-
-    if (userTargetIds.length) {
-      const { data: targetUsers } = await supabase
-        .from('users')
-        .select('id,role,email')
-        .in('id', userTargetIds)
-
-      emailByUserId = Object.fromEntries((targetUsers || []).map((user) => [user.id, user.email || '']))
+    if (applicantUsersError) {
+      return
     }
 
+    const { data: providerUsers, error: providerUsersError } = await supabase
+      .from('users')
+      .select('id,email,role')
+      .eq('role', 'Provider')
+
+    if (providerUsersError) {
+      return
+    }
+
+    const roleByUserId = Object.fromEntries([
+      ...(applicantUsers || []).map((user) => [user.id, user.role || 'Applicant']),
+      ...(providerUsers || []).map((user) => [user.id, user.role || 'Provider']),
+    ])
+
+    const applicantUserIds = (applicantUsers || []).map((user) => user.id).filter(Boolean)
+    const providerUserIds = (providerUsers || []).map((user) => user.id).filter(Boolean)
+
+    const deletedUserIdSet = new Set(
+      (deletedActions || [])
+        .filter((action) => (action.target_type === 'applicant' || action.target_type === 'provider') && action.target_id)
+        .map((action) => action.target_id),
+    )
     const deletedListingIdSet = new Set(
       (deletedActions || [])
         .filter((action) => action.target_type === 'listing' && action.target_id)
         .map((action) => action.target_id),
     )
 
-    const [allUsersResult, allApplicantProfilesResult, allProviderProfilesResult, allListingsResult] =
+    const [allApplicantProfilesResult, allProviderProfilesResult, allListingsResult] =
       await Promise.all([
-        supabase.from('users').select('id,email,role'),
-        supabase.from('applicant_profiles').select('user_id,first_name,last_name'),
-        supabase.from('provider_profiles').select('user_id,organisation_name,contact_email'),
-        supabase.from('opportunities').select('id,title,status'),
+        applicantUserIds.length
+          ? supabase
+              .from('applicant_profiles')
+              .select('user_id,first_name,last_name,phone,location')
+              .in('user_id', applicantUserIds)
+          : Promise.resolve({ data: [] }),
+        providerUserIds.length
+          ? supabase
+              .from('provider_profiles')
+              .select('user_id,organisation_name,contact_email,phone,location')
+              .in('user_id', providerUserIds)
+          : Promise.resolve({ data: [] }),
+        supabase.from('opportunities').select('id,title,status').eq('status', 'Approved'),
       ])
 
     const applicantProfileByUserId = Object.fromEntries(
@@ -413,45 +435,44 @@ export default function Admin({
       listing: [],
     }
 
-    for (const user of allUsersResult.data || []) {
-      if (!user?.id) {
-        continue
-      }
-
-      const role = (user.role || '').toLowerCase()
-      if (role !== 'applicant' && role !== 'provider') {
-        continue
-      }
-
-      if (user.id === effectiveAdminId) {
+    for (const user of applicantUsers || []) {
+      if (!user?.id || deletedUserIdSet.has(user.id) || user.id === effectiveAdminId) {
         continue
       }
 
       const fallbackIdLabel = String(user.id).slice(0, 8)
-      const email = user.email || emailByUserId[user.id] || ''
+      const email = user.email || ''
+      const profile = applicantProfileByUserId[user.id]
+      const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
+      const joinedEmail = email || ''
 
-      if (role === 'provider') {
-        const profile = providerProfileByUserId[user.id]
-        const organisationName = profile?.organisation_name || `Provider ${fallbackIdLabel}`
-        const providerEmail = profile?.contact_email || email
-        nextDeleteDirectory.provider.push({
-          id: user.id,
-          primaryLabel: organisationName,
-          secondaryLabel: `${providerEmail || 'Email unavailable'} • ID: ${user.id}`,
-          createdAt: '',
-          searchIndex: `${organisationName} ${providerEmail} ${user.id}`.toLowerCase(),
-        })
-      } else if (role === 'applicant') {
-        const profile = applicantProfileByUserId[user.id]
-        const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
-        nextDeleteDirectory.applicant.push({
-          id: user.id,
-          primaryLabel: fullName || `Applicant ${fallbackIdLabel}`,
-          secondaryLabel: `${email || 'Email unavailable'} • ID: ${user.id}`,
-          createdAt: '',
-          searchIndex: `${fullName} ${profile?.first_name || ''} ${profile?.last_name || ''} ${email} ${user.id}`.toLowerCase(),
-        })
+      nextDeleteDirectory.applicant.push({
+        id: user.id,
+        primaryLabel: fullName || `Applicant ${fallbackIdLabel}`,
+        secondaryLabel: joinedEmail || `ID: ${user.id}`,
+        createdAt: '',
+        searchIndex: `${fullName} ${profile?.first_name || ''} ${profile?.last_name || ''} ${joinedEmail} ${user.id}`.toLowerCase(),
+      })
+    }
+
+    for (const user of providerUsers || []) {
+      if (!user?.id || deletedUserIdSet.has(user.id) || user.id === effectiveAdminId) {
+        continue
       }
+
+      const fallbackIdLabel = String(user.id).slice(0, 8)
+      const email = user.email || ''
+      const profile = providerProfileByUserId[user.id]
+      const organisationName = profile?.organisation_name || `Provider ${fallbackIdLabel}`
+      const providerEmail = profile?.contact_email || email
+
+      nextDeleteDirectory.provider.push({
+        id: user.id,
+        primaryLabel: organisationName,
+        secondaryLabel: providerEmail || `ID: ${user.id}`,
+        createdAt: '',
+        searchIndex: `${organisationName} ${providerEmail} ${user.id}`.toLowerCase(),
+      })
     }
 
     for (const listing of allListingsResult.data || []) {
@@ -474,7 +495,7 @@ export default function Admin({
     nextDeleteDirectory.listing.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
 
     setDeleteStats(
-      buildDeleteStats(deletedActions || [], effectiveAdminId),
+      buildDeleteStats(deletedActions || [], effectiveAdminId, roleByUserId),
     )
     setDeleteDirectory(nextDeleteDirectory)
   }, [effectiveAdminId, hasProvidedListings])
