@@ -167,6 +167,7 @@ export default function Admin({
   const [removedCount, setRemovedCount] = useState(0)
   const [approvedHistory, setApprovedHistory] = useState([])
   const [removedHistory, setRemovedHistory] = useState([])
+  const [allAdminActions, setAllAdminActions] = useState([])
   const [historyView, setHistoryView] = useState('approved')
   const [activeAdminTab, setActiveAdminTab] = useState('approve-remove')
   const [queueTypeFilter, setQueueTypeFilter] = useState('all')
@@ -310,7 +311,7 @@ export default function Admin({
       .select('target_id,action_type,created_at,reason')
       .eq('admin_id', effectiveAdminId)
       .eq('target_type', 'listing')
-      .in('action_type', ['approved', 'removed'])
+      .in('action_type', ['approved', 'removed', 'deleted'])
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -350,6 +351,18 @@ export default function Admin({
         title: titleMap[action.target_id] || `Listing ${action.target_id}`,
         createdAt: action.created_at,
         reason: action.reason,
+      })),
+    )
+
+    // Store all actions for CSV export
+    setAllAdminActions(
+      (actions || []).map((action) => ({
+        id: action.target_id,
+        title: titleMap[action.target_id] || `Listing ${action.target_id}`,
+        actionType: action.action_type,
+        targetType: 'Listing',
+        reason: action.reason || '',
+        createdAt: action.created_at,
       })),
     )
   }, [effectiveAdminId, hasProvidedListings])
@@ -674,38 +687,41 @@ export default function Admin({
   }
 
   const handleExportModerationReport = () => {
-    if (historyItems.length === 0) 
+    if (allAdminActions.length === 0) 
     {
-      setErrorMessage('No items available in this view to export.')
+      setErrorMessage('No admin actions available to export.')
       return
     }
 
     const header = ['ID', 'Title', 'Action Type', 'Target Type', 'Reason', 'Performed At']
-    const rows = historyItems.map((item) => [
+    const rows = allAdminActions.map((item) => [
       item.id || '',
       item.title || '',
-      historyView === 'approved' ? 'Approved' : 'Removed',
-      'Listing',
+      item.actionType ? item.actionType.charAt(0).toUpperCase() + item.actionType.slice(1) : '',
+      item.targetType || '',
       item.reason || '',
       item.createdAt ? new Date(item.createdAt).toLocaleString() : '',
     ])
 
     // Escape CSV values so commas/quotes in data do not break downloads.
-    const csv = [header, ...rows]
+    let csv = [header, ...rows]
       .map((row) => row.map((value) => `"${String(value || '').replace(/"/g, '""')}"`).join(','))
       .join('\n')
+
+    // Add UTF-8 BOM so Excel recognizes the file properly with correct delimiter
+    csv = '\uFEFF' + csv
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${historyView}-actions-${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `admin-actions-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     setErrorMessage('')
-    setStatusMessage(`${historyView === 'approved' ? 'Approved' : 'Removed'} listings report exported.`)
+    setStatusMessage('All admin actions exported.')
   }
 
   const renderApproveRemoveTab = () => (
