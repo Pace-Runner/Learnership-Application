@@ -167,7 +167,6 @@ export default function Admin({
   const [removedCount, setRemovedCount] = useState(0)
   const [approvedHistory, setApprovedHistory] = useState([])
   const [removedHistory, setRemovedHistory] = useState([])
-  const [allAdminActions, setAllAdminActions] = useState([])
   const [historyView, setHistoryView] = useState('approved')
   const [activeAdminTab, setActiveAdminTab] = useState('approve-remove')
   const [queueTypeFilter, setQueueTypeFilter] = useState('all')
@@ -308,7 +307,7 @@ export default function Admin({
 
     const { data: actions, error } = await supabase
       .from('admin_actions')
-      .select('target_id,action_type,created_at,reason')
+      .select('*')
       .eq('admin_id', effectiveAdminId)
       .eq('target_type', 'listing')
       .in('action_type', ['approved', 'removed', 'deleted'])
@@ -355,16 +354,6 @@ export default function Admin({
     )
 
     // Store all actions for CSV export
-    setAllAdminActions(
-      (actions || []).map((action) => ({
-        id: action.target_id,
-        title: titleMap[action.target_id] || `Listing ${action.target_id}`,
-        actionType: action.action_type,
-        targetType: 'Listing',
-        reason: action.reason || '',
-        createdAt: action.created_at,
-      })),
-    )
   }, [effectiveAdminId, hasProvidedListings])
 
   const fetchDeleteInsights = useCallback(async () => {
@@ -374,7 +363,7 @@ export default function Admin({
 
     const { data: deletedActions, error: deletedActionsError } = await supabase
       .from('admin_actions')
-      .select('admin_id,target_type,target_id,created_at')
+      .select('*')
       .eq('action_type', 'deleted')
       .in('target_type', ['listing', 'applicant', 'provider'])
 
@@ -687,41 +676,50 @@ export default function Admin({
   }
 
   const handleExportModerationReport = () => {
-    if (allAdminActions.length === 0) 
-    {
-      setErrorMessage('No admin actions available to export.')
-      return
-    }
+    const fetchAllRecords = async () => {
+      const { data: allRecords, error } = await supabase
+        .from('admin_actions')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    const header = ['ID', 'Title', 'Action Type', 'Target Type', 'Reason', 'Performed At']
-    const rows = allAdminActions.map((item) => [
-      item.id || '',
-      item.title || '',
-      item.actionType ? item.actionType.charAt(0).toUpperCase() + item.actionType.slice(1) : '',
-      item.targetType || '',
-      item.reason || '',
-      item.createdAt ? new Date(item.createdAt).toLocaleString() : '',
-    ])
+      if (error || !allRecords || allRecords.length === 0) {
+        setErrorMessage('No admin actions available to export.')
+        return
+      }
 
-    // Escape CSV values so commas/quotes in data do not break downloads.
-    let csv = [header, ...rows]
+      const header = ['Action ID', 'Admin ID', 'Action Type', 'Target Type', 'Target ID', 'Reason', 'Performed At']
+      const rows = allRecords.map((item) => [
+        item.id || '',
+        item.admin_id || '',
+        item.action_type ? item.action_type.charAt(0).toUpperCase() + item.action_type.slice(1) : '',
+        item.target_type ? item.target_type.charAt(0).toUpperCase() + item.target_type.slice(1) : '',
+        item.target_id || '',
+        item.reason || '',
+        item.created_at ? new Date(item.created_at).toLocaleString() : '',
+      ])
+
+      // Escape CSV values so commas/quotes in data do not break downloads.
+      let csv = [header, ...rows]
       .map((row) => row.map((value) => `"${String(value || '').replace(/"/g, '""')}"`).join(','))
       .join('\n')
 
-    // Add UTF-8 BOM so Excel recognizes the file properly with correct delimiter
-    csv = '\uFEFF' + csv
+      // Add UTF-8 BOM so Excel recognizes the file properly with correct delimiter
+      csv = '\uFEFF' + csv
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `admin-actions-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    setErrorMessage('')
-    setStatusMessage('All admin actions exported.')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `admin-actions-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      setErrorMessage('')
+      setStatusMessage('All admin actions exported.')
+    }
+
+    fetchAllRecords()
   }
 
   const renderApproveRemoveTab = () => (
