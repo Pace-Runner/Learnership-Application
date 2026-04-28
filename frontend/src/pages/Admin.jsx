@@ -680,10 +680,17 @@ export default function Admin({
       return
     }
 
-    const header = ['listing_id', 'title', 'action', 'performed_at']
-    const rows = historyItems.map((item) => [item.id, item.title, historyView, item.createdAt || ''])
+    const header = ['ID', 'Title', 'Action Type', 'Target Type', 'Reason', 'Performed At']
+    const rows = historyItems.map((item) => [
+      item.id || '',
+      item.title || '',
+      historyView === 'approved' ? 'Approved' : 'Removed',
+      'Listing',
+      item.reason || '',
+      item.createdAt ? new Date(item.createdAt).toLocaleString() : '',
+    ])
 
-    // Escape CSV values so commas/quotes in listing names do not break downloads.
+    // Escape CSV values so commas/quotes in data do not break downloads.
     const csv = [header, ...rows]
       .map((row) => row.map((value) => `"${String(value || '').replace(/"/g, '""')}"`).join(','))
       .join('\n')
@@ -692,7 +699,7 @@ export default function Admin({
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${historyView}-listings-${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `${historyView}-actions-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
