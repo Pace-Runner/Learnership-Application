@@ -1,18 +1,32 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Admin from './Admin'
 import Dashboard from './Dashboard'
+import { supabase } from '../lib/supabaseClient'
 
 // Mock Supabase client - returns empty data for admin_actions and users queries
 vi.mock('../lib/supabaseClient', () => {
+  const from = vi.fn(() => ({
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockResolvedValue({ data: [], error: null }),
+    order: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+    upsert: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+  }))
+
   return {
     supabase: {
-      from: vi.fn(() => ({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        in: vi.fn().mockResolvedValue({ data: [], error: null }),
-      })),
+      from,
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { email: 'admin@example.com' } },
+          error: null,
+        }),
+      },
     },
     hasSupabaseConfig: true,
   }
@@ -89,7 +103,233 @@ describe('Admin moderation queue TDD tests', () => {
     expect(screen.getAllByText(/deleted/i).length).toBeGreaterThan(0)
   })
 
-  test('5. moderation queue can be filtered by type', () => {
+  test('5. delete stats count apprenticeships, internships, and learnerships', async () => {
+    const deletedActions = [
+      { id: 'a-1', admin_id: 'admin-001', action_type: 'deleted', target_type: 'listing', target_id: 'l-1', listing_type: 'Apprenticeship' },
+      { id: 'a-2', admin_id: 'admin-001', action_type: 'deleted', target_type: 'listing', target_id: 'l-2', listing_type: 'Internship' },
+      { id: 'a-3', admin_id: 'admin-002', action_type: 'deleted', target_type: 'listing', target_id: 'l-3', listing_type: 'Learnership' },
+    ]
+
+    const deletedListings = [
+      { id: 'l-1', type: 'Apprenticeship' },
+      { id: 'l-2', type: 'Internship' },
+      { id: 'l-3', type: 'Learnership' },
+    ]
+
+    supabase.from.mockImplementation((table) => {
+      const chain = {
+        filters: {},
+        updateValues: null,
+        select() {
+          return chain
+        },
+        eq(field, value) {
+          if (chain.updateValues && table === 'opportunities' && field === 'id') {
+            const match = deletedListings.find((item) => item.id === value)
+            if (match) {
+              match.status = chain.updateValues.status
+            }
+            return { error: null }
+          }
+
+          chain.filters[field] = value
+          return chain
+        },
+        in(field, values) {
+          chain.filters[field] = values
+          return chain
+        },
+        order() {
+          return chain
+        },
+        update(values) {
+          chain.updateValues = values
+          return chain
+        },
+        insert() {
+          return { data: null, error: null }
+        },
+        maybeSingle() {
+          if (table === 'users') {
+            return { data: { id: 'admin-001' }, error: null }
+          }
+
+          return { data: null, error: null }
+        },
+        upsert() {
+          return chain
+        },
+      }
+
+      Object.defineProperty(chain, 'data', {
+        get() {
+          if (table === 'admin_actions') {
+            if (chain.filters.admin_id) {
+              return deletedActions.filter((action) => action.admin_id === chain.filters.admin_id)
+            }
+
+            if (chain.filters.action_type === 'deleted') {
+              return deletedActions
+            }
+
+            return []
+          }
+
+          if (table === 'opportunities') {
+            if (Array.isArray(chain.filters.id)) {
+              return deletedListings.filter((item) => chain.filters.id.includes(item.id))
+            }
+
+            if (chain.filters.status) {
+              return deletedListings.filter((item) => (item.status || 'Removed') === chain.filters.status)
+            }
+
+            return deletedListings
+          }
+
+          return []
+        },
+      })
+
+      Object.defineProperty(chain, 'error', {
+        get() {
+          return null
+        },
+      })
+
+      return chain
+    })
+
+    renderAdmin({ listings: undefined })
+
+    fireEvent.click(await screen.findByRole('tab', { name: /^delete$/i }))
+
+    expect(await screen.findByText(/this admin deleted/i)).toBeTruthy()
+    expect(screen.getByText(/all admins deleted/i)).toBeTruthy()
+
+    const getValue = (label, index) => screen.getAllByText(label)[index].parentElement.querySelector('strong').textContent
+
+    expect(getValue(/apprenticeships deleted/i, 0)).toBe('1')
+    expect(getValue(/internships deleted/i, 0)).toBe('1')
+    expect(getValue(/learnerships deleted/i, 0)).toBe('0')
+    expect(getValue(/apprenticeships deleted/i, 1)).toBe('1')
+    expect(getValue(/internships deleted/i, 1)).toBe('1')
+    expect(getValue(/learnerships deleted/i, 1)).toBe('1')
+  })
+
+  test('6. delete action removes a listing and logs the listing type', async () => {
+    const listingsState = [
+      {
+        id: 'l-del-1',
+        title: 'Learner Support Listing',
+        provider: 'Provider A',
+        type: 'Learnership',
+        location: 'Cape Town',
+        closingDate: '2026-06-10',
+        status: 'Approved',
+      },
+    ]
+    const deletedActions = []
+
+    supabase.from.mockImplementation((table) => {
+      const chain = {
+        filters: {},
+        updateValues: null,
+        select() {
+          return chain
+        },
+        eq(field, value) {
+          if (chain.updateValues && table === 'opportunities' && field === 'id') {
+            const match = listingsState.find((item) => item.id === value)
+            if (match) {
+              match.status = chain.updateValues.status
+            }
+            return { error: null }
+          }
+
+          chain.filters[field] = value
+          return chain
+        },
+        in(field, values) {
+          chain.filters[field] = values
+          return chain
+        },
+        order() {
+          return chain
+        },
+        update(values) {
+          chain.updateValues = values
+          return chain
+        },
+        insert(payload) {
+          if (table === 'admin_actions') {
+            deletedActions.push(payload)
+          }
+
+          return { data: null, error: null }
+        },
+        maybeSingle() {
+          if (table === 'users') {
+            return { data: { id: 'admin-001' }, error: null }
+          }
+
+          return { data: null, error: null }
+        },
+        upsert() {
+          return chain
+        },
+      }
+
+      Object.defineProperty(chain, 'data', {
+        get() {
+          if (table === 'admin_actions') {
+            return deletedActions
+          }
+
+          if (table === 'opportunities') {
+            if (Array.isArray(chain.filters.id)) {
+              return listingsState.filter((item) => chain.filters.id.includes(item.id))
+            }
+
+            if (chain.filters.status) {
+              return listingsState.filter((item) => item.status === chain.filters.status)
+            }
+
+            return listingsState
+          }
+
+          return []
+        },
+      })
+
+      Object.defineProperty(chain, 'error', {
+        get() {
+          return null
+        },
+      })
+
+      return chain
+    })
+
+    renderAdmin({ listings: undefined })
+
+    fireEvent.click(await screen.findByRole('tab', { name: /^delete$/i }))
+    expect(await screen.findByText('Learner Support Listing')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /learner support listing/i }))
+    fireEvent.change(screen.getByLabelText(/reason for deletion/i), {
+      target: { value: 'No longer active' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /confirm delete/i }))
+
+    expect(supabase.from).toHaveBeenCalledWith('opportunities')
+    expect(supabase.from).toHaveBeenCalledWith('admin_actions')
+    await waitFor(() => {
+      expect(screen.queryByText('Learner Support Listing')).toBeNull()
+    })
+  })
+
+  test('7. moderation queue can be filtered by type', () => {
     const listings = [
       { id: 'l-50', title: 'Internship Listing', provider: 'Provider 1', type: 'Internship', location: 'Cape Town', closingDate: '2026-08-10', status: 'Pending' },
       { id: 'l-51', title: 'Learnership Listing', provider: 'Provider 2', type: 'Learnership', location: 'Pretoria', closingDate: '2026-08-11', status: 'Pending' },
@@ -114,7 +354,7 @@ describe('Admin moderation queue TDD tests', () => {
     expect(screen.getByText('Apprenticeship Listing')).toBeTruthy()
   })
 
-  test('6. approve action updates listing status and removes from queue', () => {
+  test('8. approve action updates listing status and removes from queue', () => {
     const onApproveListing = vi.fn()
     const onLogAdminAction = vi.fn()
     const listings = [
@@ -135,7 +375,7 @@ describe('Admin moderation queue TDD tests', () => {
     expect(screen.queryByText('Pending Listing For Approval')).toBeNull()
   })
 
-  test('7. remove action updates listing status and removes from queue', () => {
+  test('9. remove action updates listing status and removes from queue', () => {
     const onRemoveListing = vi.fn()
     const onLogAdminAction = vi.fn()
     const listings = [
@@ -156,7 +396,7 @@ describe('Admin moderation queue TDD tests', () => {
     expect(screen.queryByText('Pending Listing For Removal')).toBeNull()
   })
 
-  test('8. approve action is logged in admin_actions payload', () => {
+  test('10. approve action is logged in admin_actions payload', () => {
     const onApproveListing = vi.fn()
     const onLogAdminAction = vi.fn()
     const listings = [
@@ -182,7 +422,7 @@ describe('Admin moderation queue TDD tests', () => {
     )
   })
 
-  test('9. remove action is logged in admin_actions payload', () => {
+  test('11. remove action is logged in admin_actions payload', () => {
     const onRemoveListing = vi.fn()
     const onLogAdminAction = vi.fn()
     const listings = [
@@ -209,7 +449,7 @@ describe('Admin moderation queue TDD tests', () => {
     )
   })
 
-  test('10. remove action requires a reason', () => {
+  test('12. remove action requires a reason', () => {
     const onRemoveListing = vi.fn()
     const listings = [
       { id: 'l-40', title: 'Needs reason listing', provider: 'Provider Q', type: 'Learnership', location: 'Nelspruit', closingDate: '2026-08-01', status: 'Pending' },
@@ -225,19 +465,19 @@ describe('Admin moderation queue TDD tests', () => {
     expect(screen.getByText(/please provide a reason before confirming/i)).toBeTruthy()
   })
 
-  test('11. non-admin cannot access moderation panel', () => {
+  test('13. non-admin cannot access moderation panel', () => {
     renderAdmin({ userRole: 'Applicant', isAuthenticated: true })
     expect(screen.queryByText(/moderation queue/i)).toBeNull()
     expect(screen.getByText(/access denied/i)).toBeTruthy()
   })
 
-  test('12. unauthenticated user cannot access moderation panel', () => {
+  test('14. unauthenticated user cannot access moderation panel', () => {
     renderAdmin({ isAuthenticated: false })
     expect(screen.queryByText(/moderation queue/i)).toBeNull()
     expect(screen.getByText(/redirecting to home/i)).toBeTruthy()
   })
 
-  test('13. approved listing becomes visible to applicants', () => {
+  test('15. approved listing becomes visible to applicants', () => {
     const listingsBefore = [{ id: 'a-1', title: 'Applicant Visibility Listing', type: 'Learnership', provider: 'Provider', location: 'Location', closingDate: '2026-05-01', status: 'Pending' }]
     const listingsAfter = [{ id: 'a-1', title: 'Applicant Visibility Listing', type: 'Learnership', provider: 'Provider', location: 'Location', closingDate: '2026-05-01', status: 'Approved' }]
 
@@ -260,7 +500,7 @@ describe('Admin moderation queue TDD tests', () => {
     expect(screen.getByText('Applicant Visibility Listing')).toBeTruthy()
   })
 
-  test('14. removed listing is not visible to applicants', () => {
+  test('16. removed listing is not visible to applicants', () => {
     const listings = [
       { id: 'a-3', title: 'Approved Applicant Listing', type: 'Learnership', provider: 'Provider', location: 'Location', closingDate: '2026-05-01', status: 'Approved' },
       { id: 'a-2', title: 'Should Not Be Visible To Applicants', type: 'Internship', provider: 'Provider', location: 'Location', closingDate: '2026-05-01', status: 'Removed' },

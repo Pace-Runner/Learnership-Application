@@ -8,7 +8,7 @@ function getPendingListings(listings)
 
 
 
-function buildAdminActionPayload(adminId, actionType, targetId, reason) 
+function buildAdminActionPayload(adminId, actionType, targetId, reason, listingType) 
 {
   // Keep the audit payload shape aligned with the admin_actions table.
   const payload = {
@@ -20,6 +20,10 @@ function buildAdminActionPayload(adminId, actionType, targetId, reason)
 
   if (reason) {
     payload.reason = reason
+  }
+
+  if (listingType) {
+    payload.listing_type = listingType
   }
 
   return payload
@@ -92,7 +96,7 @@ function buildDeleteStats(deletedListingsWithTypes, currentAdminId) {
   }
 
   for (const item of deletedListingsWithTypes || []) {
-    const typeKey = (item.type || '').toLowerCase()
+    const typeKey = (item.listing_type || item.type || '').toLowerCase()
     if (typeKey === 'apprenticeship') {
       stats.all.apprenticeships += 1
       if (currentAdminId && item.admin_id === currentAdminId) {
@@ -360,11 +364,17 @@ export default function Admin({
       return
     }
 
-    const deletedListingIdSet = new Set(
-      (deletedActions || [])
-        .filter((action) => action.target_id)
-        .map((action) => action.target_id),
-    )
+    const deletedTargetIds = [...new Set((deletedActions || []).map((action) => action.target_id).filter(Boolean))]
+
+    let deletedListingTypesById = {}
+    if (deletedTargetIds.length) {
+      const { data: deletedListings } = await supabase
+        .from('opportunities')
+        .select('id,type')
+        .in('id', deletedTargetIds)
+
+      deletedListingTypesById = Object.fromEntries((deletedListings || []).map((listing) => [listing.id, listing.type]))
+    }
 
     const { data: allListingsResult, error: allListingsError } = await supabase
       .from('opportunities')
@@ -380,7 +390,7 @@ export default function Admin({
     }
 
     for (const listing of allListingsResult || []) {
-      if (!listing?.id || deletedListingIdSet.has(listing.id) || listing.status !== 'Approved') {
+      if (!listing?.id || deletedTargetIds.includes(listing.id) || listing.status !== 'Approved') {
         continue
       }
 
@@ -399,13 +409,10 @@ export default function Admin({
     nextDeleteDirectory.listing.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
 
     // Build stats from deleted actions with type information
-    const deletedWithTypes = (deletedActions || []).map((action) => {
-      const deletedListing = (allListingsResult || []).find((l) => l.id === action.target_id)
-      return {
-        ...action,
-        type: deletedListing?.type || 'Unknown',
-      }
-    })
+    const deletedWithTypes = (deletedActions || []).map((action) => ({
+      ...action,
+      listing_type: action.listing_type || deletedListingTypesById[action.target_id] || 'Unknown',
+    }))
 
     setDeleteStats(
       buildDeleteStats(deletedWithTypes, effectiveAdminId),
@@ -448,10 +455,24 @@ export default function Admin({
       return
     }
 
+    const listingToDelete = deleteDirectory.listing.find((listing) => listing.id === listingId)
+
+    if (!listingToDelete) {
+      setErrorMessage('Could not find the selected listing')
+      return
+    }
+
     setIsSubmittingDelete(true)
     setErrorMessage('')
 
     try {
+      const updateError = await persistListingStatus(listingId, 'Removed')
+
+      if (updateError) {
+        setErrorMessage('Failed to remove listing')
+        return
+      }
+
       // Log the deletion action
       const deleteError = await persistAdminAction({
         admin_id: effectiveAdminId,
@@ -459,11 +480,11 @@ export default function Admin({
         target_type: 'listing',
         target_id: listingId,
         reason: reason.trim(),
+        listing_type: listingToDelete.type,
       })
 
       if (deleteError) {
         setErrorMessage('Failed to log deletion action')
-        setIsSubmittingDelete(false)
         return
       }
 
@@ -957,6 +978,10 @@ export default function Admin({
             <section className="admin-modal" onClick={(e) => e.stopPropagation()}>
               <h3>Delete Listing</h3>
               {errorMessage && <p className="admin-error">{errorMessage}</p>}
+              <p>
+                Selected type:{' '}
+                <strong>{filteredDeleteRecords.find((r) => r.id === selectedDeleteListingId)?.type || 'Unknown'}</strong>
+              </p>
               <p>
                 Confirm deletion of:{' '}
                 <strong>{filteredDeleteRecords.find((r) => r.id === selectedDeleteListingId)?.primaryLabel}</strong>
