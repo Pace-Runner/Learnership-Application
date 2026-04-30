@@ -142,7 +142,7 @@ export default function Admin({
   const [activeAdminTab, setActiveAdminTab] = useState('approve-remove')
   const [queueTypeFilter, setQueueTypeFilter] = useState('all')
   const [deleteStats, setDeleteStats] = useState(emptyDeleteStats)
-  const [deleteEntityTab, setDeleteEntityTab] = useState('applicant')
+  const [deleteEntityTab, setDeleteEntityTab] = useState('listing')
   const [deleteSearchQuery, setDeleteSearchQuery] = useState('')
   const [deleteDirectory, setDeleteDirectory] = useState(emptyDeleteDirectory)
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)

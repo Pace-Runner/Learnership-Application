@@ -86,8 +86,6 @@ describe('Admin moderation queue TDD tests', () => {
 
     expect(screen.getByText(/this admin deleted/i)).toBeTruthy()
     expect(screen.getByText(/all admins deleted/i)).toBeTruthy()
-    expect(screen.getAllByText(/applicants deleted/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/providers deleted/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/listings deleted/i).length).toBeGreaterThan(0)
   })
 
