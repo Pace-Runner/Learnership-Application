@@ -58,20 +58,10 @@ const queueTypeFilters = [
 ]
 
 const deleteEntityTabs = [
-  { id: 'applicant', label: 'Applicant' },
-  { id: 'provider', label: 'Provider' },
   { id: 'listing', label: 'Listing' },
 ]
 
 const deleteSearchHints = {
-  applicant: {
-    placeholder: 'Search applicants by Gmail or first/last name',
-    examples: ['thabo', 'naidoo', 'gmail.com'],
-  },
-  provider: {
-    placeholder: 'Search providers by Gmail or organisation name',
-    examples: ['academy', 'group', 'gmail.com'],
-  },
   listing: {
     placeholder: 'Search listings by title or listing ID',
     examples: ['electric', 'learnership', 'a1b2'],
@@ -80,47 +70,28 @@ const deleteSearchHints = {
 
 const emptyDeleteStats = {
   admin: {
-    users: 0,
-    providers: 0,
     listings: 0,
   },
   all: {
-    users: 0,
-    providers: 0,
     listings: 0,
   },
 }
 
 const emptyDeleteDirectory = {
-  applicant: [],
-  provider: [],
   listing: [],
 }
 
-function buildDeleteStats(actions, currentAdminId, roleByUserId) {
+function buildDeleteStats(actions, currentAdminId) {
   const stats = {
     admin: { ...emptyDeleteStats.admin },
     all: { ...emptyDeleteStats.all },
   }
 
   for (const action of actions || []) {
-    const isCurrentAdminAction = currentAdminId && action.admin_id === currentAdminId
-
     if (action.target_type === 'listing') {
       stats.all.listings += 1
-      if (isCurrentAdminAction) {
+      if (currentAdminId && action.admin_id === currentAdminId) {
         stats.admin.listings += 1
-      }
-      continue
-    }
-
-    if (action.target_type === 'applicant' || action.target_type === 'provider') {
-      const bucket = roleByUserId[action.target_id] === 'Provider'
-        ? 'providers'
-        : 'users'
-      stats.all[bucket] += 1
-      if (isCurrentAdminAction) {
-        stats.admin[bucket] += 1
       }
     }
   }
@@ -365,119 +336,32 @@ export default function Admin({
       .from('admin_actions')
       .select('*')
       .eq('action_type', 'deleted')
-      .in('target_type', ['listing', 'applicant', 'provider'])
+      .eq('target_type', 'listing')
 
     if (deletedActionsError) {
       return
     }
 
-    const { data: applicantUsers, error: applicantUsersError } = await supabase
-      .from('users')
-      .select('id,email,role')
-      .eq('role', 'Applicant')
-
-    if (applicantUsersError) {
-      return
-    }
-
-    const { data: providerUsers, error: providerUsersError } = await supabase
-      .from('users')
-      .select('id,email,role')
-      .eq('role', 'Provider')
-
-    if (providerUsersError) {
-      return
-    }
-
-    const roleByUserId = Object.fromEntries([
-      ...(applicantUsers || []).map((user) => [user.id, user.role || 'Applicant']),
-      ...(providerUsers || []).map((user) => [user.id, user.role || 'Provider']),
-    ])
-
-    const applicantUserIds = (applicantUsers || []).map((user) => user.id).filter(Boolean)
-    const providerUserIds = (providerUsers || []).map((user) => user.id).filter(Boolean)
-
-    const deletedUserIdSet = new Set(
-      (deletedActions || [])
-        .filter((action) => (action.target_type === 'applicant' || action.target_type === 'provider') && action.target_id)
-        .map((action) => action.target_id),
-    )
     const deletedListingIdSet = new Set(
       (deletedActions || [])
-        .filter((action) => action.target_type === 'listing' && action.target_id)
+        .filter((action) => action.target_id)
         .map((action) => action.target_id),
     )
 
-    const [allApplicantProfilesResult, allProviderProfilesResult, allListingsResult] =
-      await Promise.all([
-        applicantUserIds.length
-          ? supabase
-              .from('applicant_profiles')
-              .select('user_id,first_name,last_name,phone,location')
-              .in('user_id', applicantUserIds)
-          : Promise.resolve({ data: [] }),
-        providerUserIds.length
-          ? supabase
-              .from('provider_profiles')
-              .select('user_id,organisation_name,contact_email,phone,location')
-              .in('user_id', providerUserIds)
-          : Promise.resolve({ data: [] }),
-        supabase.from('opportunities').select('id,title,status').eq('status', 'Approved'),
-      ])
+    const { data: allListingsResult, error: allListingsError } = await supabase
+      .from('opportunities')
+      .select('id,title,status')
+      .eq('status', 'Approved')
 
-    const applicantProfileByUserId = Object.fromEntries(
-      (allApplicantProfilesResult.data || []).map((profile) => [profile.user_id, profile]),
-    )
-    const providerProfileByUserId = Object.fromEntries(
-      (allProviderProfilesResult.data || []).map((profile) => [profile.user_id, profile]),
-    )
+    if (allListingsError) {
+      return
+    }
+
     const nextDeleteDirectory = {
-      applicant: [],
-      provider: [],
       listing: [],
     }
 
-    for (const user of applicantUsers || []) {
-      if (!user?.id || deletedUserIdSet.has(user.id) || user.id === effectiveAdminId) {
-        continue
-      }
-
-      const fallbackIdLabel = String(user.id).slice(0, 8)
-      const email = user.email || ''
-      const profile = applicantProfileByUserId[user.id]
-      const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim()
-      const joinedEmail = email || ''
-
-      nextDeleteDirectory.applicant.push({
-        id: user.id,
-        primaryLabel: fullName || `Applicant ${fallbackIdLabel}`,
-        secondaryLabel: joinedEmail || `ID: ${user.id}`,
-        createdAt: '',
-        searchIndex: `${fullName} ${profile?.first_name || ''} ${profile?.last_name || ''} ${joinedEmail} ${user.id}`.toLowerCase(),
-      })
-    }
-
-    for (const user of providerUsers || []) {
-      if (!user?.id || deletedUserIdSet.has(user.id) || user.id === effectiveAdminId) {
-        continue
-      }
-
-      const fallbackIdLabel = String(user.id).slice(0, 8)
-      const email = user.email || ''
-      const profile = providerProfileByUserId[user.id]
-      const organisationName = profile?.organisation_name || `Provider ${fallbackIdLabel}`
-      const providerEmail = profile?.contact_email || email
-
-      nextDeleteDirectory.provider.push({
-        id: user.id,
-        primaryLabel: organisationName,
-        secondaryLabel: providerEmail || `ID: ${user.id}`,
-        createdAt: '',
-        searchIndex: `${organisationName} ${providerEmail} ${user.id}`.toLowerCase(),
-      })
-    }
-
-    for (const listing of allListingsResult.data || []) {
+    for (const listing of allListingsResult || []) {
       if (!listing?.id || deletedListingIdSet.has(listing.id) || listing.status !== 'Approved') {
         continue
       }
@@ -492,12 +376,10 @@ export default function Admin({
       })
     }
 
-    nextDeleteDirectory.applicant.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
-    nextDeleteDirectory.provider.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
     nextDeleteDirectory.listing.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
 
     setDeleteStats(
-      buildDeleteStats(deletedActions || [], effectiveAdminId, roleByUserId),
+      buildDeleteStats(deletedActions || [], effectiveAdminId),
     )
     setDeleteDirectory(nextDeleteDirectory)
   }, [effectiveAdminId, hasProvidedListings])
@@ -984,10 +866,6 @@ export default function Admin({
             </ul>
           )}
         </section>
-
-        <p className="admin-note">
-          Provider deletions are counted from deleted account actions where the target account role is Provider.
-        </p>
       </section>
     </section>
   )
