@@ -840,6 +840,22 @@
   overflow: auto;
 }
 
+.admin-delete-results-list li {
+  border: 1px solid rgba(170, 205, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(8, 23, 49, 0.54);
+  padding: 0.55rem 0.62rem;
+  display: grid;
+  gap: 0.22rem;
+  transition: all 0.2s ease;
+}
+
+.admin-delete-results-list li:hover {
+  background: rgba(20, 45, 80, 0.7);
+  border-color: rgba(170, 205, 255, 0.4);
+  cursor: pointer;
+}
+
 .admin-delete-group h3 {
   margin: 0;
   color: rgba(214, 233, 255, 0.94);
@@ -1141,6 +1157,118 @@
 
 .admin-select-label input {
   accent-color: #86c8ff;
+}
+
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.admin-modal {
+  background: rgba(10, 28, 58, 0.95);
+  border: 1px solid rgba(182, 214, 255, 0.48);
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.admin-modal h3 {
+  margin: 0 0 1rem 0;
+  color: rgba(241, 249, 255, 0.96);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-modal p {
+  color: rgba(213, 233, 255, 0.95);
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.admin-modal label {
+  display: block;
+  color: rgba(213, 233, 255, 0.95);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 1rem;
+}
+
+.admin-modal textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(175, 207, 255, 0.38);
+  background: rgba(10, 28, 58, 0.82);
+  color: rgba(235, 247, 255, 0.98);
+  padding: 0.6rem 0.7rem;
+  resize: vertical;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.admin-modal textarea::placeholder {
+  color: rgba(188, 212, 240, 0.85);
+}
+
+.admin-modal textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-button-primary,
+.admin-button-secondary {
+  border: 1px solid rgba(182, 214, 255, 0.48);
+  background: rgba(246, 251, 255, 0.92);
+  color: #143457;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0.64rem 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.admin-button-primary:hover:not(:disabled) {
+  background: rgba(125, 198, 255, 0.9);
+  color: #0a2541;
+}
+
+.admin-button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-button-secondary:hover:not(:disabled) {
+  background: rgba(200, 220, 240, 0.9);
+  color: #0a2541;
+}
+
+.admin-button-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-error {
+  color: #ff6b6b;
+  font-size: 0.85rem;
+  margin: 0 0 0.8rem 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 107, 107, 0.15);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
 }
 
 @media (max-width: 1100px) {

@@ -63,17 +63,21 @@ const deleteEntityTabs = [
 
 const deleteSearchHints = {
   listing: {
-    placeholder: 'Search listings by title or listing ID',
-    examples: ['electric', 'learnership', 'a1b2'],
+    placeholder: 'Search listings by title, type, or listing ID',
+    examples: ['electric', 'apprenticeship', 'internship', 'learnership'],
   },
 }
 
 const emptyDeleteStats = {
   admin: {
-    listings: 0,
+    apprenticeships: 0,
+    internships: 0,
+    learnerships: 0,
   },
   all: {
-    listings: 0,
+    apprenticeships: 0,
+    internships: 0,
+    learnerships: 0,
   },
 }
 
@@ -81,17 +85,28 @@ const emptyDeleteDirectory = {
   listing: [],
 }
 
-function buildDeleteStats(actions, currentAdminId) {
+function buildDeleteStats(deletedListingsWithTypes, currentAdminId) {
   const stats = {
     admin: { ...emptyDeleteStats.admin },
     all: { ...emptyDeleteStats.all },
   }
 
-  for (const action of actions || []) {
-    if (action.target_type === 'listing') {
-      stats.all.listings += 1
-      if (currentAdminId && action.admin_id === currentAdminId) {
-        stats.admin.listings += 1
+  for (const item of deletedListingsWithTypes || []) {
+    const typeKey = (item.type || '').toLowerCase()
+    if (typeKey === 'apprenticeship') {
+      stats.all.apprenticeships += 1
+      if (currentAdminId && item.admin_id === currentAdminId) {
+        stats.admin.apprenticeships += 1
+      }
+    } else if (typeKey === 'internship') {
+      stats.all.internships += 1
+      if (currentAdminId && item.admin_id === currentAdminId) {
+        stats.admin.internships += 1
+      }
+    } else if (typeKey === 'learnership') {
+      stats.all.learnerships += 1
+      if (currentAdminId && item.admin_id === currentAdminId) {
+        stats.admin.learnerships += 1
       }
     }
   }
@@ -145,6 +160,9 @@ export default function Admin({
   const [deleteEntityTab, setDeleteEntityTab] = useState('listing')
   const [deleteSearchQuery, setDeleteSearchQuery] = useState('')
   const [deleteDirectory, setDeleteDirectory] = useState(emptyDeleteDirectory)
+  const [selectedDeleteListingId, setSelectedDeleteListingId] = useState('')
+  const [deleteListingReason, setDeleteListingReason] = useState('')
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState(false)
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
 
   useEffect(() => 
@@ -350,7 +368,7 @@ export default function Admin({
 
     const { data: allListingsResult, error: allListingsError } = await supabase
       .from('opportunities')
-      .select('id,title,status')
+      .select('id,title,type,status')
       .eq('status', 'Approved')
 
     if (allListingsError) {
@@ -367,19 +385,30 @@ export default function Admin({
       }
 
       const title = listing.title || `Listing ${listing.id}`
+      const type = listing.type || 'Unknown'
       nextDeleteDirectory.listing.push({
         id: listing.id,
         primaryLabel: title,
-        secondaryLabel: `ID: ${listing.id}`,
+        secondaryLabel: `${type} • ID: ${listing.id}`,
+        type: type,
         createdAt: '',
-        searchIndex: `${title} ${listing.id}`.toLowerCase(),
+        searchIndex: `${title} ${type} ${listing.id}`.toLowerCase(),
       })
     }
 
     nextDeleteDirectory.listing.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
 
+    // Build stats from deleted actions with type information
+    const deletedWithTypes = (deletedActions || []).map((action) => {
+      const deletedListing = (allListingsResult || []).find((l) => l.id === action.target_id)
+      return {
+        ...action,
+        type: deletedListing?.type || 'Unknown',
+      }
+    })
+
     setDeleteStats(
-      buildDeleteStats(deletedActions || [], effectiveAdminId),
+      buildDeleteStats(deletedWithTypes, effectiveAdminId),
     )
     setDeleteDirectory(nextDeleteDirectory)
   }, [effectiveAdminId, hasProvidedListings])
@@ -411,6 +440,51 @@ export default function Admin({
     // Every moderation decision is logged so approved and removed actions can be audited later.
     const { error } = await supabase.from('admin_actions').insert(payload)
     return error
+  }
+
+  const handleDeleteListing = async (listingId, reason) => {
+    if (!listingId || !reason.trim()) {
+      setErrorMessage('Please provide a reason for deletion')
+      return
+    }
+
+    setIsSubmittingDelete(true)
+    setErrorMessage('')
+
+    try {
+      // Log the deletion action
+      const deleteError = await persistAdminAction({
+        admin_id: effectiveAdminId,
+        action_type: 'deleted',
+        target_type: 'listing',
+        target_id: listingId,
+        reason: reason.trim(),
+      })
+
+      if (deleteError) {
+        setErrorMessage('Failed to log deletion action')
+        setIsSubmittingDelete(false)
+        return
+      }
+
+      // Update the delete directory to remove the listing
+      setDeleteDirectory((prev) => ({
+        ...prev,
+        listing: prev.listing.filter((l) => l.id !== listingId),
+      }))
+
+      // Reset the modal
+      setSelectedDeleteListingId('')
+      setDeleteListingReason('')
+      setStatusMessage('Listing deleted successfully')
+
+      // Refresh stats
+      fetchDeleteInsights()
+    } catch {
+      setErrorMessage('Error deleting listing')
+    } finally {
+      setIsSubmittingDelete(false)
+    }
   }
 
   const removeFromVisibleQueue = (listingId) => {
@@ -787,16 +861,16 @@ export default function Admin({
           <h3>This Admin Deleted</h3>
           <section className="admin-kpi-row">
             <article className="admin-kpi">
-              <span>Applicants Deleted</span>
-              <strong>{deleteStats.admin.users}</strong>
+              <span>Apprenticeships Deleted</span>
+              <strong>{deleteStats.admin.apprenticeships}</strong>
             </article>
             <article className="admin-kpi">
-              <span>Providers Deleted</span>
-              <strong>{deleteStats.admin.providers}</strong>
+              <span>Internships Deleted</span>
+              <strong>{deleteStats.admin.internships}</strong>
             </article>
             <article className="admin-kpi">
-              <span>Listings Deleted</span>
-              <strong>{deleteStats.admin.listings}</strong>
+              <span>Learnerships Deleted</span>
+              <strong>{deleteStats.admin.learnerships}</strong>
             </article>
           </section>
         </section>
@@ -805,16 +879,16 @@ export default function Admin({
           <h3>All Admins Deleted</h3>
           <section className="admin-kpi-row">
             <article className="admin-kpi">
-              <span>Applicants Deleted</span>
-              <strong>{deleteStats.all.users}</strong>
+              <span>Apprenticeships Deleted</span>
+              <strong>{deleteStats.all.apprenticeships}</strong>
             </article>
             <article className="admin-kpi">
-              <span>Providers Deleted</span>
-              <strong>{deleteStats.all.providers}</strong>
+              <span>Internships Deleted</span>
+              <strong>{deleteStats.all.internships}</strong>
             </article>
             <article className="admin-kpi">
-              <span>Listings Deleted</span>
-              <strong>{deleteStats.all.listings}</strong>
+              <span>Learnerships Deleted</span>
+              <strong>{deleteStats.all.learnerships}</strong>
             </article>
           </section>
         </section>
@@ -858,7 +932,18 @@ export default function Admin({
           ) : (
             <ul className="admin-history-list admin-delete-results-list">
               {filteredDeleteRecords.map((record) => (
-                <li key={`${record.id}-${record.createdAt}`}>
+                <li
+                  key={`${record.id}-${record.createdAt}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedDeleteListingId(record.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      setSelectedDeleteListingId(record.id)
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <strong>{record.primaryLabel}</strong>
                   <span>{record.secondaryLabel}</span>
                 </li>
@@ -866,6 +951,53 @@ export default function Admin({
             </ul>
           )}
         </section>
+
+        {selectedDeleteListingId && (
+          <section className="admin-modal-overlay" onClick={() => setSelectedDeleteListingId('')}>
+            <section className="admin-modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Delete Listing</h3>
+              {errorMessage && <p className="admin-error">{errorMessage}</p>}
+              <p>
+                Confirm deletion of:{' '}
+                <strong>{filteredDeleteRecords.find((r) => r.id === selectedDeleteListingId)?.primaryLabel}</strong>
+              </p>
+              <label htmlFor="delete-reason">
+                Reason for deletion
+                <textarea
+                  id="delete-reason"
+                  value={deleteListingReason}
+                  onChange={(e) => setDeleteListingReason(e.target.value)}
+                  placeholder="Enter reason for deletion..."
+                  disabled={isSubmittingDelete}
+                  rows={4}
+                  style={{ width: '100%', padding: '8px', marginTop: '8px' }}
+                />
+              </label>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDeleteListingId('')
+                    setDeleteListingReason('')
+                    setErrorMessage('')
+                  }}
+                  disabled={isSubmittingDelete}
+                  className="admin-button-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteListing(selectedDeleteListingId, deleteListingReason)}
+                  disabled={isSubmittingDelete || !deleteListingReason.trim()}
+                  className="admin-button-primary"
+                >
+                  {isSubmittingDelete ? 'Deleting...' : 'Confirm Delete'}
+                </button>
+              </div>
+            </section>
+          </section>
+        )}
       </section>
     </section>
   )

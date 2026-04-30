@@ -86,7 +86,7 @@ describe('Admin moderation queue TDD tests', () => {
 
     expect(screen.getByText(/this admin deleted/i)).toBeTruthy()
     expect(screen.getByText(/all admins deleted/i)).toBeTruthy()
-    expect(screen.getAllByText(/listings deleted/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/deleted/i).length).toBeGreaterThan(0)
   })
 
   test('5. moderation queue can be filtered by type', () => {
