@@ -15,6 +15,7 @@ import ApplicantProfile from './pages/ApplicantProfile'
 import Provider from './pages/Provider'
 import ProviderListingForm from './pages/ProviderListingForm'
 import ProviderListingEdit from './pages/ProviderListingEdit'
+import ProviderListingApplications from './pages/ProviderListingApplications'
 import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
 const AdminDashboardShell = Admin
 
@@ -594,6 +595,12 @@ return (
 <Route path="/provider/listings/:listingId/edit" element={
   <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
     <ProviderListingEdit />
+  </ProtectedRoute>
+} />
+
+<Route path="/provider/listings/:listingId/applications" element={
+  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
+    <ProviderListingApplications />
   </ProtectedRoute>
 } />
 
