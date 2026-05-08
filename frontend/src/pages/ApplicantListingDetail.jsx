@@ -176,7 +176,14 @@ export default function ApplicantListingDetail({ onLogout }) {
     })
 
     if (insertError) {
-      setError('Your application could not be submitted. Please try again.')
+      // Log full error to console for debugging and show a more specific message
+      // to the user with available details.
+      // Example: constraint violation, RLS deny, missing column, etc.
+      // Show details if present to help diagnose.
+      // eslint-disable-next-line no-console
+      console.error('Application insert error:', insertError)
+      const details = insertError.message || insertError.details || ''
+      setError(`Your application could not be submitted${details ? `: ${details}` : '. Please try again.'}`)
       setIsSubmitting(false)
       return
     }
@@ -211,7 +218,6 @@ export default function ApplicantListingDetail({ onLogout }) {
           <article className="user-panel applicant-detail-panel">
             <h2>Opportunity overview</h2>
             {isLoading ? <p className="user-panel-copy">Loading listing details...</p> : null}
-            {!isLoading && error ? <p className="user-panel-copy applicant-detail-error">{error}</p> : null}
             {!isLoading && listing ? (
               <>
                 <p className="user-panel-copy">{listing.description || 'No description provided.'}</p>
@@ -246,6 +252,11 @@ export default function ApplicantListingDetail({ onLogout }) {
                 >
                   {isSubmitting ? 'Submitting...' : 'Apply now'}
                 </button>
+                {!isLoading && error ? (
+                  <p className="user-panel-copy applicant-detail-error" role="alert">
+                    {error}
+                  </p>
+                ) : null}
                 {confirmation ? (
                   <p className="user-panel-copy applicant-detail-confirmation" role="status">
                     {confirmation}
