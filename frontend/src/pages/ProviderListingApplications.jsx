@@ -125,7 +125,7 @@ export default function ProviderListingApplications() {
           try {
             const { data } = await supabase.storage.from(DOCS_BUCKET).createSignedUrl(normalizedPath, 60 * 10)
             return { ...item, cvLink: data?.signedUrl || '' }
-          } catch (e) {
+          } catch {
             return { ...item, cvLink: '' }
           }
         }),
