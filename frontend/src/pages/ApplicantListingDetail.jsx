@@ -222,10 +222,15 @@ export default function ApplicantListingDetail({ onLogout }) {
                   type="button"
                   className="user-action-btn profile-save-btn applicant-apply-btn"
                   onClick={handleApply}
-                  disabled={isSubmitting || !isProfileReady(profile) || !listing}
+                  disabled={isSubmitting || !listing}
                 >
                   {isSubmitting ? 'Submitting...' : 'Apply now'}
                 </button>
+                {!isProfileReady(profile) ? (
+                  <p className="user-panel-copy applicant-detail-error" role="alert">
+                    You must complete your profile and upload a CV before applying. Click "Profile" to update your details.
+                  </p>
+                ) : null}
                 {confirmation ? (
                   <p className="user-panel-copy applicant-detail-confirmation" role="status">
                     {confirmation}
