@@ -309,6 +309,28 @@
   gap: 0.8rem;
 }
 
+.applicant-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.applicant-detail-panel {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+}
+
+.applicant-detail-confirmation {
+  color: #c8ffd5;
+}
+
+.applicant-detail-error {
+  color: #ffd6d6;
+}
+
+.applicant-apply-btn {
+  margin-top: 0.35rem;
+}
+
 .listing-search-panel {
   margin-top: 1rem;
 }
@@ -377,6 +399,10 @@
   border-radius: 12px;
   padding: 0.65rem 0.7rem;
   background: rgba(255, 255, 255, 0.03);
+}
+
+.user-list li .provider-action-link {
+  margin-top: 0.62rem;
 }
 
 .user-list span {

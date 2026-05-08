@@ -12,6 +12,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import Admin from './pages/Admin'
 import Dashboard from './pages/Dashboard'
 import ApplicantProfile from './pages/ApplicantProfile'
+import ApplicantListingDetail from './pages/ApplicantListingDetail'
 import Provider from './pages/Provider'
 import ProviderListingForm from './pages/ProviderListingForm'
 import ProviderListingEdit from './pages/ProviderListingEdit'
@@ -571,6 +572,12 @@ return (
    <Route path="/dashboard" element={
   <ProtectedRoute role={role} allowedRole="Applicant" signedIn={signedIn} isLoading={isLoadingAuth}>
     <Dashboard onLogout={handleLogout} />
+  </ProtectedRoute>
+} />
+
+<Route path="/dashboard/listings/:listingId" element={
+  <ProtectedRoute role={role} allowedRole="Applicant" signedIn={signedIn} isLoading={isLoadingAuth}>
+    <ApplicantListingDetail onLogout={handleLogout} />
   </ProtectedRoute>
 } />
 

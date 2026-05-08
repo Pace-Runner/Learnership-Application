@@ -100,7 +100,7 @@ create table if not exists applications (
   id uuid primary key default gen_random_uuid(),
   applicant_id uuid references applicant_profiles(id) on delete cascade,
   opportunity_id uuid references opportunities(id) on delete cascade,
-  status text check (status in ('Received', 'Shortlisted', 'Rejected', 'Offered')) default 'Received',
+  status text check (status in ('Pending', 'Shortlisted', 'Rejected', 'Offered')) default 'Pending',
   applied_at timestamp default now(),
   updated_at timestamp default now()
 );

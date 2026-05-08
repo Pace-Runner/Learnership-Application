@@ -240,6 +240,15 @@ export default function Dashboard({ onLogout, listings }) {
                   {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
                   {item.location ? <small className="user-item-meta">{item.location}</small> : null}
                   {item.closingDate ? <small className="user-item-meta">{item.closingDate}</small> : null}
+                  {item.id ? (
+                    <Link
+                      to={`/dashboard/listings/${item.id}`}
+                      className="user-action-btn user-action-btn-inline provider-action-link"
+                      aria-label={`View details for ${item.title}`}
+                    >
+                      View details
+                    </Link>
+                  ) : null}
                 </li>
               ))}
             </ul>
