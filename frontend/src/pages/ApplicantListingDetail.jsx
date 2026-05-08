@@ -91,9 +91,9 @@ export default function ApplicantListingDetail({ onLogout }) {
         .eq('user_id', userRow.id)
         .maybeSingle()
 
-      if (profileError || !profileRow?.id) {
+      if (profileError) {
         if (isMounted) {
-          setError('Complete your profile and upload a CV before applying.')
+          setError('Could not load your profile. Please try again.')
           setIsLoading(false)
         }
         return
@@ -122,7 +122,7 @@ export default function ApplicantListingDetail({ onLogout }) {
       }
 
       if (isMounted) {
-        setProfile(profileRow)
+        setProfile(profileRow ?? null)
         setListing(listingRow)
         setIsLoading(false)
       }
@@ -136,8 +136,28 @@ export default function ApplicantListingDetail({ onLogout }) {
   }, [listingId])
 
   const handleApply = async () => {
-    if (!listing || !profile || !isProfileReady(profile)) {
-      setError('Complete your profile and upload a CV before applying.')
+    if (!listing) {
+      setError('Listing not available. Refresh and try again.')
+      return
+    }
+
+    // Check required profile fields and collect what's missing
+    const missing = []
+    if (!profile) {
+      missing.push('profile (personal details)')
+      missing.push('CV')
+    } else {
+      if (!profile.first_name?.trim()) missing.push('first name')
+      if (!profile.last_name?.trim()) missing.push('last name')
+      if (!profile.phone?.trim()) missing.push('phone number')
+      if (!profile.location?.trim()) missing.push('location')
+      if (!profile.date_of_birth) missing.push('date of birth')
+      if (!profile.id_number?.trim()) missing.push('ID number')
+      if (!profile.cv_url?.trim()) missing.push('CV')
+    }
+
+    if (missing.length > 0) {
+      setError(`Cannot apply: missing ${missing.join(', ')}.`)
       return
     }
 
@@ -226,11 +246,6 @@ export default function ApplicantListingDetail({ onLogout }) {
                 >
                   {isSubmitting ? 'Submitting...' : 'Apply now'}
                 </button>
-                {!isProfileReady(profile) ? (
-                  <p className="user-panel-copy applicant-detail-error" role="alert">
-                    You must complete your profile and upload a CV before applying. Click "Profile" to update your details.
-                  </p>
-                ) : null}
                 {confirmation ? (
                   <p className="user-panel-copy applicant-detail-confirmation" role="status">
                     {confirmation}
