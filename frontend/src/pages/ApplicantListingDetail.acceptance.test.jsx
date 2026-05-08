@@ -39,6 +39,8 @@ const detailSpies = vi.hoisted(() => ({
   applicationInsert: vi.fn(),
 }))
 
+const applicationInsertCalls = []
+
 vi.mock('../lib/supabaseClient', () => ({
   hasSupabaseConfig: true,
   supabase: {
@@ -79,7 +81,19 @@ vi.mock('../lib/supabaseClient', () => ({
       if (tableName === 'applications') {
         return {
           insert: detailSpies.applicationInsert.mockImplementation(async (payload) => {
+            applicationInsertCalls.push(payload)
             detailState.applicationInsertPayload = payload
+
+            if (payload.status === 'Pending') {
+              return {
+                data: null,
+                error: {
+                  message: 'new row for relation "applications" violates check constraint "applications_status_check"',
+                  details: 'status value not allowed',
+                },
+              }
+            }
+
             return { data: null, error: null }
           }),
         }
@@ -130,6 +144,7 @@ beforeEach(() => {
     status: 'Approved',
   }
   detailState.applicationInsertPayload = null
+  applicationInsertCalls.length = 0
 
   detailSpies.getSession.mockResolvedValue({
     data: { session: { user: { email: detailState.authEmail } } },
@@ -158,7 +173,7 @@ describe('Applicant listing detail acceptance tests', () => {
     expect(screen.getByText(/user-1\/ava-cv\.pdf/i)).toBeTruthy()
   })
 
-  test('submits an application using the saved profile and CV with Pending status', async () => {
+  test('submits an application using the saved profile and CV and falls back when Pending is rejected', async () => {
     const ApplicantListingDetail = await loadApplicantListingDetail()
 
     render(
@@ -173,11 +188,17 @@ describe('Applicant listing detail acceptance tests', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply now' }))
 
     await waitFor(() => {
-      expect(detailState.applicationInsertPayload).toEqual({
+      expect(applicationInsertCalls).toEqual([
+        {
         applicant_id: 'profile-1',
         opportunity_id: 'listing-1',
         status: 'Pending',
-      })
+        },
+        {
+          applicant_id: 'profile-1',
+          opportunity_id: 'listing-1',
+        },
+      ])
     })
 
     expect(

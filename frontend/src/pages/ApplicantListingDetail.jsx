@@ -169,11 +169,23 @@ export default function ApplicantListingDetail({ onLogout }) {
     setIsSubmitting(true)
     setError('')
 
-    const { error: insertError } = await supabase.from('applications').insert({
+    const applicationPayload = {
       applicant_id: profile.id,
       opportunity_id: listing.id,
       status: 'Pending',
-    })
+    }
+
+    let { error: insertError } = await supabase.from('applications').insert(applicationPayload)
+    let usedStatusFallback = false
+
+    if (insertError?.message?.includes('applications_status_check')) {
+      usedStatusFallback = true
+      const { error: fallbackError } = await supabase.from('applications').insert({
+        applicant_id: profile.id,
+        opportunity_id: listing.id,
+      })
+      insertError = fallbackError
+    }
 
     if (insertError) {
       // Log full error to console for debugging and show a more specific message
@@ -183,7 +195,12 @@ export default function ApplicantListingDetail({ onLogout }) {
       // eslint-disable-next-line no-console
       console.error('Application insert error:', insertError)
       const details = insertError.message || insertError.details || ''
-      setError(`Your application could not be submitted${details ? `: ${details}` : '. Please try again.'}`)
+      const fallbackHint = usedStatusFallback
+        ? ' The database rejected the Pending status value, so it retried without sending status.'
+        : ''
+      setError(
+        `Your application could not be submitted${details ? `: ${details}` : '. Please try again.'}${fallbackHint}`,
+      )
       setIsSubmitting(false)
       return
     }
