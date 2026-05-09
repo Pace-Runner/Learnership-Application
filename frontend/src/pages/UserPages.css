@@ -397,6 +397,32 @@
   line-height: 1.55;
 }
 
+.notification-read-btn,
+.notification-toggle-btn {
+  border: 1px solid rgba(167, 204, 255, 0.48);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #eff7ff;
+  padding: 0.42rem 0.78rem;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.notification-read-btn:hover,
+.notification-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(5, 15, 32, 0.18);
+}
+
+.notification-toggle-btn {
+  justify-self: start;
+}
+
 .application-list-item {
   display: grid;
   gap: 0.05rem;

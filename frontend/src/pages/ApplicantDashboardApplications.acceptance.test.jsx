@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 const dashboardState = vi.hoisted(() => ({
@@ -70,7 +70,7 @@ const dashboardSpies = vi.hoisted(() => ({
   profileMaybeSingle: vi.fn(),
   applicationsOrder: vi.fn(),
   notificationsOrder: vi.fn(),
-  notificationsMarkReadIn: vi.fn(),
+  notificationsMarkReadEq: vi.fn(),
   removeChannel: vi.fn(),
 }))
 
@@ -129,7 +129,7 @@ vi.mock('../lib/supabaseClient', () => ({
             }),
           }),
           update: () => ({
-            in: dashboardSpies.notificationsMarkReadIn,
+            eq: dashboardSpies.notificationsMarkReadEq,
           }),
         }
       }
@@ -239,7 +239,7 @@ beforeEach(() => {
     data: dashboardState.notificationsRows,
     error: null,
   }))
-  dashboardSpies.notificationsMarkReadIn.mockResolvedValue({ data: null, error: null })
+  dashboardSpies.notificationsMarkReadEq.mockResolvedValue({ data: null, error: null })
   dashboardSpies.removeChannel.mockResolvedValue({})
 })
 
@@ -264,7 +264,7 @@ describe('Applicant dashboard application tracking acceptance tests', () => {
     expect(screen.getByText('Rejected')).toBeTruthy()
   })
 
-  test('shows in-app notifications and marks unread ones as read when viewed', async () => {
+  test('shows unread notifications, marks them as read on click, and lets the applicant reveal read history', async () => {
     const Dashboard = await loadDashboard()
 
     render(
@@ -280,11 +280,20 @@ describe('Applicant dashboard application tracking acceptance tests', () => {
     })
 
     expect(screen.getByText('Your application for Business Administration NQF 4 is now Reviewed.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Mark as read' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as read' }))
 
     await waitFor(() => {
-      expect(dashboardSpies.notificationsMarkReadIn).toHaveBeenCalledWith('id', ['notification-1'])
+      expect(dashboardSpies.notificationsMarkReadEq).toHaveBeenCalledWith('id', 'notification-1')
     })
 
+    expect(screen.queryByText('Your application for Business Administration NQF 4 is now Reviewed.')).toBeNull()
+    expect(screen.getByText('You do not have any unread notifications right now.')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show read notifications' }))
+
+    expect(screen.getByText('Your application for Business Administration NQF 4 is now Reviewed.')).toBeTruthy()
     expect(screen.getByText('Read')).toBeTruthy()
   })
 
@@ -337,8 +346,8 @@ describe('Applicant dashboard application tracking acceptance tests', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText('No alerts')).toBeTruthy()
-    expect(screen.getByText('You do not have any notifications yet.')).toBeTruthy()
+    expect(await screen.findByText('No unread alerts')).toBeTruthy()
+    expect(screen.getByText('You do not have any unread notifications right now.')).toBeTruthy()
 
     dashboardState.notificationsRows = [
       {
@@ -359,5 +368,7 @@ describe('Applicant dashboard application tracking acceptance tests', () => {
     await waitFor(() => {
       expect(screen.getByText('Your application for Business Administration NQF 4 is now Accepted.')).toBeTruthy()
     })
+
+    expect(screen.getByRole('button', { name: 'Mark as read' })).toBeTruthy()
   })
 })
