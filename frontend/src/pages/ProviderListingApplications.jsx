@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
@@ -16,11 +16,12 @@ function getStatusClass(status) {
 
 export default function ProviderListingApplications() {
   const { listingId } = useParams()
-  const navigate = useNavigate()
+  
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [applications, setApplications] = useState([])
   const [listingTitle, setListingTitle] = useState('')
+  const [listingMeta, setListingMeta] = useState({})
   const [selectedApplicant, setSelectedApplicant] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -67,10 +68,10 @@ export default function ProviderListingApplications() {
       return
     }
 
-    // Verify the listing belongs to this provider and get title
+    // Verify the listing belongs to this provider and get details
     const { data: listingRow, error: listingError } = await supabase
       .from('opportunities')
-      .select('id,title,provider_id')
+      .select('id,title,provider_id,type,location,closing_date,monthly_stipend,description')
       .eq('id', listingId)
       .maybeSingle()
 
@@ -78,10 +79,16 @@ export default function ProviderListingApplications() {
       setError('Listing not found or you do not have permission to view it.')
       setIsLoading(false)
       return
-        const [error, setError] = useState('')
-        const [applications, setApplications] = useState([])
-        const [listingTitle, setListingTitle] = useState('')
-        const [listingMeta, setListingMeta] = useState({})
+    }
+
+    setListingTitle(listingRow.title || '')
+    setListingMeta({
+      type: listingRow.type || '',
+      location: listingRow.location || '',
+      closingDate: listingRow.closing_date || '',
+      monthlyStipend: listingRow.monthly_stipend || '',
+      description: listingRow.description || '',
+    })
 
     // Load applications joined with applicant profile fields and status
     const { data: appRows, error: appError } = await supabase
@@ -96,27 +103,20 @@ export default function ProviderListingApplications() {
       return
     }
 
-    const normalized = (appRows || []).map((row) => {
-      return {
-        id: row.id,
-        status: row.status || '',
-        appliedAt: row.applied_at,
-        applicant: row.applicant_profiles || {},
-      }
-    })
+    const normalized = (appRows || []).map((row) => ({
+      id: row.id,
+      status: row.status || '',
+      appliedAt: row.applied_at,
+      applicant: row.applicant_profiles || {},
+    }))
 
     // Resolve signed URL for CV if available
     const withCvLinks = await Promise.all(
       normalized.map(async (item) => {
         const cv = item.applicant?.cv_url || ''
 
-        if (!cv) {
-          return { ...item, cvLink: '' }
-        }
-
-        if (/^https?:\/\//i.test(cv)) {
-          return { ...item, cvLink: cv }
-        }
+        if (!cv) return { ...item, cvLink: '' }
+        if (/^https?:\/\//i.test(cv)) return { ...item, cvLink: cv }
 
         const authUserId = item.applicant?.user_id || ''
         const normalizedPath = cv.includes('/') ? cv : `${authUserId}/${cv}`
@@ -129,25 +129,14 @@ export default function ProviderListingApplications() {
       }),
     )
 
-            .select('id,title,provider_id,type,location,closing_date,monthly_stipend,description')
+    setApplications(withCvLinks)
     setIsLoading(false)
   }, [listingId])
 
   useEffect(() => {
-    let isMounted = true
     loadApplications()
-    return () => {
-      isMounted = false
-    }
+    return () => {}
   }, [loadApplications])
-          // attach additional metadata for display
-          setListingMeta({
-            type: listingRow.type || '',
-            location: listingRow.location || '',
-            closingDate: listingRow.closing_date || '',
-            monthlyStipend: listingRow.monthly_stipend || '',
-            description: listingRow.description || '',
-          })
 
   const handleUpdateStatus = async (appId, newStatus) => {
     if (!hasSupabaseConfig) return
@@ -161,7 +150,7 @@ export default function ProviderListingApplications() {
         // refresh list
         await loadApplications()
       }
-    } catch (e) {
+    } catch {
       setError('Unexpected error updating status.')
     } finally {
       setIsLoading(false)
@@ -197,6 +186,14 @@ export default function ProviderListingApplications() {
 
         <section className="user-panel provider-panel">
           <h2>{listingTitle ? `Applicants — ${listingTitle}` : 'Applicants'}</h2>
+          {listingMeta && listingMeta.type ? (
+            <div className="provider-detail" style={{ marginTop: '0.5rem' }}>
+              <small>{listingMeta.type} • {listingMeta.location}</small>
+              {listingMeta.monthlyStipend ? <div><strong>Stipend:</strong> {listingMeta.monthlyStipend}</div> : null}
+              {listingMeta.closingDate ? <div><strong>Closes:</strong> {listingMeta.closingDate}</div> : null}
+              {listingMeta.description ? <p style={{ marginTop: '0.45rem' }}>{listingMeta.description}</p> : null}
+            </div>
+          ) : null}
 
           {isLoading ? <p className="user-panel-copy">Loading applicants...</p> : null}
           {!isLoading && error ? <p className="user-panel-copy">{error}</p> : null}
