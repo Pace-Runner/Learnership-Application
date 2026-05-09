@@ -5,13 +5,14 @@ import './UserPages.css'
 
 const DOCS_BUCKET = 'applicant-documents'
 const APPLICATION_STATUS_OPTIONS = [
-  { value: 'Received', label: 'Pending' },
+  { value: 'Pending', label: 'Pending' },
   { value: 'Shortlisted', label: 'Reviewed' },
   { value: 'Offered', label: 'Accepted' },
   { value: 'Rejected', label: 'Rejected' },
 ]
 
 function getApplicationStatusLabel(status) {
+  if (status === 'Received') return 'Pending'
   return APPLICATION_STATUS_OPTIONS.find((option) => option.value === status)?.label || 'Pending'
 }
 
@@ -160,8 +161,8 @@ export default function ProviderListingApplications() {
         id: row.id,
         applicantId: row.applicant_id,
         appliedAt: row.applied_at,
-        status: row.status || 'Received',
-        statusDraft: row.status || 'Received',
+        status: row.status || 'Pending',
+        statusDraft: row.status === 'Received' ? 'Pending' : row.status || 'Pending',
         applicant: row.applicant_profiles || {},
       }))
 
@@ -219,10 +220,9 @@ export default function ProviderListingApplications() {
   }
 
   const handleStatusUpdate = async (application) => {
-    const nextStatus = application.statusDraft || application.status || 'Received'
+    const nextStatus = application.statusDraft || application.status || 'Pending'
     const applicantName = `${application.applicant?.first_name || 'Applicant'} ${application.applicant?.last_name || ''}`.trim()
     const statusLabel = getApplicationStatusLabel(nextStatus)
-    const emailSubject = `Application update: ${listingTitle || 'Your learnership application'}`
 
     setError('')
     setStatusMessage('')
@@ -241,39 +241,33 @@ export default function ProviderListingApplications() {
 
     let notificationError = null
     let emailError = null
+    const notificationMessage = `Your application for ${listingTitle || 'this listing'} is now ${statusLabel}.`
 
-    if (!application.applicant?.user_id) {
-      notificationError = { message: 'Applicant user reference not found.' }
-      emailError = { message: 'Applicant user reference not found.' }
+    const deliveryResult = await supabase.functions.invoke('send-status-email', {
+      body: {
+        applicationId: application.id,
+        applicantName,
+        listingTitle: listingTitle || 'this listing',
+        statusLabel,
+      },
+    })
+
+    if (deliveryResult.error) {
+      notificationError = deliveryResult.error
+      emailError = deliveryResult.error
     } else {
-      const notificationMessage = `Your application for ${listingTitle || 'this listing'} is now ${statusLabel}.`
-      const result = await supabase.from('notifications').insert({
+      notificationError = deliveryResult.data?.notificationSent ? null : { message: 'In-app notification was not sent.' }
+      emailError = deliveryResult.data?.emailSent ? null : { message: 'Email notification was not sent.' }
+    }
+
+    if (notificationError && application.applicant?.user_id) {
+      const fallbackNotification = await supabase.from('notifications').insert({
         user_id: application.applicant.user_id,
         type: 'status_update',
         message: notificationMessage,
       })
-      notificationError = result.error
 
-      const emailResult = await supabase.functions.invoke('send-status-email', {
-        body: {
-          applicantUserId: application.applicant.user_id,
-          applicantName,
-          listingTitle: listingTitle || 'this listing',
-          statusLabel,
-        },
-      })
-
-      emailError = emailResult.error
-
-      const { error: emailLogError } = await supabase.from('email_logs').insert({
-        user_id: application.applicant.user_id,
-        subject: emailSubject,
-        status: emailResult.error ? 'failed' : 'sent',
-      })
-
-      if (!emailError && emailLogError) {
-        emailError = emailLogError
-      }
+      notificationError = fallbackNotification.error
     }
 
     setApplications((current) =>

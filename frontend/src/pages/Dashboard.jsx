@@ -62,6 +62,7 @@ const availableListings = [
 
 const listingFilters = ['All', 'Learnership', 'Internship', 'Apprenticeship']
 const applicationStatusLabels = {
+  Received: 'Pending',
   Pending: 'Pending',
   Shortlisted: 'Reviewed',
   Offered: 'Accepted',
@@ -73,7 +74,7 @@ function getApplicationStatusLabel(status) {
 }
 
 function getApplicationStatusClass(status) {
-  if (status === 'Pending') {
+  if (status === 'Pending' || status === 'Received') {
     return 'status-chip status-chip-pending'
   }
 
