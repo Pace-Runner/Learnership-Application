@@ -2,7 +2,7 @@
 // PURPOSE: Display available learnership listings and quick stats
 // NOTE: Currently shows static/placeholder data; ready for Supabase integration
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
@@ -33,6 +33,68 @@ const availableListings = [
 ]
 
 const listingFilters = ['All', 'Learnership', 'Internship', 'Apprenticeship']
+const applicationStatusLabels = {
+  Pending: 'Pending',
+  Shortlisted: 'Reviewed',
+  Offered: 'Accepted',
+  Rejected: 'Rejected',
+}
+
+function getApplicationStatusLabel(status) {
+  return applicationStatusLabels[status] || status || 'Pending'
+}
+
+function getApplicationStatusClass(status) {
+  if (status === 'Pending') {
+    return 'status-chip status-chip-pending'
+  }
+
+  if (status === 'Reviewed') {
+    return 'status-chip status-chip-reviewed'
+  }
+
+  if (status === 'Accepted') {
+    return 'status-chip status-chip-accepted'
+  }
+
+  if (status === 'Rejected') {
+    return 'status-chip status-chip-rejected'
+  }
+
+  return 'status-chip status-chip-soft'
+}
+
+function formatApplicationDate(value) {
+  if (!value) {
+    return 'Date unavailable'
+  }
+
+  const parsedDate = new Date(value)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value
+  }
+
+  return parsedDate.toLocaleDateString('en-ZA', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function normalizeApplicationRow(row) {
+  const opportunity = row.opportunities || row.opportunity || {}
+
+  return {
+    id: row.id,
+    title: opportunity.title || 'Untitled opportunity',
+    type: opportunity.type || 'Not specified',
+    location: opportunity.location || 'Not specified',
+    closingDate: opportunity.closing_date || '',
+    appliedAt: row.applied_at || row.updated_at || '',
+    status: getApplicationStatusLabel(row.status),
+  }
+}
 
 function normalizeApprovedListing(row) {
   return {
@@ -76,18 +138,106 @@ function filterApprovedListings(listings, searchTerm, selectedType) {
 export default function Dashboard({ onLogout, listings }) {
   const hasListingsProp = Array.isArray(listings)
   const [dbApprovedListings, setDbApprovedListings] = useState([])
+  const [dbApplications, setDbApplications] = useState([])
+  const [applicantId, setApplicantId] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('All')
   const [submittedSearchTerm, setSubmittedSearchTerm] = useState('')
   const [submittedType, setSubmittedType] = useState('All')
   const [searchError, setSearchError] = useState('')
   const [isLoadingListings, setIsLoadingListings] = useState(false)
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false)
+  const [applicationError, setApplicationError] = useState('')
   const [isApplyingSearch, setIsApplyingSearch] = useState(false)
   const searchFeedbackTimeoutRef = useRef(null)
+  const mountedRef = useRef(false)
+
+  const loadApplicantApplications = useCallback(async () => {
+    if (hasListingsProp || !hasSupabaseConfig || !mountedRef.current) {
+      return
+    }
+
+    setIsLoadingApplications(true)
+    setApplicationError('')
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+    const email = sessionData?.session?.user?.email
+
+    if (!mountedRef.current) {
+      return
+    }
+
+    if (sessionError || !email) {
+      setDbApplications([])
+      setApplicationError('We could not identify your applicant account.')
+      setIsLoadingApplications(false)
+      return
+    }
+
+    const { data: userRow, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (!mountedRef.current) {
+      return
+    }
+
+    if (userError || !userRow?.id) {
+      setDbApplications([])
+      setApplicationError('Your applicant account was not found.')
+      setIsLoadingApplications(false)
+      return
+    }
+
+    const { data: profileRow, error: profileError } = await supabase
+      .from('applicant_profiles')
+      .select('id,user_id')
+      .eq('user_id', userRow.id)
+      .maybeSingle()
+
+    if (!mountedRef.current) {
+      return
+    }
+
+    if (profileError || !profileRow?.id) {
+      setDbApplications([])
+      setApplicationError('Your applicant profile is not ready yet.')
+      setIsLoadingApplications(false)
+      return
+    }
+
+    setApplicantId(profileRow.id)
+
+    const { data: applicationRows, error: applicationRowsError } = await supabase
+      .from('applications')
+      .select('id,status,applied_at,updated_at,opportunities:opportunity_id(id,title,type,location,closing_date)')
+      .eq('applicant_id', profileRow.id)
+      .order('updated_at', { ascending: false })
+
+    if (!mountedRef.current) {
+      return
+    }
+
+    if (applicationRowsError) {
+      setDbApplications([])
+      setApplicationError('We could not load your applications right now.')
+      setIsLoadingApplications(false)
+      return
+    }
+
+    setDbApplications((applicationRows || []).map(normalizeApplicationRow))
+    setIsLoadingApplications(false)
+  }, [hasListingsProp])
 
   useEffect(() => {
+    mountedRef.current = true
+
     if (hasListingsProp || !hasSupabaseConfig) {
-      return
+      return () => {
+        mountedRef.current = false
+      }
     }
 
     let isMounted = true
@@ -124,6 +274,44 @@ export default function Dashboard({ onLogout, listings }) {
       isMounted = false
     }
   }, [hasListingsProp])
+
+  useEffect(() => {
+    if (hasListingsProp || !hasSupabaseConfig) {
+      return undefined
+    }
+
+    loadApplicantApplications()
+
+    return () => {
+      mountedRef.current = false
+    }
+  }, [hasListingsProp, loadApplicantApplications])
+
+  useEffect(() => {
+    if (hasListingsProp || !hasSupabaseConfig || !applicantId) {
+      return undefined
+    }
+
+    const applicationsChannel = supabase
+      .channel(`applicant-applications-${applicantId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'applications',
+          filter: `applicant_id=eq.${applicantId}`,
+        },
+        () => {
+          loadApplicantApplications()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(applicationsChannel)
+    }
+  }, [applicantId, hasListingsProp, loadApplicantApplications])
 
   useEffect(() => {
     return () => {
@@ -163,6 +351,7 @@ export default function Dashboard({ onLogout, listings }) {
   }
 
   const hasActiveSearch = Boolean(submittedSearchTerm.trim() || submittedType !== 'All')
+  const hasApplications = dbApplications.length > 0
 
   return (
     <main className="user-page applicant-theme user-discovery-shell">
@@ -217,6 +406,45 @@ export default function Dashboard({ onLogout, listings }) {
       </section>
 
       <section className="user-content-grid">
+        {!hasListingsProp ? (
+          <article className="user-panel user-panel-alt my-applications-panel">
+            <div className="provider-panel-head">
+              <section>
+                <p className="provider-panel-kicker">Applicant status tracker</p>
+                <h2>My Applications</h2>
+              </section>
+              <span className="status-chip status-chip-soft">Live updates</span>
+            </div>
+
+            {isLoadingApplications ? (
+              <p className="user-panel-copy">Loading your applications...</p>
+            ) : applicationError ? (
+              <p className="user-panel-copy">{applicationError}</p>
+            ) : hasApplications ? (
+              <ul className="user-list application-list">
+                {dbApplications.map((application) => (
+                  <li key={application.id} className="application-list-item">
+                    <div className="application-list-row">
+                      <strong>{application.title}</strong>
+                      <span className={getApplicationStatusClass(application.status)}>{application.status}</span>
+                    </div>
+                    <small className="user-item-meta">{application.type}</small>
+                    <small className="user-item-meta">{application.location}</small>
+                    <small className="user-item-meta">
+                      Applied on {formatApplicationDate(application.appliedAt)}
+                    </small>
+                    {application.closingDate ? (
+                      <small className="user-item-meta">Closing date: {application.closingDate}</small>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="user-panel-copy">You have not submitted any applications yet.</p>
+            )}
+          </article>
+        ) : null}
+
         <article className="user-panel">
           <h2>Current Listings and Internships</h2>
           {searchError ? <p className="user-panel-copy">{searchError}</p> : null}

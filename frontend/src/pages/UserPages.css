@@ -150,6 +150,21 @@
   background: rgba(255, 140, 140, 0.14);
 }
 
+.status-chip-reviewed {
+  border-color: rgba(146, 198, 255, 0.64);
+  background: rgba(146, 198, 255, 0.14);
+}
+
+.status-chip-accepted {
+  border-color: rgba(126, 234, 163, 0.64);
+  background: rgba(126, 234, 163, 0.14);
+}
+
+.status-chip-rejected {
+  border-color: rgba(255, 145, 145, 0.64);
+  background: rgba(255, 145, 145, 0.14);
+}
+
 .provider-note {
   border-left: 2px solid rgba(255, 183, 135, 0.8);
   padding-left: 0.7rem;
@@ -317,6 +332,34 @@
   display: grid;
   gap: 0.55rem;
   align-content: start;
+}
+
+.my-applications-panel {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.application-list-item {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.application-list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.application-list-row strong {
+  margin-top: 0;
+  line-height: 1.25;
+}
+
+.application-list .status-chip {
+  margin-top: 0;
+  white-space: nowrap;
 }
 
 .applicant-detail-confirmation {
