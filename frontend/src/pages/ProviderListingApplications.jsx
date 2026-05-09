@@ -144,7 +144,7 @@ export default function ProviderListingApplications() {
 
       const { data: applicationRows, error: applicationError } = await supabase
         .from('applications')
-        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,about_me,cv_url,users:user_id(email))')
+        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,about_me,cv_url)')
         .eq('opportunity_id', listingId)
         .order('applied_at', { ascending: false })
 
@@ -156,21 +156,14 @@ export default function ProviderListingApplications() {
         return
       }
 
-      const normalizedApplications = (applicationRows || []).map((row) => {
-        const applicantProfile = row.applicant_profiles || {}
-
-        return {
-          id: row.id,
-          applicantId: row.applicant_id,
-          appliedAt: row.applied_at,
-          status: row.status || 'Received',
-          statusDraft: row.status || 'Received',
-          applicant: {
-            ...applicantProfile,
-            email: applicantProfile?.users?.email || '',
-          },
-        }
-      })
+      const normalizedApplications = (applicationRows || []).map((row) => ({
+        id: row.id,
+        applicantId: row.applicant_id,
+        appliedAt: row.applied_at,
+        status: row.status || 'Received',
+        statusDraft: row.status || 'Received',
+        applicant: row.applicant_profiles || {},
+      }))
 
       const withCvLinks = await Promise.all(
         normalizedApplications.map(async (item) => {
@@ -228,7 +221,6 @@ export default function ProviderListingApplications() {
   const handleStatusUpdate = async (application) => {
     const nextStatus = application.statusDraft || application.status || 'Received'
     const applicantName = `${application.applicant?.first_name || 'Applicant'} ${application.applicant?.last_name || ''}`.trim()
-    const applicantEmail = application.applicant?.email || ''
     const statusLabel = getApplicationStatusLabel(nextStatus)
     const emailSubject = `Application update: ${listingTitle || 'Your learnership application'}`
 
@@ -250,7 +242,10 @@ export default function ProviderListingApplications() {
     let notificationError = null
     let emailError = null
 
-    if (application.applicant?.user_id) {
+    if (!application.applicant?.user_id) {
+      notificationError = { message: 'Applicant user reference not found.' }
+      emailError = { message: 'Applicant user reference not found.' }
+    } else {
       const notificationMessage = `Your application for ${listingTitle || 'this listing'} is now ${statusLabel}.`
       const result = await supabase.from('notifications').insert({
         user_id: application.applicant.user_id,
@@ -258,37 +253,26 @@ export default function ProviderListingApplications() {
         message: notificationMessage,
       })
       notificationError = result.error
-    }
 
-    if (application.applicant?.user_id) {
-      if (applicantEmail) {
-        const emailResult = await supabase.functions.invoke('send-status-email', {
-          body: {
-            toEmail: applicantEmail,
-            applicantName,
-            listingTitle: listingTitle || 'this listing',
-            statusLabel,
-          },
-        })
+      const emailResult = await supabase.functions.invoke('send-status-email', {
+        body: {
+          applicantUserId: application.applicant.user_id,
+          applicantName,
+          listingTitle: listingTitle || 'this listing',
+          statusLabel,
+        },
+      })
 
-        emailError = emailResult.error
+      emailError = emailResult.error
 
-        const { error: emailLogError } = await supabase.from('email_logs').insert({
-          user_id: application.applicant.user_id,
-          subject: emailSubject,
-          status: emailResult.error ? 'failed' : 'sent',
-        })
+      const { error: emailLogError } = await supabase.from('email_logs').insert({
+        user_id: application.applicant.user_id,
+        subject: emailSubject,
+        status: emailResult.error ? 'failed' : 'sent',
+      })
 
-        if (!emailError && emailLogError) {
-          emailError = emailLogError
-        }
-      } else {
-        emailError = { message: 'Applicant email not found.' }
-        await supabase.from('email_logs').insert({
-          user_id: application.applicant.user_id,
-          subject: emailSubject,
-          status: 'failed',
-        })
+      if (!emailError && emailLogError) {
+        emailError = emailLogError
       }
     }
 
