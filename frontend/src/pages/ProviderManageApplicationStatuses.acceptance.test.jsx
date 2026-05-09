@@ -15,7 +15,6 @@ const mockState = {
   updatedApplicationPayload: null,
   updatedApplicationId: '',
   insertedNotificationPayload: null,
-  insertedEmailLogPayload: null,
   invokedEmailFunction: '',
   invokedEmailPayload: null,
 }
@@ -79,15 +78,6 @@ function buildTableQuery(tableName) {
     }
   }
 
-  if (tableName === 'email_logs') {
-    return {
-      insert: vi.fn(async (payload) => {
-        mockState.insertedEmailLogPayload = payload
-        return { data: null, error: null }
-      }),
-    }
-  }
-
   return {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -113,7 +103,7 @@ vi.mock('../lib/supabaseClient', () => ({
         mockState.invokedEmailPayload = options?.body || null
         return mockState.emailInvokeError
           ? { data: null, error: mockState.emailInvokeError }
-          : { data: { success: true }, error: null }
+          : { data: { success: true, notificationSent: true, emailSent: true }, error: null }
       }),
     },
     storage: {
@@ -146,7 +136,7 @@ beforeEach(() => {
     {
       id: 'application-1',
       applicant_id: 'profile-1',
-      status: 'Received',
+      status: 'Pending',
       applied_at: '2026-05-08T09:00:00.000Z',
       applicant_profiles: {
         user_id: 'app-user-1',
@@ -163,7 +153,6 @@ beforeEach(() => {
   mockState.updatedApplicationPayload = null
   mockState.updatedApplicationId = ''
   mockState.insertedNotificationPayload = null
-  mockState.insertedEmailLogPayload = null
   mockState.invokedEmailFunction = ''
   mockState.invokedEmailPayload = null
 })
@@ -203,27 +192,7 @@ describe('Provider manage application statuses acceptance tests', () => {
     expect(mockState.updatedApplicationPayload.updated_at).toBeTruthy()
   })
 
-  test('3. Changing an applicant status triggers a status_update notification for the applicant', async () => {
-    renderApplicationsPage()
-
-    expect(await screen.findByText('Ava Dlamini')).toBeTruthy()
-
-    fireEvent.change(screen.getByLabelText('Application status for Ava Dlamini'), {
-      target: { value: 'Offered' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Update status' }))
-
-    await waitFor(() => {
-      expect(mockState.insertedNotificationPayload).toBeTruthy()
-    })
-
-    expect(mockState.insertedNotificationPayload.user_id).toBe('app-user-1')
-    expect(mockState.insertedNotificationPayload.type).toBe('status_update')
-    expect(mockState.insertedNotificationPayload.message).toContain('Accepted')
-    expect(mockState.insertedNotificationPayload.message).toContain('IT Support Internship 2026')
-  })
-
-  test('4. Changing an applicant status triggers the email function and records a sent email log', async () => {
+  test('3. Changing an applicant status triggers the status delivery function for in-app notification', async () => {
     renderApplicationsPage()
 
     expect(await screen.findByText('Ava Dlamini')).toBeTruthy()
@@ -239,16 +208,30 @@ describe('Provider manage application statuses acceptance tests', () => {
 
     expect(mockState.invokedEmailFunction).toBe('send-status-email')
     expect(mockState.invokedEmailPayload).toEqual({
-      applicantUserId: 'app-user-1',
+      applicationId: 'application-1',
       applicantName: 'Ava Dlamini',
       listingTitle: 'IT Support Internship 2026',
       statusLabel: 'Accepted',
     })
-    expect(mockState.insertedEmailLogPayload).toEqual({
-      user_id: 'app-user-1',
-      subject: 'Application update: IT Support Internship 2026',
-      status: 'sent',
+  })
+
+  test('4. Changing an applicant status uses Pending as the database value instead of Received', async () => {
+    mockState.applicationRows[0].status = 'Received'
+
+    renderApplicationsPage()
+
+    expect(await screen.findByText('Ava Dlamini')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Application status for Ava Dlamini'), {
+      target: { value: 'Pending' },
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Update status' }))
+
+    await waitFor(() => {
+      expect(mockState.updatedApplicationPayload).toBeTruthy()
+    })
+
+    expect(mockState.updatedApplicationPayload.status).toBe('Pending')
   })
 
   test('5. The visible application status updates after saving the provider action', async () => {
@@ -263,5 +246,29 @@ describe('Provider manage application statuses acceptance tests', () => {
 
     expect(await screen.findByText('Current status: Rejected')).toBeTruthy()
     expect(screen.getByText('Updated Ava Dlamini to Rejected.')).toBeTruthy()
+  })
+
+  test('6. If the email function fails, the applicant still gets an in-app notification fallback', async () => {
+    mockState.emailInvokeError = { message: 'Function not deployed yet.' }
+
+    renderApplicationsPage()
+
+    expect(await screen.findByText('Ava Dlamini')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Application status for Ava Dlamini'), {
+      target: { value: 'Offered' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Update status' }))
+
+    await waitFor(() => {
+      expect(mockState.insertedNotificationPayload).toBeTruthy()
+    })
+
+    expect(mockState.insertedNotificationPayload).toEqual({
+      user_id: 'app-user-1',
+      type: 'status_update',
+      message: 'Your application for IT Support Internship 2026 is now Accepted.',
+    })
+    expect(screen.getByText('Updated Ava Dlamini to Accepted, but the email notification could not be sent.')).toBeTruthy()
   })
 })

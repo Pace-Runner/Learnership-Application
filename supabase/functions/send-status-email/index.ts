@@ -17,9 +17,9 @@ serve(async (request) => {
   }
 
   try {
-    const { applicantUserId, applicantName, listingTitle, statusLabel } = await request.json()
+    const { applicationId, applicantName, listingTitle, statusLabel } = await request.json()
 
-    if (!applicantUserId || !listingTitle || !statusLabel) {
+    if (!applicationId || !listingTitle || !statusLabel) {
       return new Response(
         JSON.stringify({ error: 'Missing required email payload fields.' }),
         {
@@ -33,16 +33,6 @@ serve(async (request) => {
     const resendFromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Learnership Portal <onboarding@resend.dev>'
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
-    if (!resendApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Missing RESEND_API_KEY secret.' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
-    }
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
       return new Response(
@@ -61,15 +51,15 @@ serve(async (request) => {
       },
     })
 
-    const { data: recipientUser, error: recipientLookupError } = await adminClient
-      .from('users')
-      .select('email')
-      .eq('id', applicantUserId)
+    const { data: applicationRow, error: applicationLookupError } = await adminClient
+      .from('applications')
+      .select('id,applicant_id')
+      .eq('id', applicationId)
       .maybeSingle()
 
-    if (recipientLookupError || !recipientUser?.email) {
+    if (applicationLookupError || !applicationRow?.applicant_id) {
       return new Response(
-        JSON.stringify({ error: 'Could not resolve applicant email address.' }),
+        JSON.stringify({ error: 'Could not resolve application applicant.' }),
         {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -77,7 +67,72 @@ serve(async (request) => {
       )
     }
 
-    const safeApplicantName = applicantName || 'Applicant'
+    const { data: applicantProfile, error: applicantLookupError } = await adminClient
+      .from('applicant_profiles')
+      .select('user_id,first_name,last_name')
+      .eq('id', applicationRow.applicant_id)
+      .maybeSingle()
+
+    if (applicantLookupError || !applicantProfile?.user_id) {
+      return new Response(
+        JSON.stringify({ error: 'Could not resolve applicant profile user.' }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    const notificationMessage = `Your application for ${listingTitle} is now ${statusLabel}.`
+    const { error: notificationError } = await adminClient
+      .from('notifications')
+      .insert({
+        user_id: applicantProfile.user_id,
+        type: 'status_update',
+        message: notificationMessage,
+      })
+
+    if (notificationError) {
+      return new Response(
+        JSON.stringify({ error: 'Could not create in-app notification.' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    const { data: recipientUser } = await adminClient
+      .from('users')
+      .select('email')
+      .eq('id', applicantProfile.user_id)
+      .maybeSingle()
+
+    if (!resendApiKey || !recipientUser?.email) {
+      await adminClient
+        .from('email_logs')
+        .insert({
+          user_id: applicantProfile.user_id,
+          subject: `Application update: ${listingTitle}`,
+          status: 'failed',
+        })
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          notificationSent: true,
+          emailSent: false,
+          error: !resendApiKey ? 'Missing RESEND_API_KEY secret.' : 'Could not resolve applicant email address.',
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    const fallbackApplicantName = `${applicantProfile.first_name || 'Applicant'} ${applicantProfile.last_name || ''}`.trim()
+    const safeApplicantName = applicantName || fallbackApplicantName
     const subject = `Application update: ${listingTitle}`
     const html = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #10223d;">
@@ -103,12 +158,22 @@ serve(async (request) => {
     })
 
     if (!resendResponse.ok) {
-      const errorBody = await resendResponse.text()
+      await adminClient
+        .from('email_logs')
+        .insert({
+          user_id: applicantProfile.user_id,
+          subject,
+          status: 'failed',
+        })
 
       return new Response(
-        JSON.stringify({ error: errorBody || 'Resend request failed.' }),
+        JSON.stringify({
+          success: true,
+          notificationSent: true,
+          emailSent: false,
+        }),
         {
-          status: 500,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       )
@@ -116,8 +181,22 @@ serve(async (request) => {
 
     const resendPayload = await resendResponse.json()
 
+    await adminClient
+      .from('email_logs')
+      .insert({
+        user_id: applicantProfile.user_id,
+        subject,
+        status: 'sent',
+      })
+
     return new Response(
-      JSON.stringify({ success: true, id: resendPayload.id, subject }),
+      JSON.stringify({
+        success: true,
+        notificationSent: true,
+        emailSent: true,
+        id: resendPayload.id,
+        subject,
+      }),
       {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
