@@ -1,7 +1,8 @@
-// SUPABASE EDGE FUNCTION: Sends applicant status update emails through Resend.
+// SUPABASE EDGE FUNCTION: Sends applicant status update emails through Brevo.
 // REQUIRED SECRETS:
-// - RESEND_API_KEY
-// - RESEND_FROM_EMAIL
+// - BREVO_API_KEY
+// - BREVO_FROM_EMAIL
+// - BREVO_FROM_NAME
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -29,8 +30,9 @@ serve(async (request) => {
       )
     }
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    const resendFromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Learnership Portal <onboarding@resend.dev>'
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY')
+    const brevoFromEmail = Deno.env.get('BREVO_FROM_EMAIL')
+    const brevoFromName = Deno.env.get('BREVO_FROM_NAME') || 'Learnership Portal'
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
@@ -108,7 +110,7 @@ serve(async (request) => {
       .eq('id', applicantProfile.user_id)
       .maybeSingle()
 
-    if (!resendApiKey || !recipientUser?.email) {
+    if (!brevoApiKey || !brevoFromEmail || !recipientUser?.email) {
       await adminClient
         .from('email_logs')
         .insert({
@@ -122,7 +124,11 @@ serve(async (request) => {
           success: true,
           notificationSent: true,
           emailSent: false,
-          error: !resendApiKey ? 'Missing RESEND_API_KEY secret.' : 'Could not resolve applicant email address.',
+          error: !brevoApiKey
+            ? 'Missing BREVO_API_KEY secret.'
+            : !brevoFromEmail
+              ? 'Missing BREVO_FROM_EMAIL secret.'
+              : 'Could not resolve applicant email address.',
         }),
         {
           status: 200,
@@ -143,21 +149,29 @@ serve(async (request) => {
       </div>
     `
 
-    const resendResponse = await fetch('https://api.resend.com/emails', {
+    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${resendApiKey}`,
+        'api-key': brevoApiKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: resendFromEmail,
-        to: [recipientUser.email],
+        sender: {
+          name: brevoFromName,
+          email: brevoFromEmail,
+        },
+        to: [
+          {
+            email: recipientUser.email,
+            name: safeApplicantName,
+          },
+        ],
         subject,
-        html,
+        htmlContent: html,
       }),
     })
 
-    if (!resendResponse.ok) {
+    if (!brevoResponse.ok) {
       await adminClient
         .from('email_logs')
         .insert({
@@ -179,7 +193,7 @@ serve(async (request) => {
       )
     }
 
-    const resendPayload = await resendResponse.json()
+    const brevoPayload = await brevoResponse.json()
 
     await adminClient
       .from('email_logs')
@@ -194,7 +208,7 @@ serve(async (request) => {
         success: true,
         notificationSent: true,
         emailSent: true,
-        id: resendPayload.id,
+        id: brevoPayload.messageId,
         subject,
       }),
       {
