@@ -52,8 +52,16 @@ const dashboardState = vi.hoisted(() => ({
       },
     },
   ],
-  channelCallback: null,
-  subscribedChannelName: '',
+  notificationsRows: [
+    {
+      id: 'notification-1',
+      type: 'status_update',
+      message: 'Your application for Business Administration NQF 4 is now Reviewed.',
+      read: false,
+      created_at: '2026-05-05T08:15:00.000Z',
+    },
+  ],
+  channelCallbacks: {},
 }))
 
 const dashboardSpies = vi.hoisted(() => ({
@@ -61,6 +69,8 @@ const dashboardSpies = vi.hoisted(() => ({
   userMaybeSingle: vi.fn(),
   profileMaybeSingle: vi.fn(),
   applicationsOrder: vi.fn(),
+  notificationsOrder: vi.fn(),
+  notificationsMarkReadIn: vi.fn(),
   removeChannel: vi.fn(),
 }))
 
@@ -111,6 +121,19 @@ vi.mock('../lib/supabaseClient', () => ({
         }
       }
 
+      if (tableName === 'notifications') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: dashboardSpies.notificationsOrder,
+            }),
+          }),
+          update: () => ({
+            in: dashboardSpies.notificationsMarkReadIn,
+          }),
+        }
+      }
+
       return {
         select: () => ({
           eq: () => ({
@@ -120,11 +143,9 @@ vi.mock('../lib/supabaseClient', () => ({
       }
     }),
     channel: vi.fn((channelName) => {
-      dashboardState.subscribedChannelName = channelName
-
       const channel = {
         on: vi.fn((eventName, options, callback) => {
-          dashboardState.channelCallback = callback
+          dashboardState.channelCallbacks[channelName] = callback
           return channel
         }),
         subscribe: vi.fn(() => channel),
@@ -193,8 +214,16 @@ beforeEach(() => {
       },
     },
   ]
-  dashboardState.channelCallback = null
-  dashboardState.subscribedChannelName = ''
+  dashboardState.notificationsRows = [
+    {
+      id: 'notification-1',
+      type: 'status_update',
+      message: 'Your application for Business Administration NQF 4 is now Reviewed.',
+      read: false,
+      created_at: '2026-05-05T08:15:00.000Z',
+    },
+  ]
+  dashboardState.channelCallbacks = {}
 
   dashboardSpies.getSession.mockResolvedValue({
     data: { session: { user: { email: dashboardState.authEmail } } },
@@ -206,6 +235,11 @@ beforeEach(() => {
     data: dashboardState.applicationRows,
     error: null,
   }))
+  dashboardSpies.notificationsOrder.mockImplementation(async () => ({
+    data: dashboardState.notificationsRows,
+    error: null,
+  }))
+  dashboardSpies.notificationsMarkReadIn.mockResolvedValue({ data: null, error: null })
   dashboardSpies.removeChannel.mockResolvedValue({})
 })
 
@@ -228,6 +262,30 @@ describe('Applicant dashboard application tracking acceptance tests', () => {
     expect(screen.getByText('Reviewed')).toBeTruthy()
     expect(screen.getByText('Accepted')).toBeTruthy()
     expect(screen.getByText('Rejected')).toBeTruthy()
+  })
+
+  test('shows in-app notifications and marks unread ones as read when viewed', async () => {
+    const Dashboard = await loadDashboard()
+
+    render(
+      <MemoryRouter>
+        <Dashboard onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Notifications')).toBeTruthy()
+
+    await waitFor(() => {
+      expect(dashboardSpies.notificationsOrder).toHaveBeenCalled()
+    })
+
+    expect(screen.getByText('Your application for Business Administration NQF 4 is now Reviewed.')).toBeTruthy()
+
+    await waitFor(() => {
+      expect(dashboardSpies.notificationsMarkReadIn).toHaveBeenCalledWith('id', ['notification-1'])
+    })
+
+    expect(screen.getByText('Read')).toBeTruthy()
   })
 
   test('refreshes the status display when a realtime application update arrives', async () => {
@@ -256,15 +314,50 @@ describe('Applicant dashboard application tracking acceptance tests', () => {
     ]
 
     await waitFor(() => {
-      expect(typeof dashboardState.channelCallback).toBe('function')
+      expect(typeof dashboardState.channelCallbacks['applicant-applications-profile-1']).toBe('function')
     })
 
-    await dashboardState.channelCallback()
+    await dashboardState.channelCallbacks['applicant-applications-profile-1']()
 
     await waitFor(() => {
       expect(screen.getByText('Accepted')).toBeTruthy()
     })
 
     expect(screen.queryByText('Pending')).toBeNull()
+  })
+
+  test('refreshes the notification inbox when a realtime notification arrives', async () => {
+    const Dashboard = await loadDashboard()
+
+    dashboardState.notificationsRows = []
+
+    render(
+      <MemoryRouter>
+        <Dashboard onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('No alerts')).toBeTruthy()
+    expect(screen.getByText('You do not have any notifications yet.')).toBeTruthy()
+
+    dashboardState.notificationsRows = [
+      {
+        id: 'notification-2',
+        type: 'status_update',
+        message: 'Your application for Business Administration NQF 4 is now Accepted.',
+        read: false,
+        created_at: '2026-05-06T11:45:00.000Z',
+      },
+    ]
+
+    await waitFor(() => {
+      expect(typeof dashboardState.channelCallbacks['applicant-notifications-user-1']).toBe('function')
+    })
+
+    await dashboardState.channelCallbacks['applicant-notifications-user-1']()
+
+    await waitFor(() => {
+      expect(screen.getByText('Your application for Business Administration NQF 4 is now Accepted.')).toBeTruthy()
+    })
   })
 })

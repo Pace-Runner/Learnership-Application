@@ -144,7 +144,7 @@ export default function ProviderListingApplications() {
 
       const { data: applicationRows, error: applicationError } = await supabase
         .from('applications')
-        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,about_me,cv_url)')
+        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,about_me,cv_url,users:user_id(email))')
         .eq('opportunity_id', listingId)
         .order('applied_at', { ascending: false })
 
@@ -156,14 +156,21 @@ export default function ProviderListingApplications() {
         return
       }
 
-      const normalizedApplications = (applicationRows || []).map((row) => ({
-        id: row.id,
-        applicantId: row.applicant_id,
-        appliedAt: row.applied_at,
-        status: row.status || 'Received',
-        statusDraft: row.status || 'Received',
-        applicant: row.applicant_profiles || {},
-      }))
+      const normalizedApplications = (applicationRows || []).map((row) => {
+        const applicantProfile = row.applicant_profiles || {}
+
+        return {
+          id: row.id,
+          applicantId: row.applicant_id,
+          appliedAt: row.applied_at,
+          status: row.status || 'Received',
+          statusDraft: row.status || 'Received',
+          applicant: {
+            ...applicantProfile,
+            email: applicantProfile?.users?.email || '',
+          },
+        }
+      })
 
       const withCvLinks = await Promise.all(
         normalizedApplications.map(async (item) => {
@@ -221,6 +228,9 @@ export default function ProviderListingApplications() {
   const handleStatusUpdate = async (application) => {
     const nextStatus = application.statusDraft || application.status || 'Received'
     const applicantName = `${application.applicant?.first_name || 'Applicant'} ${application.applicant?.last_name || ''}`.trim()
+    const applicantEmail = application.applicant?.email || ''
+    const statusLabel = getApplicationStatusLabel(nextStatus)
+    const emailSubject = `Application update: ${listingTitle || 'Your learnership application'}`
 
     setError('')
     setStatusMessage('')
@@ -238,15 +248,48 @@ export default function ProviderListingApplications() {
     }
 
     let notificationError = null
+    let emailError = null
 
     if (application.applicant?.user_id) {
-      const notificationMessage = `Your application for ${listingTitle || 'this listing'} is now ${getApplicationStatusLabel(nextStatus)}.`
+      const notificationMessage = `Your application for ${listingTitle || 'this listing'} is now ${statusLabel}.`
       const result = await supabase.from('notifications').insert({
         user_id: application.applicant.user_id,
         type: 'status_update',
         message: notificationMessage,
       })
       notificationError = result.error
+    }
+
+    if (application.applicant?.user_id) {
+      if (applicantEmail) {
+        const emailResult = await supabase.functions.invoke('send-status-email', {
+          body: {
+            toEmail: applicantEmail,
+            applicantName,
+            listingTitle: listingTitle || 'this listing',
+            statusLabel,
+          },
+        })
+
+        emailError = emailResult.error
+
+        const { error: emailLogError } = await supabase.from('email_logs').insert({
+          user_id: application.applicant.user_id,
+          subject: emailSubject,
+          status: emailResult.error ? 'failed' : 'sent',
+        })
+
+        if (!emailError && emailLogError) {
+          emailError = emailLogError
+        }
+      } else {
+        emailError = { message: 'Applicant email not found.' }
+        await supabase.from('email_logs').insert({
+          user_id: application.applicant.user_id,
+          subject: emailSubject,
+          status: 'failed',
+        })
+      }
     }
 
     setApplications((current) =>
@@ -262,11 +305,27 @@ export default function ProviderListingApplications() {
         : current
     ))
     setUpdatingApplicationId('')
-    setStatusMessage(
-      notificationError
-        ? `Updated ${applicantName} to ${getApplicationStatusLabel(nextStatus)}, but notification could not be sent.`
-        : `Updated ${applicantName} to ${getApplicationStatusLabel(nextStatus)}.`,
-    )
+
+    const failedDeliveries = []
+
+    if (notificationError) {
+      failedDeliveries.push('the in-app notification')
+    }
+
+    if (emailError) {
+      failedDeliveries.push('the email notification')
+    }
+
+    if (failedDeliveries.length > 0) {
+      const joinedFailures = failedDeliveries.length === 1
+        ? failedDeliveries[0]
+        : `${failedDeliveries.slice(0, -1).join(', ')} and ${failedDeliveries[failedDeliveries.length - 1]}`
+
+      setStatusMessage(`Updated ${applicantName} to ${statusLabel}, but ${joinedFailures} could not be sent.`)
+      return
+    }
+
+    setStatusMessage(`Updated ${applicantName} to ${statusLabel}.`)
   }
 
   const openApplicantModal = (application) => {

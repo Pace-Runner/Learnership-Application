@@ -115,3 +115,52 @@ create policy "skill_tags_read"
   for select
   to authenticated
   using (true);
+
+-- Enable RLS on notifications
+alter table notifications enable row level security;
+
+-- Applicants can read only their own notifications
+drop policy if exists "notifications_select_own" on notifications;
+create policy "notifications_select_own"
+  on notifications
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from users u
+      where u.id = notifications.user_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+  );
+
+-- Applicants can mark only their own notifications as read
+drop policy if exists "notifications_update_own" on notifications;
+create policy "notifications_update_own"
+  on notifications
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from users u
+      where u.id = notifications.user_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from users u
+      where u.id = notifications.user_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+  );
+
+-- Providers currently insert status-update notifications from the client-side flow.
+drop policy if exists "notifications_insert_authenticated" on notifications;
+create policy "notifications_insert_authenticated"
+  on notifications
+  for insert
+  to authenticated
+  with check (true);

@@ -110,6 +110,42 @@ function formatApplicationDate(value) {
   })
 }
 
+function formatNotificationDate(value) {
+  if (!value) {
+    return 'Just now'
+  }
+
+  const parsedDate = new Date(value)
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value
+  }
+
+  return parsedDate.toLocaleString('en-ZA', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function getNotificationTypeLabel(type) {
+  if (type === 'status_update') {
+    return 'Application update'
+  }
+
+  if (type === 'new_opportunity') {
+    return 'New opportunity'
+  }
+
+  if (type === 'closing_date') {
+    return 'Closing reminder'
+  }
+
+  return 'Notification'
+}
+
 function normalizeApplicationRow(row) {
   const opportunity = row.opportunities || row.opportunity || {}
 
@@ -169,6 +205,8 @@ export default function Dashboard({ onLogout, listings }) {
   const [dbApprovedListings, setDbApprovedListings] = useState([])
   const [dbApplications, setDbApplications] = useState([])
   const [applicantId, setApplicantId] = useState('')
+  const [applicantUserId, setApplicantUserId] = useState('')
+  const [dbNotifications, setDbNotifications] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('All')
   const [submittedSearchTerm, setSubmittedSearchTerm] = useState('')
@@ -176,10 +214,67 @@ export default function Dashboard({ onLogout, listings }) {
   const [searchError, setSearchError] = useState('')
   const [isLoadingListings, setIsLoadingListings] = useState(false)
   const [isLoadingApplications, setIsLoadingApplications] = useState(false)
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
   const [applicationError, setApplicationError] = useState('')
+  const [notificationError, setNotificationError] = useState('')
   const [isApplyingSearch, setIsApplyingSearch] = useState(false)
   const searchFeedbackTimeoutRef = useRef(null)
   const mountedRef = useRef(false)
+
+  const loadApplicantNotifications = useCallback(async (targetUserId) => {
+    if (hasListingsProp || !hasSupabaseConfig || !mountedRef.current || !targetUserId) {
+      return
+    }
+
+    setIsLoadingNotifications(true)
+    setNotificationError('')
+
+    const { data: notificationRows, error: notificationRowsError } = await supabase
+      .from('notifications')
+      .select('id,type,message,read,created_at')
+      .eq('user_id', targetUserId)
+      .order('created_at', { ascending: false })
+
+    if (!mountedRef.current) {
+      return
+    }
+
+    if (notificationRowsError) {
+      setDbNotifications([])
+      setNotificationError('We could not load your notifications right now.')
+      setIsLoadingNotifications(false)
+      return
+    }
+
+    const loadedNotifications = notificationRows || []
+    const unreadIds = loadedNotifications
+      .filter((notification) => !notification.read)
+      .map((notification) => notification.id)
+
+    setDbNotifications(loadedNotifications)
+    setIsLoadingNotifications(false)
+
+    if (unreadIds.length === 0) {
+      return
+    }
+
+    const { error: markAsReadError } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .in('id', unreadIds)
+
+    if (!mountedRef.current || markAsReadError) {
+      return
+    }
+
+    setDbNotifications((current) =>
+      current.map((notification) => (
+        unreadIds.includes(notification.id)
+          ? { ...notification, read: true }
+          : notification
+      )),
+    )
+  }, [hasListingsProp])
 
   const loadApplicantApplications = useCallback(async () => {
     if (hasListingsProp || !hasSupabaseConfig || !mountedRef.current) {
@@ -219,6 +314,8 @@ export default function Dashboard({ onLogout, listings }) {
       setIsLoadingApplications(false)
       return
     }
+
+    setApplicantUserId(userRow.id)
 
     const { data: profileRow, error: profileError } = await supabase
       .from('applicant_profiles')
@@ -343,6 +440,34 @@ export default function Dashboard({ onLogout, listings }) {
   }, [applicantId, hasListingsProp, loadApplicantApplications])
 
   useEffect(() => {
+    if (hasListingsProp || !hasSupabaseConfig || !applicantUserId) {
+      return undefined
+    }
+
+    loadApplicantNotifications(applicantUserId)
+
+    const notificationsChannel = supabase
+      .channel(`applicant-notifications-${applicantUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${applicantUserId}`,
+        },
+        () => {
+          loadApplicantNotifications(applicantUserId)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(notificationsChannel)
+    }
+  }, [applicantUserId, hasListingsProp, loadApplicantNotifications])
+
+  useEffect(() => {
     return () => {
       if (searchFeedbackTimeoutRef.current) {
         window.clearTimeout(searchFeedbackTimeoutRef.current)
@@ -381,6 +506,7 @@ export default function Dashboard({ onLogout, listings }) {
 
   const hasActiveSearch = Boolean(submittedSearchTerm.trim() || submittedType !== 'All')
   const hasApplications = dbApplications.length > 0
+  const hasNotifications = dbNotifications.length > 0
 
   return (
     <main className="user-page applicant-theme user-discovery-shell">
@@ -435,6 +561,43 @@ export default function Dashboard({ onLogout, listings }) {
       </section>
 
       <section className="user-content-grid">
+        {!hasListingsProp ? (
+          <article className="user-panel user-panel-alt notification-panel">
+            <div className="provider-panel-head">
+              <section>
+                <p className="provider-panel-kicker">Applicant inbox</p>
+                <h2>Notifications</h2>
+              </section>
+              <span className="status-chip status-chip-soft">
+                {hasNotifications ? `${dbNotifications.length} updates` : 'No alerts'}
+              </span>
+            </div>
+
+            {isLoadingNotifications ? (
+              <p className="user-panel-copy">Loading your notifications...</p>
+            ) : notificationError ? (
+              <p className="user-panel-copy">{notificationError}</p>
+            ) : hasNotifications ? (
+              <ul className="user-list notification-list">
+                {dbNotifications.map((notification) => (
+                  <li key={notification.id} className="notification-list-item">
+                    <div className="application-list-row">
+                      <strong>{getNotificationTypeLabel(notification.type)}</strong>
+                      <span className={notification.read ? 'status-chip status-chip-soft' : 'status-chip status-chip-pending'}>
+                        {notification.read ? 'Read' : 'New'}
+                      </span>
+                    </div>
+                    <p className="notification-copy">{notification.message}</p>
+                    <small className="user-item-meta">{formatNotificationDate(notification.created_at)}</small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="user-panel-copy">You do not have any notifications yet.</p>
+            )}
+          </article>
+        ) : null}
+
         {!hasListingsProp ? (
           <article className="user-panel user-panel-alt my-applications-panel">
             <div className="provider-panel-head">

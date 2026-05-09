@@ -11,9 +11,13 @@ const mockState = {
   applicationRows: [],
   applicationUpdateError: null,
   notificationInsertError: null,
+  emailInvokeError: null,
   updatedApplicationPayload: null,
   updatedApplicationId: '',
   insertedNotificationPayload: null,
+  insertedEmailLogPayload: null,
+  invokedEmailFunction: '',
+  invokedEmailPayload: null,
 }
 
 function buildTableQuery(tableName) {
@@ -75,6 +79,15 @@ function buildTableQuery(tableName) {
     }
   }
 
+  if (tableName === 'email_logs') {
+    return {
+      insert: vi.fn(async (payload) => {
+        mockState.insertedEmailLogPayload = payload
+        return { data: null, error: null }
+      }),
+    }
+  }
+
   return {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -94,6 +107,15 @@ vi.mock('../lib/supabaseClient', () => ({
       })),
     },
     from: vi.fn((tableName) => buildTableQuery(tableName)),
+    functions: {
+      invoke: vi.fn(async (functionName, options) => {
+        mockState.invokedEmailFunction = functionName
+        mockState.invokedEmailPayload = options?.body || null
+        return mockState.emailInvokeError
+          ? { data: null, error: mockState.emailInvokeError }
+          : { data: { success: true }, error: null }
+      }),
+    },
     storage: {
       from: vi.fn(() => ({
         createSignedUrl: vi.fn(async () => ({
@@ -132,14 +154,21 @@ beforeEach(() => {
         last_name: 'Dlamini',
         about_me: 'Entry-level IT support candidate with service desk exposure.',
         cv_url: 'https://example.com/ava-cv.pdf',
+        users: {
+          email: 'ava@example.com',
+        },
       },
     },
   ]
   mockState.applicationUpdateError = null
   mockState.notificationInsertError = null
+  mockState.emailInvokeError = null
   mockState.updatedApplicationPayload = null
   mockState.updatedApplicationId = ''
   mockState.insertedNotificationPayload = null
+  mockState.insertedEmailLogPayload = null
+  mockState.invokedEmailFunction = ''
+  mockState.invokedEmailPayload = null
 })
 
 afterEach(() => {
@@ -197,7 +226,35 @@ describe('Provider manage application statuses acceptance tests', () => {
     expect(mockState.insertedNotificationPayload.message).toContain('IT Support Internship 2026')
   })
 
-  test('4. The visible application status updates after saving the provider action', async () => {
+  test('4. Changing an applicant status triggers the email function and records a sent email log', async () => {
+    renderApplicationsPage()
+
+    expect(await screen.findByText('Ava Dlamini')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Application status for Ava Dlamini'), {
+      target: { value: 'Offered' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Update status' }))
+
+    await waitFor(() => {
+      expect(mockState.invokedEmailPayload).toBeTruthy()
+    })
+
+    expect(mockState.invokedEmailFunction).toBe('send-status-email')
+    expect(mockState.invokedEmailPayload).toEqual({
+      toEmail: 'ava@example.com',
+      applicantName: 'Ava Dlamini',
+      listingTitle: 'IT Support Internship 2026',
+      statusLabel: 'Accepted',
+    })
+    expect(mockState.insertedEmailLogPayload).toEqual({
+      user_id: 'app-user-1',
+      subject: 'Application update: IT Support Internship 2026',
+      status: 'sent',
+    })
+  })
+
+  test('5. The visible application status updates after saving the provider action', async () => {
     renderApplicationsPage()
 
     expect(await screen.findByText('Ava Dlamini')).toBeTruthy()
