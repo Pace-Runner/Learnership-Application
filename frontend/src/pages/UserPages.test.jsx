@@ -1,9 +1,112 @@
-import { describe, test, expect, vi } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { describe, test, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import Dashboard from './Dashboard'
 import ApplicantProfile from './ApplicantProfile'
+
+// Use vi.hoisted to handle mock spies at module parse time
+const mockSupabaseSpies = vi.hoisted(() => ({
+  getUser: vi.fn(),
+  profileSelectMaybeSingle: vi.fn(),
+  userSelectMaybeSingle: vi.fn(),
+  qualificationsOrder: vi.fn(),
+  skillTagsOrder: vi.fn(),
+  profileStorageList: vi.fn(),
+  docsStorageList: vi.fn(),
+}))
+
+vi.mock('../lib/supabaseClient', () => {
+  return {
+    supabase: {
+      auth: {
+        getUser: mockSupabaseSpies.getUser,
+      },
+      from: vi.fn((table) => {
+        if (table === 'nqf_qualifications') {
+          return {
+            select: () => ({
+              order: mockSupabaseSpies.qualificationsOrder,
+            }),
+          }
+        }
+        if (table === 'skill_tags') {
+          return {
+            select: () => ({
+              order: mockSupabaseSpies.skillTagsOrder,
+            }),
+          }
+        }
+        if (table === 'applicant_profiles') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: mockSupabaseSpies.profileSelectMaybeSingle,
+              }),
+            }),
+          }
+        }
+        if (table === 'users') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: mockSupabaseSpies.userSelectMaybeSingle,
+              }),
+            }),
+          }
+        }
+        // For other tables, return a flexible chain
+        return {
+          select: () => ({
+            eq: () => ({
+              order: async () => ({ data: [], error: null }),
+              maybeSingle: async () => ({ data: null, error: null }),
+            }),
+          }),
+          delete: () => ({
+            eq: async () => ({ error: null }),
+          }),
+          insert: async () => ({ error: null }),
+        }
+      }),
+      storage: {
+        from: vi.fn((bucket) => {
+          if (bucket === 'profile-images') {
+            return {
+              list: mockSupabaseSpies.profileStorageList,
+            }
+          }
+          if (bucket === 'applicant-documents') {
+            return {
+              list: mockSupabaseSpies.docsStorageList,
+            }
+          }
+          return {
+            list: async () => ({ data: [], error: null }),
+          }
+        }),
+      },
+    },
+    hasSupabaseConfig: true,
+  }
+})
+
+const mockSupabaseState = {
+  userId: 'user-1',
+  authEmail: 'test@example.com',
+  profile: {
+    id: 'profile-1',
+    user_id: 'user-1',
+    first_name: 'Test',
+    last_name: 'User',
+    phone: '0825551234',
+    location: 'Cape Town',
+    date_of_birth: '2001-04-05',
+    id_number: '0104055009087',
+    cv_url: null,
+    about_me: '',
+  },
+}
 
 const sampleApprovedListings = [
   {
@@ -24,6 +127,40 @@ const sampleApprovedListings = [
 
 afterEach(() => {
   cleanup()
+})
+
+beforeEach(() => {
+  // Set up default mock responses for ApplicantProfile tests
+  mockSupabaseSpies.getUser.mockResolvedValue({
+    data: { user: { id: mockSupabaseState.userId, email: mockSupabaseState.authEmail } },
+    error: null,
+  })
+  mockSupabaseSpies.userSelectMaybeSingle.mockResolvedValue({
+    data: { id: 'db-user-1', user_id: mockSupabaseState.userId },
+    error: null,
+  })
+  mockSupabaseSpies.profileSelectMaybeSingle.mockResolvedValue({
+    data: mockSupabaseState.profile,
+    error: null,
+  })
+  mockSupabaseSpies.qualificationsOrder.mockResolvedValue({
+    data: [
+      { id: 'qual-1', title: 'Business Administration', nqf_level: 4, saqa_id: '12345' },
+    ],
+    error: null,
+  })
+  mockSupabaseSpies.skillTagsOrder.mockResolvedValue({
+    data: [{ id: 'skill-1', name: 'Communication' }],
+    error: null,
+  })
+  mockSupabaseSpies.profileStorageList.mockResolvedValue({
+    data: [],
+    error: null,
+  })
+  mockSupabaseSpies.docsStorageList.mockResolvedValue({
+    data: [],
+    error: null,
+  })
 })
 
 describe('Applicant tests', () => {
@@ -93,7 +230,7 @@ describe('Applicant tests', () => {
     expect(onLogout).toHaveBeenCalledTimes(1)
   })
 
-  test('Profile page renders with document actions', () => {
+  test('Profile page renders with document actions', async () => {
     const onLogout = vi.fn()
     render(
       <MemoryRouter>
@@ -101,7 +238,11 @@ describe('Applicant tests', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByText('Profile and documents')).toBeTruthy()
+    // Wait for profile to load
+    await waitFor(() => {
+      expect(screen.getByText('Profile and documents')).toBeTruthy()
+    })
+    
     expect(screen.getByText('Profile Picture')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Upload profile picture' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Delete profile picture' })).toBeTruthy()

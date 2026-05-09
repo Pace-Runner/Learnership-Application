@@ -169,6 +169,14 @@ describe('Role based tests', () => {
     expect(appSource).toContain('<Dashboard onLogout={handleLogout} />')
   })
 
+  test('Applicant listing detail route is mounted for applicants', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('ApplicantListingDetail')
+    expect(appSource).toContain('<Route path="/dashboard/listings/:listingId"')
+    expect(appSource).toContain('allowedRole="Applicant"')
+  })
+
   test('Each route requires correct role in ProtectedRoute', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 

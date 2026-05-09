@@ -68,6 +68,10 @@ export default function Provider({ onLogout }) {
     navigate(`/provider/listings/${listing.id}/edit`)
   }
 
+  const handleViewApplicants = (listing) => {
+    navigate(`/provider/listings/${listing.id}/applications`)
+  }
+
   const handleDeleteListing = async (listing) => {
     const baseMessage = 'Are you sure you want to delete this listing?'
     const approvedMessage =
@@ -130,6 +134,15 @@ export default function Provider({ onLogout }) {
 
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
       const email = sessionData?.session?.user?.email
+
+      // For local dev/testing: if no session, use fallback listings.
+      if (import.meta.env.DEV && (sessionError || !email)) {
+        if (isMounted) {
+          setListings(fallbackListings)
+          setIsLoadingListings(false)
+        }
+        return
+      }
 
       if (sessionError || !email) {
         if (isMounted) {
@@ -327,6 +340,13 @@ export default function Provider({ onLogout }) {
                       <small className="provider-detail">Closing date: {formatClosingDate(item.closing_date)}</small>
                       <small className={getStatusClass(item.status)}>Status: {item.status || 'Pending'}</small>
                       <div className="provider-listing-controls">
+                        <button
+                          type="button"
+                          className="user-action-btn provider-listing-btn"
+                          onClick={() => handleViewApplicants(item)}
+                        >
+                          View applicants
+                        </button>
                         <button
                           type="button"
                           className="user-action-btn provider-listing-btn"

@@ -24,7 +24,7 @@ test('PROVIDER-DASHBOARD: renders provider dashboard heading and welcome message
   expect(screen.getByText(/Manage your learnership pipeline/i)).toBeTruthy()
 })
 
-test('PROVIDER-DASHBOARD: renders quick actions, stats, and listing overview', () => {
+test('PROVIDER-DASHBOARD: renders quick actions, stats, and listing overview', async () => {
   const onLogout = vi.fn()
   render(
     <MemoryRouter>
@@ -43,6 +43,8 @@ test('PROVIDER-DASHBOARD: renders quick actions, stats, and listing overview', (
   expect(screen.getByText('Your submitted listings')).toBeTruthy()
   expect(screen.getByText('Loading your listings...')).toBeTruthy()
   expect(screen.getByText('Before you publish')).toBeTruthy()
+
+  expect(await screen.findAllByRole('button', { name: 'View applicants' })).toHaveLength(2)
 })
 
 test('PROVIDER-DASHBOARD: logout button is clickable and triggers callback', () => {

@@ -569,7 +569,9 @@ describe('ApplicantProfile coverage', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText('Loading qualification and skills data...')).toBeTruthy()
+    // Profile loading shell appears while loading user data and dropdowns
+    expect(await screen.findByText('Loading your profile...')).toBeTruthy()
+    // After loading completes, form displays with user data
     await screen.findByDisplayValue('Taylor')
   })
 

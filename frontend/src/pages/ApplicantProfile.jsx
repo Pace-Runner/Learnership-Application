@@ -127,6 +127,12 @@ function getFriendlySupabaseError(error, fallbackMessage) {
   return error.message || fallbackMessage
 }
 
+function debugLog(...messages) {
+  if (import.meta.env.MODE === 'development') {
+    console.log(...messages)
+  }
+}
+
 // Main applicant page: handles profile form state, uploads, validation, and saves.
 export default function ApplicantProfile({ onLogout }) {
   const [userId, setUserId] = useState('')
@@ -154,6 +160,7 @@ export default function ApplicantProfile({ onLogout }) {
   const [showAllSkills, setShowAllSkills] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [educationFieldErrors, setEducationFieldErrors] = useState({})
+  const [isBootstrapping, setIsBootstrapping] = useState(true)
 
   const profileInputRef = useRef(null)
   const cvInputRef = useRef(null)
@@ -377,8 +384,8 @@ export default function ApplicantProfile({ onLogout }) {
         return
       }
 
-      console.log('Fetching profile data for auth user:', authUserId)
-      console.log('Using database user id:', databaseUserId)
+      debugLog('Fetching profile data for auth user:', authUserId)
+      debugLog('Using database user id:', databaseUserId)
       setIsLoadingFiles(true)
 
       const { data: loadedProfile } = await supabase
@@ -387,7 +394,7 @@ export default function ApplicantProfile({ onLogout }) {
         .eq('user_id', databaseUserId)
         .maybeSingle()
 
-      console.log('Profile loaded:', loadedProfile)
+      debugLog('Profile loaded:', loadedProfile)
 
       const nextProfileId = loadedProfile?.id || ''
       setProfileId(nextProfileId)
@@ -436,9 +443,9 @@ export default function ApplicantProfile({ onLogout }) {
 
         setSelectedSkillTagIds((skills || []).map((row) => row.skill_tag_id).filter(Boolean))
 
-        console.log('✓ Profile data loaded:')
-        console.log('  - Education entries:', educations?.length || 0)
-        console.log('  - Skills selected:', skills?.length || 0)
+        debugLog('Profile data loaded:')
+        debugLog('  - Education entries:', educations?.length || 0)
+        debugLog('  - Skills selected:', skills?.length || 0)
       } else {
         setEducationRows([createEducationRow()])
         setSelectedSkillTagIds([])
@@ -453,34 +460,40 @@ export default function ApplicantProfile({ onLogout }) {
     let isMounted = true
 
     const loadUserFiles = async () => {
-      await fetchDropdownData()
+      try {
+        await fetchDropdownData()
 
-      if (!hasSupabaseConfig) {
-        if (isMounted) {
-          setIsLoadingFiles(false)
-          setUploadMessage('Supabase is not configured yet. Add env vars to enable uploads.')
+        if (!hasSupabaseConfig) {
+          if (isMounted) {
+            setIsLoadingFiles(false)
+            setUploadMessage('Supabase is not configured yet. Add env vars to enable uploads.')
+          }
+          return
         }
-        return
+
+        const { data } = await supabase.auth.getUser()
+        const authUser = data?.user || null
+        const authUserId = authUser?.id || ''
+
+        if (!isMounted) {
+          return
+        }
+
+        setUserId(authUserId)
+
+        const databaseUserId = await resolveDatabaseUserId(authUser)
+        if (!databaseUserId) {
+          setUploadMessage('Could not link your account in the users table. Please contact support.')
+          setIsLoadingFiles(false)
+          return
+        }
+
+        await fetchFiles(authUserId, databaseUserId)
+      } finally {
+        if (isMounted) {
+          setIsBootstrapping(false)
+        }
       }
-
-      const { data } = await supabase.auth.getUser()
-      const authUser = data?.user || null
-      const authUserId = authUser?.id || ''
-
-      if (!isMounted) {
-        return
-      }
-
-      setUserId(authUserId)
-
-      const databaseUserId = await resolveDatabaseUserId(authUser)
-      if (!databaseUserId) {
-        setUploadMessage('Could not link your account in the users table. Please contact support.')
-        setIsLoadingFiles(false)
-        return
-      }
-
-      await fetchFiles(authUserId, databaseUserId)
     }
 
     loadUserFiles()
@@ -489,6 +502,14 @@ export default function ApplicantProfile({ onLogout }) {
       isMounted = false
     }
   }, [fetchDropdownData, fetchFiles, resolveDatabaseUserId])
+
+  if (isBootstrapping) {
+    return (
+      <main className="auth-loading-shell" aria-busy="true" aria-live="polite">
+        <p>Loading your profile...</p>
+      </main>
+    )
+  }
 
   const handleProfileFieldChange = (fieldName, value) => {
     setProfileForm((current) => ({
@@ -741,9 +762,9 @@ export default function ApplicantProfile({ onLogout }) {
   }
 
   const handleSaveFullProfile = async () => {
-    console.log('💾 Save button clicked!')
-    console.log('  - userId:', userId)
-    console.log('  - hasSupabaseConfig:', hasSupabaseConfig)
+    debugLog('Save button clicked')
+    debugLog('  - userId:', userId)
+    debugLog('  - hasSupabaseConfig:', hasSupabaseConfig)
     
     if (!userId || !hasSupabaseConfig) {
       setUploadMessage('Please sign in and ensure Supabase is configured before saving.')
@@ -753,7 +774,7 @@ export default function ApplicantProfile({ onLogout }) {
     // Stop early if required fields are incomplete or invalid.
     const validationError = validateProfileForm()
     if (validationError) {
-      console.warn('❌ Validation error:', validationError)
+      debugLog('Validation error:', validationError)
       setUploadMessage(validationError)
       setEducationFieldErrors(getEducationValidationErrors(educationRows))
       const messageToFieldKey = {
@@ -774,7 +795,7 @@ export default function ApplicantProfile({ onLogout }) {
       return
     }
 
-    console.log('✅ Validation passed, starting save...')
+    debugLog('Validation passed, starting save')
     setIsSavingProfile(true)
     setUploadMessage('Saving profile...')
 
@@ -878,7 +899,7 @@ export default function ApplicantProfile({ onLogout }) {
           skill_tag_id: skillTagId,
         }))
 
-        console.log('Saving skills:', skillsPayload)
+        debugLog('Saving skills:', skillsPayload)
         const { error: skillsError } = await supabase.from('applicant_skills').insert(skillsPayload)
         if (skillsError) {
           console.error('Skills insert error:', skillsError)
@@ -890,10 +911,10 @@ export default function ApplicantProfile({ onLogout }) {
         }
       }
 
-      console.log('✓ Profile saved with ID:', resolvedProfileId)
-      console.log('✓ Saved profile:', profilePayload)
-      console.log('✓ Saved education entries:', educationPayload.length)
-      console.log('✓ Saved skills:', selectedSkillTagIds.length)
+      debugLog('Profile saved with ID:', resolvedProfileId)
+      debugLog('Saved profile:', profilePayload)
+      debugLog('Saved education entries:', educationPayload.length)
+      debugLog('Saved skills:', selectedSkillTagIds.length)
 
       setIsSavingProfile(false)
       setShowSavedConfirmation(true)
@@ -905,7 +926,7 @@ export default function ApplicantProfile({ onLogout }) {
       }, 2000)
 
       // Reload data to verify persistence
-      console.log('Reloading profile data to verify persistence...')
+      debugLog('Reloading profile data to verify persistence')
       await fetchFiles(userId, databaseUserId)
     } catch (err) {
       console.error('Unexpected save error:', err)

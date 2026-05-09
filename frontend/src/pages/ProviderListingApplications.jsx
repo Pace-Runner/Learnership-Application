@@ -22,6 +22,34 @@ function getApplicationStatusClass(status) {
   return 'status-chip status-chip-pending'
 }
 
+function formatRandAmount(value) {
+  const parsed = Number(value)
+
+  if (!Number.isFinite(parsed)) {
+    return 'Not specified'
+  }
+
+  return `R${parsed.toLocaleString('en-ZA', { maximumFractionDigits: 2 })}`
+}
+
+function formatShortDate(value) {
+  if (!value) {
+    return 'Not specified'
+  }
+
+  const parsed = new Date(value)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+
+  return parsed.toLocaleDateString('en-ZA', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 export default function ProviderListingApplications() {
   const { listingId } = useParams()
   const [isLoading, setIsLoading] = useState(true)
@@ -29,6 +57,9 @@ export default function ProviderListingApplications() {
   const [statusMessage, setStatusMessage] = useState('')
   const [applications, setApplications] = useState([])
   const [listingTitle, setListingTitle] = useState('')
+  const [listingMeta, setListingMeta] = useState({})
+  const [selectedApplicant, setSelectedApplicant] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [updatingApplicationId, setUpdatingApplicationId] = useState('')
 
   useEffect(() => {
@@ -88,7 +119,7 @@ export default function ProviderListingApplications() {
 
       const { data: listingRow, error: listingError } = await supabase
         .from('opportunities')
-        .select('id,title,provider_id')
+        .select('id,title,provider_id,type,location,closing_date,stipend,description')
         .eq('id', listingId)
         .maybeSingle()
 
@@ -102,6 +133,13 @@ export default function ProviderListingApplications() {
 
       if (isMounted) {
         setListingTitle(listingRow.title || '')
+        setListingMeta({
+          type: listingRow.type || '',
+          location: listingRow.location || '',
+          closingDate: listingRow.closing_date || '',
+          monthlyStipend: listingRow.stipend || '',
+          description: listingRow.description || '',
+        })
       }
 
       const { data: applicationRows, error: applicationError } = await supabase
@@ -172,6 +210,12 @@ export default function ProviderListingApplications() {
           : application
       )),
     )
+
+    setSelectedApplicant((current) => (
+      current?.id === applicationId
+        ? { ...current, statusDraft: nextStatus }
+        : current
+    ))
   }
 
   const handleStatusUpdate = async (application) => {
@@ -212,12 +256,27 @@ export default function ProviderListingApplications() {
           : currentApplication
       )),
     )
+    setSelectedApplicant((current) => (
+      current?.id === application.id
+        ? { ...current, status: nextStatus, statusDraft: nextStatus }
+        : current
+    ))
     setUpdatingApplicationId('')
     setStatusMessage(
       notificationError
         ? `Updated ${applicantName} to ${getApplicationStatusLabel(nextStatus)}, but notification could not be sent.`
         : `Updated ${applicantName} to ${getApplicationStatusLabel(nextStatus)}.`,
     )
+  }
+
+  const openApplicantModal = (application) => {
+    setSelectedApplicant(application)
+    setIsModalOpen(true)
+  }
+
+  const closeApplicantModal = () => {
+    setSelectedApplicant(null)
+    setIsModalOpen(false)
   }
 
   return (
@@ -227,7 +286,9 @@ export default function ProviderListingApplications() {
           <section>
             <p className="user-kicker">Provider Workspace</p>
             <h1>Applicants for listing</h1>
-            <p className="user-intro">View all applicants who applied to this listing.</p>
+            <p className="user-intro">
+              Review the listing details first, then update each applicant&apos;s status as they move through your pipeline.
+            </p>
           </section>
 
           <nav className="user-nav-actions" aria-label="Provider listing navigation">
@@ -239,6 +300,14 @@ export default function ProviderListingApplications() {
 
         <section className="user-panel provider-panel">
           <h2>{listingTitle ? `Applicants - ${listingTitle}` : 'Applicants'}</h2>
+          {listingMeta && listingMeta.type ? (
+            <div className="provider-detail" style={{ marginTop: '0.5rem' }}>
+              <small>{listingMeta.type} • {listingMeta.location}</small>
+              <div><strong>Monthly stipend:</strong> {formatRandAmount(listingMeta.monthlyStipend)}</div>
+              <div><strong>Closing date:</strong> {formatShortDate(listingMeta.closingDate)}</div>
+              {listingMeta.description ? <p style={{ marginTop: '0.45rem' }}><strong>Listing summary:</strong> {listingMeta.description}</p> : null}
+            </div>
+          ) : null}
 
           {isLoading ? <p className="user-panel-copy">Loading applicants...</p> : null}
           {!isLoading && error ? <p className="user-panel-copy">{error}</p> : null}
@@ -262,7 +331,7 @@ export default function ProviderListingApplications() {
                         Applied: {new Date(application.appliedAt).toLocaleDateString()}
                       </small>
                     ) : null}
-                    <p className="user-item-meta">{application.applicant?.about_me || 'No profile summary'}</p>
+                    <p className="user-item-meta">{application.applicant?.about_me || 'No profile summary provided yet.'}</p>
                     {application.cvLink ? (
                       <p>
                         <a href={application.cvLink} target="_blank" rel="noopener noreferrer">
@@ -297,6 +366,13 @@ export default function ProviderListingApplications() {
                         >
                           {updatingApplicationId === application.id ? 'Updating...' : 'Update status'}
                         </button>
+                        <button
+                          type="button"
+                          className="user-action-btn"
+                          onClick={() => openApplicantModal(application)}
+                        >
+                          View details
+                        </button>
                       </div>
                     </div>
                   </li>
@@ -306,6 +382,53 @@ export default function ProviderListingApplications() {
           ) : null}
         </section>
       </section>
+      {isModalOpen && selectedApplicant ? (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.6)', display: 'grid', placeItems: 'center' }}>
+          <div className="user-panel" style={{ width: 'min(760px, 94%)' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>Applicant details</h3>
+              <button className="user-link-btn" onClick={closeApplicantModal}>Close</button>
+            </header>
+            <div style={{ marginTop: '0.6rem' }}>
+              <p><strong>Name:</strong> {selectedApplicant.applicant?.first_name} {selectedApplicant.applicant?.last_name}</p>
+              <p><strong>Profile summary:</strong> {selectedApplicant.applicant?.about_me || 'No profile summary provided yet.'}</p>
+              <p><strong>Application received:</strong> {selectedApplicant.appliedAt || 'Unknown'}</p>
+              <p><strong>Current status:</strong> {getApplicationStatusLabel(selectedApplicant.status)}</p>
+              {selectedApplicant.cvLink ? (
+                <p><a href={selectedApplicant.cvLink} target="_blank" rel="noopener noreferrer">Open CV</a></p>
+              ) : (
+                <p>No CV uploaded</p>
+              )}
+              <div className="provider-application-status-row" style={{ marginTop: '0.8rem' }}>
+                <label htmlFor={`modal-application-status-${selectedApplicant.id}`} className="provider-application-status-label">
+                  Application status
+                </label>
+                <div className="provider-application-status-controls">
+                  <select
+                    id={`modal-application-status-${selectedApplicant.id}`}
+                    value={selectedApplicant.statusDraft || selectedApplicant.status}
+                    onChange={(event) => handleStatusDraftChange(selectedApplicant.id, event.target.value)}
+                  >
+                    {APPLICATION_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="user-action-btn provider-listing-btn"
+                    disabled={updatingApplicationId === selectedApplicant.id || (selectedApplicant.statusDraft || selectedApplicant.status) === selectedApplicant.status}
+                    onClick={() => handleStatusUpdate(selectedApplicant)}
+                  >
+                    {updatingApplicationId === selectedApplicant.id ? 'Updating...' : 'Update status'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }
