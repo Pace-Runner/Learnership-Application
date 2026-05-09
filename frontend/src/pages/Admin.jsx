@@ -466,7 +466,7 @@ export default function Admin({
     setErrorMessage('')
 
     try {
-      const updateError = await persistListingStatus(listingId, 'Removed')
+      const updateError = await persistListingStatus(listingId, 'Deleted')
 
       if (updateError) {
         setErrorMessage('Failed to remove listing')
