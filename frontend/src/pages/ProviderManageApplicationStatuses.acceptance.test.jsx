@@ -57,7 +57,7 @@ function buildTableQuery(tableName) {
       update: vi.fn((payload) => {
         mockState.updatedApplicationPayload = payload
         return {
-          eq: vi.fn(async (applicationId) => {
+          eq: vi.fn(async (_column, applicationId) => {
             mockState.updatedApplicationId = applicationId
             return { data: null, error: mockState.applicationUpdateError }
           }),
