@@ -375,6 +375,28 @@
   align-content: start;
 }
 
+.notification-panel {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.notification-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.notification-list-item {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.notification-copy {
+  margin: 0;
+  color: rgba(232, 242, 255, 0.96);
+  line-height: 1.55;
+}
+
 .application-list-item {
   display: grid;
   gap: 0.05rem;
