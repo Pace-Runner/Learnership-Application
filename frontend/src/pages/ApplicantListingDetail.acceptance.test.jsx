@@ -29,6 +29,7 @@ const detailState = vi.hoisted(() => ({
     status: 'Approved',
   },
   applicationInsertPayload: null,
+  existingApplicationRow: null,
 }))
 
 const detailSpies = vi.hoisted(() => ({
@@ -36,6 +37,7 @@ const detailSpies = vi.hoisted(() => ({
   userMaybeSingle: vi.fn(),
   profileMaybeSingle: vi.fn(),
   listingMaybeSingle: vi.fn(),
+  applicationMaybeSingle: vi.fn(),
   applicationInsert: vi.fn(),
 }))
 
@@ -80,6 +82,13 @@ vi.mock('../lib/supabaseClient', () => ({
 
       if (tableName === 'applications') {
         return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: detailSpies.applicationMaybeSingle,
+              })),
+            })),
+          })),
           insert: detailSpies.applicationInsert.mockImplementation(async (payload) => {
             applicationInsertCalls.push(payload)
             detailState.applicationInsertPayload = payload
@@ -144,6 +153,7 @@ beforeEach(() => {
     status: 'Approved',
   }
   detailState.applicationInsertPayload = null
+  detailState.existingApplicationRow = null
   applicationInsertCalls.length = 0
 
   detailSpies.getSession.mockResolvedValue({
@@ -153,6 +163,10 @@ beforeEach(() => {
   detailSpies.userMaybeSingle.mockResolvedValue({ data: detailState.userRow, error: null })
   detailSpies.profileMaybeSingle.mockResolvedValue({ data: detailState.profileRow, error: null })
   detailSpies.listingMaybeSingle.mockResolvedValue({ data: detailState.listingRow, error: null })
+  detailSpies.applicationMaybeSingle.mockImplementation(async () => ({
+    data: detailState.existingApplicationRow,
+    error: null,
+  }))
 })
 
 describe('Applicant listing detail acceptance tests', () => {
@@ -190,9 +204,9 @@ describe('Applicant listing detail acceptance tests', () => {
     await waitFor(() => {
       expect(applicationInsertCalls).toEqual([
         {
-        applicant_id: 'profile-1',
-        opportunity_id: 'listing-1',
-        status: 'Pending',
+          applicant_id: 'profile-1',
+          opportunity_id: 'listing-1',
+          status: 'Pending',
         },
         {
           applicant_id: 'profile-1',
@@ -204,5 +218,26 @@ describe('Applicant listing detail acceptance tests', () => {
     expect(
       await screen.findByText(/Your application has been submitted successfully/i),
     ).toBeTruthy()
+  })
+
+  test('shows already applied state and hides the apply button when an application exists', async () => {
+    detailState.existingApplicationRow = {
+      id: 'application-1',
+      status: 'Pending',
+      applied_at: '2026-05-08T10:00:00Z',
+    }
+
+    const ApplicantListingDetail = await loadApplicantListingDetail()
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/listings/listing-1']}>
+        <Routes>
+          <Route path="/dashboard/listings/:listingId" element={<ApplicantListingDetail onLogout={vi.fn()} />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/You have already applied to this listing/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Apply now' })).toBeNull()
   })
 })

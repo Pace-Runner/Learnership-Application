@@ -160,6 +160,7 @@ export default function ApplicantProfile({ onLogout }) {
   const [showAllSkills, setShowAllSkills] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [educationFieldErrors, setEducationFieldErrors] = useState({})
+  const [isBootstrapping, setIsBootstrapping] = useState(true)
 
   const profileInputRef = useRef(null)
   const cvInputRef = useRef(null)
@@ -459,34 +460,40 @@ export default function ApplicantProfile({ onLogout }) {
     let isMounted = true
 
     const loadUserFiles = async () => {
-      await fetchDropdownData()
+      try {
+        await fetchDropdownData()
 
-      if (!hasSupabaseConfig) {
-        if (isMounted) {
-          setIsLoadingFiles(false)
-          setUploadMessage('Supabase is not configured yet. Add env vars to enable uploads.')
+        if (!hasSupabaseConfig) {
+          if (isMounted) {
+            setIsLoadingFiles(false)
+            setUploadMessage('Supabase is not configured yet. Add env vars to enable uploads.')
+          }
+          return
         }
-        return
+
+        const { data } = await supabase.auth.getUser()
+        const authUser = data?.user || null
+        const authUserId = authUser?.id || ''
+
+        if (!isMounted) {
+          return
+        }
+
+        setUserId(authUserId)
+
+        const databaseUserId = await resolveDatabaseUserId(authUser)
+        if (!databaseUserId) {
+          setUploadMessage('Could not link your account in the users table. Please contact support.')
+          setIsLoadingFiles(false)
+          return
+        }
+
+        await fetchFiles(authUserId, databaseUserId)
+      } finally {
+        if (isMounted) {
+          setIsBootstrapping(false)
+        }
       }
-
-      const { data } = await supabase.auth.getUser()
-      const authUser = data?.user || null
-      const authUserId = authUser?.id || ''
-
-      if (!isMounted) {
-        return
-      }
-
-      setUserId(authUserId)
-
-      const databaseUserId = await resolveDatabaseUserId(authUser)
-      if (!databaseUserId) {
-        setUploadMessage('Could not link your account in the users table. Please contact support.')
-        setIsLoadingFiles(false)
-        return
-      }
-
-      await fetchFiles(authUserId, databaseUserId)
     }
 
     loadUserFiles()
@@ -495,6 +502,14 @@ export default function ApplicantProfile({ onLogout }) {
       isMounted = false
     }
   }, [fetchDropdownData, fetchFiles, resolveDatabaseUserId])
+
+  if (isBootstrapping) {
+    return (
+      <main className="auth-loading-shell" aria-busy="true" aria-live="polite">
+        <p>Loading your profile...</p>
+      </main>
+    )
+  }
 
   const handleProfileFieldChange = (fieldName, value) => {
     setProfileForm((current) => ({

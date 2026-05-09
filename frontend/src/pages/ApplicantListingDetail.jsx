@@ -43,6 +43,8 @@ export default function ApplicantListingDetail({ onLogout }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [listing, setListing] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [hasAlreadyApplied, setHasAlreadyApplied] = useState(false)
+  const [applicationStatus, setApplicationStatus] = useState('')
 
   useEffect(() => {
     let isMounted = true
@@ -51,6 +53,8 @@ export default function ApplicantListingDetail({ onLogout }) {
       setIsLoading(true)
       setError('')
       setConfirmation('')
+      setHasAlreadyApplied(false)
+      setApplicationStatus('')
 
       if (!hasSupabaseConfig) {
         if (isMounted) {
@@ -121,9 +125,31 @@ export default function ApplicantListingDetail({ onLogout }) {
         return
       }
 
+      let appliedRow = null
+      if (profileRow?.id) {
+        const { data: existingApplication, error: applicationError } = await supabase
+          .from('applications')
+          .select('id,status,applied_at')
+          .eq('applicant_id', profileRow.id)
+          .eq('opportunity_id', listingId)
+          .maybeSingle()
+
+        if (applicationError) {
+          if (isMounted) {
+            setError('Could not check whether you already applied. Please try again.')
+            setIsLoading(false)
+          }
+          return
+        }
+
+        appliedRow = existingApplication || null
+      }
+
       if (isMounted) {
         setProfile(profileRow ?? null)
         setListing(listingRow)
+        setHasAlreadyApplied(Boolean(appliedRow?.id))
+        setApplicationStatus(appliedRow?.status || '')
         setIsLoading(false)
       }
     }
@@ -161,6 +187,11 @@ export default function ApplicantListingDetail({ onLogout }) {
       return
     }
 
+    if (hasAlreadyApplied) {
+      setError('You have already applied to this listing.')
+      return
+    }
+
     if (!hasSupabaseConfig) {
       setError('Supabase not configured. Applications cannot be submitted in demo mode.')
       return
@@ -192,7 +223,6 @@ export default function ApplicantListingDetail({ onLogout }) {
       // to the user with available details.
       // Example: constraint violation, RLS deny, missing column, etc.
       // Show details if present to help diagnose.
-      // eslint-disable-next-line no-console
       console.error('Application insert error:', insertError)
       const details = insertError.message || insertError.details || ''
       const fallbackHint = usedStatusFallback
@@ -206,6 +236,8 @@ export default function ApplicantListingDetail({ onLogout }) {
     }
 
     setConfirmation('Your application has been submitted successfully. We used your saved profile and CV.')
+    setHasAlreadyApplied(true)
+    setApplicationStatus('Pending')
     setIsSubmitting(false)
   }
 
@@ -261,14 +293,20 @@ export default function ApplicantListingDetail({ onLogout }) {
                 <p className="user-item-meta">
                   Status: {isProfileReady(profile) ? 'Ready to apply' : 'Profile incomplete'}
                 </p>
-                <button
-                  type="button"
-                  className="user-action-btn profile-save-btn applicant-apply-btn"
-                  onClick={handleApply}
-                  disabled={isSubmitting || !listing}
-                >
-                  {isSubmitting ? 'Submitting...' : 'Apply now'}
-                </button>
+                {hasAlreadyApplied ? (
+                  <p className="user-panel-copy applicant-detail-confirmation" role="status">
+                    You have already applied to this listing{applicationStatus ? ` and your application is ${applicationStatus.toLowerCase()}` : ''}.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    className="user-action-btn profile-save-btn applicant-apply-btn"
+                    onClick={handleApply}
+                    disabled={isSubmitting || !listing}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Apply now'}
+                  </button>
+                )}
                 {!isLoading && error ? (
                   <p className="user-panel-copy applicant-detail-error" role="alert">
                     {error}
