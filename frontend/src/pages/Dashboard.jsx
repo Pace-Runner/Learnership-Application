@@ -207,6 +207,7 @@ export default function Dashboard({ onLogout, listings }) {
   const [applicantId, setApplicantId] = useState('')
   const [applicantUserId, setApplicantUserId] = useState('')
   const [dbNotifications, setDbNotifications] = useState([])
+  const [showReadNotifications, setShowReadNotifications] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('All')
   const [submittedSearchTerm, setSubmittedSearchTerm] = useState('')
@@ -246,35 +247,32 @@ export default function Dashboard({ onLogout, listings }) {
       return
     }
 
-    const loadedNotifications = notificationRows || []
-    const unreadIds = loadedNotifications
-      .filter((notification) => !notification.read)
-      .map((notification) => notification.id)
-
-    setDbNotifications(loadedNotifications)
+    setDbNotifications(notificationRows || [])
     setIsLoadingNotifications(false)
+  }, [hasListingsProp])
 
-    if (unreadIds.length === 0) {
+  const markNotificationAsRead = useCallback(async (notificationId) => {
+    if (!notificationId) {
       return
     }
 
     const { error: markAsReadError } = await supabase
       .from('notifications')
       .update({ read: true })
-      .in('id', unreadIds)
+      .eq('id', notificationId)
 
-    if (!mountedRef.current || markAsReadError) {
+    if (markAsReadError) {
       return
     }
 
     setDbNotifications((current) =>
       current.map((notification) => (
-        unreadIds.includes(notification.id)
+        notification.id === notificationId
           ? { ...notification, read: true }
           : notification
       )),
     )
-  }, [hasListingsProp])
+  }, [])
 
   const loadApplicantApplications = useCallback(async () => {
     if (hasListingsProp || !hasSupabaseConfig || !mountedRef.current) {
@@ -506,7 +504,10 @@ export default function Dashboard({ onLogout, listings }) {
 
   const hasActiveSearch = Boolean(submittedSearchTerm.trim() || submittedType !== 'All')
   const hasApplications = dbApplications.length > 0
-  const hasNotifications = dbNotifications.length > 0
+  const unreadNotifications = dbNotifications.filter((notification) => !notification.read)
+  const readNotifications = dbNotifications.filter((notification) => notification.read)
+  const visibleNotifications = showReadNotifications ? dbNotifications : unreadNotifications
+  const hasVisibleNotifications = visibleNotifications.length > 0
 
   return (
     <main className="user-page applicant-theme user-discovery-shell">
@@ -569,7 +570,7 @@ export default function Dashboard({ onLogout, listings }) {
                 <h2>Notifications</h2>
               </section>
               <span className="status-chip status-chip-soft">
-                {hasNotifications ? `${dbNotifications.length} updates` : 'No alerts'}
+                {unreadNotifications.length > 0 ? `${unreadNotifications.length} unread` : 'No unread alerts'}
               </span>
             </div>
 
@@ -577,15 +578,23 @@ export default function Dashboard({ onLogout, listings }) {
               <p className="user-panel-copy">Loading your notifications...</p>
             ) : notificationError ? (
               <p className="user-panel-copy">{notificationError}</p>
-            ) : hasNotifications ? (
+            ) : hasVisibleNotifications ? (
               <ul className="user-list notification-list">
-                {dbNotifications.map((notification) => (
+                {visibleNotifications.map((notification) => (
                   <li key={notification.id} className="notification-list-item">
                     <div className="application-list-row">
                       <strong>{getNotificationTypeLabel(notification.type)}</strong>
-                      <span className={notification.read ? 'status-chip status-chip-soft' : 'status-chip status-chip-pending'}>
-                        {notification.read ? 'Read' : 'New'}
-                      </span>
+                      {notification.read ? (
+                        <span className="status-chip status-chip-soft">Read</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="notification-read-btn"
+                          onClick={() => markNotificationAsRead(notification.id)}
+                        >
+                          Mark as read
+                        </button>
+                      )}
                     </div>
                     <p className="notification-copy">{notification.message}</p>
                     <small className="user-item-meta">{formatNotificationDate(notification.created_at)}</small>
@@ -593,8 +602,22 @@ export default function Dashboard({ onLogout, listings }) {
                 ))}
               </ul>
             ) : (
-              <p className="user-panel-copy">You do not have any notifications yet.</p>
+              <p className="user-panel-copy">
+                {showReadNotifications
+                  ? 'You do not have any notifications yet.'
+                  : 'You do not have any unread notifications right now.'}
+              </p>
             )}
+
+            {readNotifications.length > 0 ? (
+              <button
+                type="button"
+                className="notification-toggle-btn"
+                onClick={() => setShowReadNotifications((current) => !current)}
+              >
+                {showReadNotifications ? 'Hide read notifications' : 'Show read notifications'}
+              </button>
+            ) : null}
           </article>
         ) : null}
 
