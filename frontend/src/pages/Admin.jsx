@@ -726,10 +726,6 @@ export default function Admin({
           <span>This Admin Removed Opportunities</span>
           <strong>{removedCount}</strong>
         </article>
-        <article className="admin-kpi">
-          <span>This Admin Deleted Opportunities</span>
-          <strong>{deletedCount}</strong>
-        </article>
       </section>
 
       <section className="admin-content-row">
@@ -865,16 +861,9 @@ export default function Admin({
             >
               Removed listings
             </button>
-            <button
-              type="button"
-              className={historyView === 'deleted' ? 'is-active' : ''}
-              onClick={() => setHistoryView('deleted')}
-            >
-              Deleted listings
-            </button>
           </nav>
           <section className="admin-history-panel" aria-label="Admin action history">
-            <h3>{historyView === 'approved' ? 'Approved opportunities' : historyView === 'removed' ? 'Removed opportunities' : 'Deleted opportunities'}</h3>
+            <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
             {historyItems.length === 0 ? (
               <p className="admin-note">No listings in this history yet.</p>
             ) : (
@@ -990,6 +979,23 @@ export default function Admin({
                 >
                   <strong>{record.primaryLabel}</strong>
                   <span>{record.secondaryLabel}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="admin-delete-group" aria-label="Deleted listings history">
+          <h3>Deleted Listings</h3>
+          {deletedHistory.length === 0 ? (
+            <p className="admin-note">No deleted listings yet.</p>
+          ) : (
+            <ul className="admin-history-list">
+              {deletedHistory.map((item) => (
+                <li key={`${item.id}-${item.createdAt}`}>
+                  <strong>{item.title}</strong>
+                  <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Unknown date'}</span>
+                  {item.reason && <p style={{ fontSize: '0.85em', marginTop: '4px', color: '#999' }}>Reason: {item.reason}</p>}
                 </li>
               ))}
             </ul>
