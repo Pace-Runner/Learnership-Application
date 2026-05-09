@@ -155,7 +155,6 @@ export default function Admin({
   const [resolvedAdminId, setResolvedAdminId] = useState('')
   const [approvedCount, setApprovedCount] = useState(0)
   const [removedCount, setRemovedCount] = useState(0)
-  const [_deletedCount, setDeletedCount] = useState(0)
   const [approvedHistory, setApprovedHistory] = useState([])
   const [removedHistory, setRemovedHistory] = useState([])
   const [deletedHistory, setDeletedHistory] = useState([])
@@ -333,7 +332,6 @@ export default function Admin({
 
     setApprovedCount(approvedActions.length)
     setRemovedCount(removedActions.length)
-    setDeletedCount(deletedActions.length)
     setApprovedHistory(
       approvedActions.map((action) => ({
         id: action.target_id,
@@ -887,47 +885,39 @@ export default function Admin({
 
   const renderDeleteTab = () => (
     <section className="admin-delete-section" aria-label="Delete insights">
-      <section className="admin-panel">
-        <h2>Delete</h2>
+      <section className="admin-kpi-row" aria-label="Delete metrics">
+        <article className="admin-kpi">
+          <span>This Admin: Apprenticeships Deleted</span>
+          <strong>{deleteStats.admin.apprenticeships}</strong>
+        </article>
+        <article className="admin-kpi">
+          <span>This Admin: Internships Deleted</span>
+          <strong>{deleteStats.admin.internships}</strong>
+        </article>
+        <article className="admin-kpi">
+          <span>This Admin: Learnerships Deleted</span>
+          <strong>{deleteStats.admin.learnerships}</strong>
+        </article>
+        <article className="admin-kpi">
+          <span>All Admins: Apprenticeships Deleted</span>
+          <strong>{deleteStats.all.apprenticeships}</strong>
+        </article>
+        <article className="admin-kpi">
+          <span>All Admins: Internships Deleted</span>
+          <strong>{deleteStats.all.internships}</strong>
+        </article>
+        <article className="admin-kpi">
+          <span>All Admins: Learnerships Deleted</span>
+          <strong>{deleteStats.all.learnerships}</strong>
+        </article>
+      </section>
 
-        <section className="admin-delete-group" aria-label="This admin delete metrics">
-          <h3>This Admin Deleted</h3>
-          <section className="admin-kpi-row">
-            <article className="admin-kpi">
-              <span>Apprenticeships Deleted</span>
-              <strong>{deleteStats.admin.apprenticeships}</strong>
-            </article>
-            <article className="admin-kpi">
-              <span>Internships Deleted</span>
-              <strong>{deleteStats.admin.internships}</strong>
-            </article>
-            <article className="admin-kpi">
-              <span>Learnerships Deleted</span>
-              <strong>{deleteStats.admin.learnerships}</strong>
-            </article>
-          </section>
-        </section>
+      <section className="admin-content-row">
+        <section className="admin-panel" aria-label="Delete search">
+          <header className="admin-panel-head">
+            <h2>Search Available Entries</h2>
+          </header>
 
-        <section className="admin-delete-group" aria-label="All admin delete metrics">
-          <h3>All Admins Deleted</h3>
-          <section className="admin-kpi-row">
-            <article className="admin-kpi">
-              <span>Apprenticeships Deleted</span>
-              <strong>{deleteStats.all.apprenticeships}</strong>
-            </article>
-            <article className="admin-kpi">
-              <span>Internships Deleted</span>
-              <strong>{deleteStats.all.internships}</strong>
-            </article>
-            <article className="admin-kpi">
-              <span>Learnerships Deleted</span>
-              <strong>{deleteStats.all.learnerships}</strong>
-            </article>
-          </section>
-        </section>
-
-        <section className="admin-delete-group" aria-label="Delete search tools">
-          <h3>Search Available Entries</h3>
 
           <div className="admin-filter-row" role="tablist" aria-label="Delete entity filter">
             {deleteEntityTabs.map((tab) => (
@@ -985,8 +975,8 @@ export default function Admin({
           )}
         </section>
 
-        <section className="admin-delete-group" aria-label="Deleted listings history">
-          <h3>Deleted Listings</h3>
+        <aside className="admin-panel admin-side-panel" aria-label="Deleted listings">
+          <h2>Deleted Listings</h2>
           {deletedHistory.length === 0 ? (
             <p className="admin-note">No deleted listings yet.</p>
           ) : (
@@ -1000,7 +990,8 @@ export default function Admin({
               ))}
             </ul>
           )}
-        </section>
+        </aside>
+      </section>
 
         {selectedDeleteListingId && (
           <section className="admin-modal-overlay" onClick={() => setSelectedDeleteListingId('')}>
@@ -1053,7 +1044,6 @@ export default function Admin({
           </section>
         )}
       </section>
-    </section>
   )
 
   if (!isAuthenticated) 
