@@ -31,7 +31,9 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   const location = useLocation()
 
   // Show loading state while session is being verified from browser cookies
-  if (isLoading) {
+  // If we're still loading but already know the user is signed in, render
+  // the protected content so a refresh doesn't lock the user out temporarily.
+  if (isLoading && !signedIn) {
     return (
       <main className="auth-loading-shell" aria-busy="true" aria-live="polite">
         <p>Checking your session...</p>

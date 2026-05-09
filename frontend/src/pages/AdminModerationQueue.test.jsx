@@ -98,8 +98,8 @@ describe('Admin moderation queue TDD tests', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /^delete$/i }))
 
-    expect(screen.getByText(/this admin deleted/i)).toBeTruthy()
-    expect(screen.getByText(/all admins deleted/i)).toBeTruthy()
+    expect(screen.getByText(/this admin:.*apprenticeships deleted/i)).toBeTruthy()
+    expect(screen.getByText(/all admins:.*apprenticeships deleted/i)).toBeTruthy()
     expect(screen.getAllByText(/deleted/i).length).toBeGreaterThan(0)
   })
 
@@ -204,17 +204,17 @@ describe('Admin moderation queue TDD tests', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: /^delete$/i }))
 
-    expect(await screen.findByText(/this admin deleted/i)).toBeTruthy()
-    expect(screen.getByText(/all admins deleted/i)).toBeTruthy()
+    expect(await screen.findByText(/this admin:.*apprenticeships deleted/i)).toBeTruthy()
+    expect(screen.getByText(/all admins:.*apprenticeships deleted/i)).toBeTruthy()
 
     const getValue = (label, index) => screen.getAllByText(label)[index].parentElement.querySelector('strong').textContent
 
-    expect(getValue(/apprenticeships deleted/i, 0)).toBe('1')
-    expect(getValue(/internships deleted/i, 0)).toBe('1')
-    expect(getValue(/learnerships deleted/i, 0)).toBe('0')
-    expect(getValue(/apprenticeships deleted/i, 1)).toBe('1')
-    expect(getValue(/internships deleted/i, 1)).toBe('1')
-    expect(getValue(/learnerships deleted/i, 1)).toBe('1')
+  expect(getValue(/this admin:.*apprenticeships deleted/i, 0)).toBe('1')
+  expect(getValue(/this admin:.*internships deleted/i, 0)).toBe('1')
+  expect(getValue(/this admin:.*learnerships deleted/i, 0)).toBe('0')
+  expect(getValue(/all admins:.*apprenticeships deleted/i, 0)).toBe('1')
+  expect(getValue(/all admins:.*internships deleted/i, 0)).toBe('1')
+  expect(getValue(/all admins:.*learnerships deleted/i, 0)).toBe('1')
   })
 
   test('6. delete action removes a listing and logs the listing type', async () => {
