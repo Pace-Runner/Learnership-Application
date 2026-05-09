@@ -155,8 +155,10 @@ export default function Admin({
   const [resolvedAdminId, setResolvedAdminId] = useState('')
   const [approvedCount, setApprovedCount] = useState(0)
   const [removedCount, setRemovedCount] = useState(0)
+  const [deletedCount, setDeletedCount] = useState(0)
   const [approvedHistory, setApprovedHistory] = useState([])
   const [removedHistory, setRemovedHistory] = useState([])
+  const [deletedHistory, setDeletedHistory] = useState([])
   const [historyView, setHistoryView] = useState('approved')
   const [activeAdminTab, setActiveAdminTab] = useState('approve-remove')
   const [queueTypeFilter, setQueueTypeFilter] = useState('all')
@@ -197,7 +199,7 @@ export default function Admin({
   }, [filteredQueueListings, selectedListingId])
 
   const selectedListing = filteredQueueListings.find((listing) => listing.id === selectedListingId) || null
-  const historyItems = historyView === 'approved' ? approvedHistory : removedHistory
+  const historyItems = historyView === 'approved' ? approvedHistory : historyView === 'removed' ? removedHistory : deletedHistory
   const activeDeleteSearchHints = deleteSearchHints[deleteEntityTab]
   const filteredDeleteRecords = useMemo(() => {
     const query = deleteSearchQuery.trim().toLowerCase()
@@ -312,6 +314,7 @@ export default function Admin({
 
     const approvedActions = (actions || []).filter((action) => action.action_type === 'approved')
     const removedActions = (actions || []).filter((action) => action.action_type === 'removed')
+    const deletedActions = (actions || []).filter((action) => action.action_type === 'deleted')
 
     const targetIds = [...new Set((actions || []).map((action) => action.target_id).filter(Boolean))]
     let titleMap = {}
@@ -330,6 +333,7 @@ export default function Admin({
 
     setApprovedCount(approvedActions.length)
     setRemovedCount(removedActions.length)
+    setDeletedCount(deletedActions.length)
     setApprovedHistory(
       approvedActions.map((action) => ({
         id: action.target_id,
@@ -339,6 +343,14 @@ export default function Admin({
     )
     setRemovedHistory(
       removedActions.map((action) => ({
+        id: action.target_id,
+        title: titleMap[action.target_id] || `Listing ${action.target_id}`,
+        createdAt: action.created_at,
+        reason: action.reason,
+      })),
+    )
+    setDeletedHistory(
+      deletedActions.map((action) => ({
         id: action.target_id,
         title: titleMap[action.target_id] || `Listing ${action.target_id}`,
         createdAt: action.created_at,
@@ -714,6 +726,10 @@ export default function Admin({
           <span>This Admin Removed Opportunities</span>
           <strong>{removedCount}</strong>
         </article>
+        <article className="admin-kpi">
+          <span>This Admin Deleted Opportunities</span>
+          <strong>{deletedCount}</strong>
+        </article>
       </section>
 
       <section className="admin-content-row">
@@ -849,9 +865,16 @@ export default function Admin({
             >
               Removed listings
             </button>
+            <button
+              type="button"
+              className={historyView === 'deleted' ? 'is-active' : ''}
+              onClick={() => setHistoryView('deleted')}
+            >
+              Deleted listings
+            </button>
           </nav>
           <section className="admin-history-panel" aria-label="Admin action history">
-            <h3>{historyView === 'approved' ? 'Approved opportunities' : 'Removed opportunities'}</h3>
+            <h3>{historyView === 'approved' ? 'Approved opportunities' : historyView === 'removed' ? 'Removed opportunities' : 'Deleted opportunities'}</h3>
             {historyItems.length === 0 ? (
               <p className="admin-note">No listings in this history yet.</p>
             ) : (
