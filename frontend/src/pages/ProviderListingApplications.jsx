@@ -78,9 +78,10 @@ export default function ProviderListingApplications() {
       setError('Listing not found or you do not have permission to view it.')
       setIsLoading(false)
       return
-    }
-
-    setListingTitle(listingRow.title || '')
+        const [error, setError] = useState('')
+        const [applications, setApplications] = useState([])
+        const [listingTitle, setListingTitle] = useState('')
+        const [listingMeta, setListingMeta] = useState({})
 
     // Load applications joined with applicant profile fields and status
     const { data: appRows, error: appError } = await supabase
@@ -128,7 +129,7 @@ export default function ProviderListingApplications() {
       }),
     )
 
-    setApplications(withCvLinks)
+            .select('id,title,provider_id,type,location,closing_date,monthly_stipend,description')
     setIsLoading(false)
   }, [listingId])
 
@@ -139,6 +140,14 @@ export default function ProviderListingApplications() {
       isMounted = false
     }
   }, [loadApplications])
+          // attach additional metadata for display
+          setListingMeta({
+            type: listingRow.type || '',
+            location: listingRow.location || '',
+            closingDate: listingRow.closing_date || '',
+            monthlyStipend: listingRow.monthly_stipend || '',
+            description: listingRow.description || '',
+          })
 
   const handleUpdateStatus = async (appId, newStatus) => {
     if (!hasSupabaseConfig) return
@@ -222,6 +231,7 @@ export default function ProviderListingApplications() {
                         </span>
                         <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                           <button className="user-action-btn" onClick={() => openApplicantModal(app)}>Details</button>
+                          <button className="user-action-btn" onClick={() => handleUpdateStatus(app.id, 'Shortlisted')}>Shortlist</button>
                           <button className="user-action-btn" onClick={() => handleUpdateStatus(app.id, 'Offered')}>Accept</button>
                           <button className="user-action-btn provider-delete-btn" onClick={() => handleUpdateStatus(app.id, 'Rejected')}>Reject</button>
                         </div>
