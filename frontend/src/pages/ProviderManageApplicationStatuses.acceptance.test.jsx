@@ -154,9 +154,6 @@ beforeEach(() => {
         last_name: 'Dlamini',
         about_me: 'Entry-level IT support candidate with service desk exposure.',
         cv_url: 'https://example.com/ava-cv.pdf',
-        users: {
-          email: 'ava@example.com',
-        },
       },
     },
   ]
@@ -242,7 +239,7 @@ describe('Provider manage application statuses acceptance tests', () => {
 
     expect(mockState.invokedEmailFunction).toBe('send-status-email')
     expect(mockState.invokedEmailPayload).toEqual({
-      toEmail: 'ava@example.com',
+      applicantUserId: 'app-user-1',
       applicantName: 'Ava Dlamini',
       listingTitle: 'IT Support Internship 2026',
       statusLabel: 'Accepted',
