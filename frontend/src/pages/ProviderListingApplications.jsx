@@ -5,6 +5,34 @@ import './UserPages.css'
 
 const DOCS_BUCKET = 'applicant-documents'
 
+function formatRandAmount(value) {
+  const parsed = Number(value)
+
+  if (!Number.isFinite(parsed)) {
+    return 'Not specified'
+  }
+
+  return `R${parsed.toLocaleString('en-ZA', { maximumFractionDigits: 2 })}`
+}
+
+function formatShortDate(value) {
+  if (!value) {
+    return 'Not specified'
+  }
+
+  const parsed = new Date(value)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+
+  return parsed.toLocaleDateString('en-ZA', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 function getStatusClass(status) {
   if (!status) return 'status-chip-soft'
   if (status === 'Pending') return 'status-chip-pending'
@@ -173,8 +201,10 @@ export default function ProviderListingApplications() {
         <header className="user-hero provider-hero">
           <section>
             <p className="user-kicker">Provider Workspace</p>
-            <h1>Applicants for listing</h1>
-            <p className="user-intro">View all applicants who applied to this listing.</p>
+            <h1>Applicants for this listing</h1>
+            <p className="user-intro">
+              Review the listing details first, then open each applicant profile to see their bio, CV, and current application status before deciding.
+            </p>
           </section>
 
           <nav className="user-nav-actions" aria-label="Provider listing navigation">
@@ -185,13 +215,16 @@ export default function ProviderListingApplications() {
         </header>
 
         <section className="user-panel provider-panel">
-          <h2>{listingTitle ? `Applicants — ${listingTitle}` : 'Applicants'}</h2>
+          <h2>{listingTitle ? `Applicant Review: ${listingTitle}` : 'Applicant Review'}</h2>
           {listingMeta && listingMeta.type ? (
             <div className="provider-detail" style={{ marginTop: '0.5rem' }}>
               <small>{listingMeta.type} • {listingMeta.location}</small>
-              {listingMeta.monthlyStipend ? <div><strong>Stipend:</strong> {listingMeta.monthlyStipend}</div> : null}
-              {listingMeta.closingDate ? <div><strong>Closes:</strong> {listingMeta.closingDate}</div> : null}
-              {listingMeta.description ? <p style={{ marginTop: '0.45rem' }}>{listingMeta.description}</p> : null}
+              <div><strong>Monthly stipend:</strong> {formatRandAmount(listingMeta.monthlyStipend)}</div>
+              <div><strong>Closing date:</strong> {formatShortDate(listingMeta.closingDate)}</div>
+              {listingMeta.description ? <p style={{ marginTop: '0.45rem' }}><strong>Listing summary:</strong> {listingMeta.description}</p> : null}
+              <p style={{ marginTop: '0.45rem' }}>
+                Tip: shortlist candidates you want to keep in the running, accept the best fit, or reject applications that do not match the role.
+              </p>
             </div>
           ) : null}
 
@@ -210,7 +243,8 @@ export default function ProviderListingApplications() {
                         <strong>
                           {app.applicant?.first_name || 'Applicant'} {app.applicant?.last_name || ''}
                         </strong>
-                        <p className="user-item-meta">{app.applicant?.about_me || 'No profile summary'}</p>
+                        <p className="user-item-meta">Profile summary: {app.applicant?.about_me || 'No profile summary provided yet.'}</p>
+                        <p className="user-item-meta">Application received: {app.appliedAt || 'Unknown'}</p>
                         {app.cvLink ? (
                           <p>
                             <a href={app.cvLink} target="_blank" rel="noopener noreferrer">
@@ -224,10 +258,10 @@ export default function ProviderListingApplications() {
 
                       <div style={{ textAlign: 'right' }}>
                         <span className={`status-chip ${getStatusClass(app.status)}`}>
-                          {app.status || 'Pending'}
+                          Current status: {app.status || 'Pending'}
                         </span>
                         <div style={{ marginTop: '0.6rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                          <button className="user-action-btn" onClick={() => openApplicantModal(app)}>Details</button>
+                          <button className="user-action-btn" onClick={() => openApplicantModal(app)}>View details</button>
                           <button className="user-action-btn" onClick={() => handleUpdateStatus(app.id, 'Shortlisted')}>Shortlist</button>
                           <button className="user-action-btn" onClick={() => handleUpdateStatus(app.id, 'Offered')}>Accept</button>
                           <button className="user-action-btn provider-delete-btn" onClick={() => handleUpdateStatus(app.id, 'Rejected')}>Reject</button>
@@ -250,14 +284,15 @@ export default function ProviderListingApplications() {
             </header>
             <div style={{ marginTop: '0.6rem' }}>
               <p><strong>Name:</strong> {selectedApplicant.applicant?.first_name} {selectedApplicant.applicant?.last_name}</p>
-              <p><strong>About:</strong> {selectedApplicant.applicant?.about_me || 'No profile summary'}</p>
-              <p><strong>Applied:</strong> {selectedApplicant.appliedAt || 'Unknown'}</p>
+              <p><strong>Profile summary:</strong> {selectedApplicant.applicant?.about_me || 'No profile summary provided yet.'}</p>
+              <p><strong>Application received:</strong> {selectedApplicant.appliedAt || 'Unknown'}</p>
               {selectedApplicant.cvLink ? (
                 <p><a href={selectedApplicant.cvLink} target="_blank" rel="noopener noreferrer">Open CV</a></p>
               ) : (
                 <p>No CV uploaded</p>
               )}
               <div style={{ marginTop: '0.8rem', display: 'flex', gap: '0.5rem' }}>
+                <button className="user-action-btn" onClick={() => handleUpdateStatus(selectedApplicant.id, 'Shortlisted')}>Shortlist</button>
                 <button className="user-action-btn" onClick={() => handleUpdateStatus(selectedApplicant.id, 'Offered')}>Accept</button>
                 <button className="user-action-btn provider-delete-btn" onClick={() => handleUpdateStatus(selectedApplicant.id, 'Rejected')}>Reject</button>
               </div>

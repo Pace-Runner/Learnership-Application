@@ -7,6 +7,34 @@ import { Link } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
+function formatRandAmount(value) {
+  const parsed = Number(value)
+
+  if (!Number.isFinite(parsed)) {
+    return 'Not specified'
+  }
+
+  return `R${parsed.toLocaleString('en-ZA', { maximumFractionDigits: 2 })}`
+}
+
+function formatShortDate(value) {
+  if (!value) {
+    return 'Not specified'
+  }
+
+  const parsed = new Date(value)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+
+  return parsed.toLocaleDateString('en-ZA', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 // Quick statistics shown at top of dashboard
 const quickStats = [
   { label: 'Available listings', value: '18' },
@@ -18,17 +46,17 @@ const availableListings = [
   {
     type: 'Learnership',
     title: 'Business Administration NQF 4',
-    meta: 'Cape Town | Monthly stipend: R4,500 | Closes 25 Apr',
+    meta: 'Full-time office-based learnership with structured workplace exposure and weekly coaching.',
   },
   {
     type: 'Internship',
     title: 'Junior IT Support Internship',
-    meta: 'Johannesburg | 12 months | Closes 30 Apr',
+    meta: 'Hands-on support role for a candidate who wants practical IT experience and a clear path into helpdesk work.',
   },
   {
     type: 'Apprenticeship',
     title: 'Electrical Trade Apprenticeship',
-    meta: 'Durban | Trade-tested path | Closes 04 May',
+    meta: 'Structured trade programme with mentorship, safety training, and a trade-tested outcome.',
   },
 ]
 
@@ -104,6 +132,7 @@ function normalizeApprovedListing(row) {
     description: row.description || '',
     meta: row.meta,
     location: row.location || 'Not specified',
+    stipend: row.stipend,
     closingDate: row.closingDate || row.closing_date || 'Not specified',
     status: row.status || 'Approved',
   }
@@ -249,7 +278,7 @@ export default function Dashboard({ onLogout, listings }) {
       // Pull the approved opportunities once, then let the dashboard handle the search/filtering client-side.
       const { data, error } = await supabase
         .from('opportunities')
-        .select('id,title,type,description,location,closing_date,status')
+        .select('id,title,type,description,location,closing_date,stipend,status')
         .eq('status', 'Approved')
         .order('created_at', { ascending: false })
 
@@ -465,9 +494,11 @@ export default function Dashboard({ onLogout, listings }) {
                 <li key={item.id || item.title}>
                   <span>{item.type}</span>
                   <strong>{item.title}</strong>
+                  {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
                   {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
                   {item.location ? <small className="user-item-meta">{item.location}</small> : null}
-                  {item.closingDate ? <small className="user-item-meta">{item.closingDate}</small> : null}
+                  <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
+                  {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
                   {item.id ? (
                     <Link
                       to={`/dashboard/listings/${item.id}`}

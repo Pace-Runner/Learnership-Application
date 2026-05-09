@@ -34,6 +34,19 @@ function isProfileReady(profile) {
   )
 }
 
+function getMissingProfileFields(profile) {
+  const missing = []
+  if (!profile) return ['profile (personal details)', 'CV']
+  if (!profile.first_name?.trim()) missing.push('First name')
+  if (!profile.last_name?.trim()) missing.push('Last name')
+  if (!profile.phone?.trim()) missing.push('Phone number')
+  if (!profile.location?.trim()) missing.push('Location')
+  if (!profile.date_of_birth) missing.push('Date of birth')
+  if (!profile.id_number?.trim()) missing.push('ID number')
+  if (!profile.cv_url?.trim()) missing.push('CV')
+  return missing
+}
+
 export default function ApplicantListingDetail({ onLogout }) {
   const { listingId } = useParams()
 
@@ -265,34 +278,42 @@ export default function ApplicantListingDetail({ onLogout }) {
 
         <section className="user-content-grid applicant-detail-grid">
           <article className="user-panel applicant-detail-panel">
-            <h2>Opportunity overview</h2>
+            <h2>Opportunity Overview</h2>
             {isLoading ? <p className="user-panel-copy">Loading listing details...</p> : null}
             {!isLoading && listing ? (
               <>
                 <p className="user-panel-copy">{listing.description || 'No description provided.'}</p>
-                <p className="user-item-meta">Type: {listing.type || 'Not specified'}</p>
-                <p className="user-item-meta">Location: {listing.location || 'Not specified'}</p>
-                <p className="user-item-meta">Duration: {listing.duration || 'Not specified'}</p>
-                <p className="user-item-meta">Stipend: {formatRandAmount(listing.stipend)}</p>
-                <p className="user-item-meta">Closing date: {formatDate(listing.closing_date)}</p>
+                <p className="user-item-meta"><strong>Type:</strong> {listing.type || 'Not specified'}</p>
+                <p className="user-item-meta"><strong>Location:</strong> {listing.location || 'Not specified'}</p>
+                <p className="user-item-meta"><strong>Duration:</strong> {listing.duration || 'Not specified'}</p>
+                <p className="user-item-meta"><strong>Monthly stipend:</strong> {formatRandAmount(listing.stipend)}</p>
+                <p className="user-item-meta"><strong>Closing date:</strong> {formatDate(listing.closing_date)}</p>
+                <p className="user-panel-copy" style={{ marginTop: '0.6rem' }}>
+                  Tip: Check the listing details above to confirm the role and stipend before applying.
+                </p>
               </>
             ) : null}
           </article>
 
           <article className="user-panel applicant-detail-panel">
-            <h2>Your application</h2>
+            <h2>Your Application</h2>
             {!isLoading && profile ? (
               <>
-                <p className="user-panel-copy">
-                  We will submit your application using the profile below.
-                </p>
-                <p className="user-item-meta">
-                  Profile: {profile.first_name || 'Unknown'} {profile.last_name || ''}
-                </p>
+                <p className="user-panel-copy">We will submit your application using the profile below.</p>
+                <p className="user-item-meta">Profile: {profile.first_name || 'Unknown'} {profile.last_name || ''}</p>
                 <p className="user-item-meta">CV: {profile.cv_url || 'Not uploaded'}</p>
-                <p className="user-item-meta">
-                  Status: {isProfileReady(profile) ? 'Ready to apply' : 'Profile incomplete'}
-                </p>
+                <p className="user-item-meta">Status: {isProfileReady(profile) ? 'Ready to apply' : 'Profile incomplete'}</p>
+                {!isProfileReady(profile) ? (
+                  <div className="provider-note provider-checklist-note">
+                    <p style={{ margin: '0 0 0.4rem 0' }}><strong>Missing profile information</strong></p>
+                    <ul className="provider-checklist">
+                      {getMissingProfileFields(profile).map((f) => (
+                        <li key={f}>{f}</li>
+                      ))}
+                    </ul>
+                    <p style={{ marginTop: '0.45rem' }} className="user-panel-copy">Please complete your profile and upload your CV to apply.</p>
+                  </div>
+                ) : null}
                 {hasAlreadyApplied ? (
                   <p className="user-panel-copy applicant-detail-confirmation" role="status">
                     You have already applied to this listing{applicationStatus ? ` and your application is ${applicationStatus.toLowerCase()}` : ''}.
