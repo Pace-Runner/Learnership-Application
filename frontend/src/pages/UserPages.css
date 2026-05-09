@@ -109,6 +109,41 @@
   padding: 0.5rem 0.75rem;
 }
 
+.provider-application-status-row {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.provider-application-status-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(204, 225, 252, 0.9);
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.provider-application-status-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.provider-application-status-controls select {
+  border: 1px solid rgba(160, 203, 255, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eff7ff;
+  padding: 0.62rem 0.72rem;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.provider-application-status-controls select option {
+  background: #12233f;
+  color: #f3f8ff;
+}
+
 .provider-delete-btn {
   border-color: rgba(255, 150, 150, 0.5);
 }
@@ -933,7 +968,8 @@ select.profile-input {
   .profile-grid,
   .doc-action-row,
   .listing-search-form,
-  .provider-action-row {
+  .provider-action-row,
+  .provider-application-status-controls {
     grid-template-columns: 1fr;
   }
 

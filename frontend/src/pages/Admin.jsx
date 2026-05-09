@@ -155,7 +155,7 @@ export default function Admin({
   const [resolvedAdminId, setResolvedAdminId] = useState('')
   const [approvedCount, setApprovedCount] = useState(0)
   const [removedCount, setRemovedCount] = useState(0)
-  const [deletedCount, setDeletedCount] = useState(0)
+  const [_deletedCount, setDeletedCount] = useState(0)
   const [approvedHistory, setApprovedHistory] = useState([])
   const [removedHistory, setRemovedHistory] = useState([])
   const [deletedHistory, setDeletedHistory] = useState([])
