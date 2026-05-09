@@ -99,7 +99,7 @@ export default function ProviderListingApplications() {
     // Verify the listing belongs to this provider and get details
     const { data: listingRow, error: listingError } = await supabase
       .from('opportunities')
-      .select('id,title,provider_id,type,location,closing_date,monthly_stipend,description')
+      .select('id,title,provider_id,type,location,closing_date,stipend,description')
       .eq('id', listingId)
       .maybeSingle()
 
@@ -114,7 +114,7 @@ export default function ProviderListingApplications() {
       type: listingRow.type || '',
       location: listingRow.location || '',
       closingDate: listingRow.closing_date || '',
-      monthlyStipend: listingRow.monthly_stipend || '',
+      monthlyStipend: listingRow.stipend || '',
       description: listingRow.description || '',
     })
 
