@@ -16,6 +16,10 @@ function getApplicationStatusLabel(status) {
   return APPLICATION_STATUS_OPTIONS.find((option) => option.value === status)?.label || 'Pending'
 }
 
+function normalizeApplicationStatus(status) {
+  return status === 'Received' ? 'Pending' : status || 'Pending'
+}
+
 function getApplicationStatusClass(status) {
   if (status === 'Offered') return 'status-chip status-chip-approved'
   if (status === 'Rejected') return 'status-chip status-chip-removed'
@@ -161,8 +165,8 @@ export default function ProviderListingApplications() {
         id: row.id,
         applicantId: row.applicant_id,
         appliedAt: row.applied_at,
-        status: row.status || 'Pending',
-        statusDraft: row.status === 'Received' ? 'Pending' : row.status || 'Pending',
+        status: normalizeApplicationStatus(row.status),
+        statusDraft: normalizeApplicationStatus(row.status),
         applicant: row.applicant_profiles || {},
       }))
 
@@ -228,10 +232,20 @@ export default function ProviderListingApplications() {
     setStatusMessage('')
     setUpdatingApplicationId(application.id)
 
-    const { error: updateError } = await supabase
-      .from('applications')
-      .update({ status: nextStatus, updated_at: new Date().toISOString() })
-      .eq('id', application.id)
+    const updateApplicationStatus = async (statusValue) => {
+      const { error } = await supabase
+        .from('applications')
+        .update({ status: statusValue, updated_at: new Date().toISOString() })
+        .eq('id', application.id)
+
+      return error
+    }
+
+    let updateError = await updateApplicationStatus(nextStatus)
+
+    if (updateError && nextStatus === 'Pending') {
+      updateError = await updateApplicationStatus('Received')
+    }
 
     if (updateError) {
       setUpdatingApplicationId('')
