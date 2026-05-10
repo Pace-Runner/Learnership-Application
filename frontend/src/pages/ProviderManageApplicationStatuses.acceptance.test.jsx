@@ -13,6 +13,7 @@ const mockState = {
   notificationInsertError: null,
   emailInvokeError: null,
   updatedApplicationPayload: null,
+  updatedApplicationPayloads: [],
   updatedApplicationId: '',
   insertedNotificationPayload: null,
   invokedEmailFunction: '',
@@ -59,10 +60,15 @@ function buildTableQuery(tableName) {
       })),
       update: vi.fn((payload) => {
         mockState.updatedApplicationPayload = payload
+        mockState.updatedApplicationPayloads.push(payload)
         return {
           eq: vi.fn(async (_column, applicationId) => {
             mockState.updatedApplicationId = applicationId
-            return { data: null, error: mockState.applicationUpdateError }
+            const updateError = typeof mockState.applicationUpdateError === 'function'
+              ? mockState.applicationUpdateError(payload)
+              : mockState.applicationUpdateError
+
+            return { data: null, error: updateError }
           }),
         }
       }),
@@ -151,6 +157,7 @@ beforeEach(() => {
   mockState.notificationInsertError = null
   mockState.emailInvokeError = null
   mockState.updatedApplicationPayload = null
+  mockState.updatedApplicationPayloads = []
   mockState.updatedApplicationId = ''
   mockState.insertedNotificationPayload = null
   mockState.invokedEmailFunction = ''
@@ -215,8 +222,11 @@ describe('Provider manage application statuses acceptance tests', () => {
     })
   })
 
-  test('4. Changing an applicant status uses Pending as the database value instead of Received', async () => {
-    mockState.applicationRows[0].status = 'Received'
+  test('4. Changing an applicant status falls back to Received if the database rejects Pending', async () => {
+    mockState.applicationRows[0].status = 'Shortlisted'
+    mockState.applicationUpdateError = (payload) => (
+      payload.status === 'Pending' ? { message: 'Status check constraint failed.' } : null
+    )
 
     renderApplicationsPage()
 
@@ -231,7 +241,9 @@ describe('Provider manage application statuses acceptance tests', () => {
       expect(mockState.updatedApplicationPayload).toBeTruthy()
     })
 
-    expect(mockState.updatedApplicationPayload.status).toBe('Pending')
+    expect(mockState.updatedApplicationPayloads.map((payload) => payload.status)).toEqual(['Pending', 'Received'])
+    expect(mockState.updatedApplicationPayload.status).toBe('Received')
+    expect(await screen.findByText('Current status: Pending')).toBeTruthy()
   })
 
   test('5. The visible application status updates after saving the provider action', async () => {
