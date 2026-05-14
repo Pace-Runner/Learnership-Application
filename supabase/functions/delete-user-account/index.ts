@@ -12,6 +12,54 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function normalizeAccountRole(role: string | null | undefined) {
+  const normalizedRole = role?.trim().toLowerCase()
+
+  if (normalizedRole === 'provider') {
+    return 'Provider'
+  }
+
+  if (normalizedRole === 'admin') {
+    return 'Admin'
+  }
+
+  return 'Applicant'
+}
+
+async function deleteAuthUser(adminClient: ReturnType<typeof createClient>, userRow: { id: string; email: string | null | undefined }) {
+  const candidateIds = new Set<string>()
+
+  if (userRow.id) {
+    candidateIds.add(userRow.id)
+  }
+
+  if (userRow.email) {
+    const { data: authUsers, error: authUsersError } = await adminClient.auth.admin.listUsers()
+
+    if (!authUsersError) {
+      const authUser = authUsers?.users?.find((candidate) => candidate.email?.toLowerCase() === userRow.email?.toLowerCase())
+
+      if (authUser?.id) {
+        candidateIds.add(authUser.id)
+      }
+    }
+  }
+
+  for (const candidateId of candidateIds) {
+    const { error: deleteUserError } = await adminClient.auth.admin.deleteUser(candidateId)
+
+    if (!deleteUserError) {
+      return
+    }
+
+    if (candidateId === userRow.id && userRow.email) {
+      continue
+    }
+
+    throw new Error(`Could not delete auth account: ${deleteUserError.message}`)
+  }
+}
+
 serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -69,7 +117,7 @@ serve(async (request) => {
       )
     }
 
-    const accountRole = role || userRow.role || 'Applicant'
+    const accountRole = normalizeAccountRole(role || userRow.role)
     const recipientEmail = userRow.email
 
     if (accountRole === 'Applicant') {
@@ -83,7 +131,6 @@ serve(async (request) => {
         await adminClient.from('applicant_education').delete().eq('applicant_id', applicantProfile.id)
         await adminClient.from('applicant_skills').delete().eq('applicant_id', applicantProfile.id)
         await adminClient.from('applications').delete().eq('applicant_id', applicantProfile.id)
-        await adminClient.from('favourites').delete().eq('applicant_id', applicantProfile.id)
         await adminClient.from('applicant_profiles').delete().eq('id', applicantProfile.id)
       }
     }
@@ -108,7 +155,6 @@ serve(async (request) => {
           await adminClient.from('opportunity_requirements').delete().in('opportunity_id', opportunityIds)
           await adminClient.from('opportunity_skills').delete().in('opportunity_id', opportunityIds)
           await adminClient.from('applications').delete().in('opportunity_id', opportunityIds)
-          await adminClient.from('favourites').delete().in('opportunity_id', opportunityIds)
           await adminClient.from('opportunities').delete().in('id', opportunityIds)
         }
 
@@ -120,17 +166,12 @@ serve(async (request) => {
     await adminClient.from('email_logs').delete().eq('user_id', userRow.id)
     await adminClient.from('users').delete().eq('id', userRow.id)
 
-    const { data: authUsers } = await adminClient.auth.admin.listUsers()
-    const authUser = authUsers?.users?.find((candidate) => candidate.email?.toLowerCase() === userRow.email?.toLowerCase())
-
-    if (authUser?.id) {
-      await adminClient.auth.admin.deleteUser(authUser.id)
-    }
+    await deleteAuthUser(adminClient, userRow)
 
     await adminClient.from('admin_actions').insert({
       admin_id: adminId || null,
       action_type: 'account_deleted',
-      target_type: 'user',
+      target_type: accountRole.toLowerCase(),
       target_id: userRow.id,
       reason: reason || null,
     })
