@@ -127,7 +127,7 @@ create table if not exists email_logs (
 create table if not exists admin_actions (
   id uuid primary key default gen_random_uuid(),
   admin_id uuid references users(id),
-  action_type text check (action_type in ('approved', 'removed', 'deleted')),
+  action_type text check (action_type in ('approved', 'removed', 'deleted', 'account_deleted')),
   target_type text check (target_type in ('listing', 'user')),
   target_id uuid,
   listing_type text,

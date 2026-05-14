@@ -76,6 +76,19 @@ function isApplicantProfileComplete(profile) {
   )
 }
 
+function getConfiguredAdminEmails() {
+  const configuredEmails = import.meta.env.VITE_ADMIN_EMAILS?.trim()
+
+  if (configuredEmails) {
+    return configuredEmails
+      .split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)
+  }
+
+  return ['connor@yourdomain.com', 'anotheradmin@yourdomain.com']
+}
+
 function App() {
   // Authentication state management:
   const [role, setRole] = useState(null) // Current user's role: 'Admin', 'Provider', 'Applicant', or null
@@ -113,6 +126,25 @@ function App() {
 
     if (fetchError) {
       throw fetchError
+    }
+
+    if (!userRecord?.role) {
+      const normalizedEmail = email?.trim().toLowerCase()
+      const configuredAdminEmails = getConfiguredAdminEmails()
+
+      if (normalizedEmail && configuredAdminEmails.includes(normalizedEmail)) {
+        const { data: restoredAdmin, error: restoreError } = await supabase
+          .from('users')
+          .upsert({ email: normalizedEmail, role: 'Admin' }, { onConflict: 'email' })
+          .select('role')
+          .single()
+
+        if (restoreError) {
+          throw restoreError
+        }
+
+        return restoredAdmin?.role ?? 'Admin'
+      }
     }
 
     return userRecord?.role ?? null

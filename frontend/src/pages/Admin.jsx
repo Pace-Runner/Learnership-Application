@@ -51,7 +51,8 @@ function normalizeListing(row)
 
 const adminTabs = [
   { id: 'approve-remove', label: 'Approve/Remove Listings' },
-  { id: 'delete', label: 'Delete' },
+  { id: 'delete-listing', label: 'Delete Listing' },
+  { id: 'delete-user', label: 'Delete User' },
 ]
 
 const queueTypeFilters = [
@@ -65,10 +66,26 @@ const deleteEntityTabs = [
   { id: 'listing', label: 'Listing' },
 ]
 
+const deleteUserTabs = [
+  { id: 'applicant', label: 'Applicant' },
+  { id: 'provider', label: 'Provider' },
+]
+
 const deleteSearchHints = {
   listing: {
     placeholder: 'Search listings by title, type, or listing ID',
     examples: ['electric', 'apprenticeship', 'internship', 'learnership'],
+  },
+}
+
+const deleteUserSearchHints = {
+  applicant: {
+    placeholder: 'Search applicants by name, email, phone, or ID',
+    examples: ['nomsa', 'nomsa@example.com', '073', 'applicant'],
+  },
+  provider: {
+    placeholder: 'Search providers by organisation, email, phone, or ID',
+    examples: ['academy', 'provider@example.com', 'training', 'organisation'],
   },
 }
 
@@ -87,6 +104,47 @@ const emptyDeleteStats = {
 
 const emptyDeleteDirectory = {
   listing: [],
+}
+
+const emptyDeleteUserDirectory = {
+  applicant: [],
+  provider: [],
+}
+
+function normalizeDeleteUserRecord(userRow, profileRow, role) 
+{
+  const userEmail = userRow?.email || profileRow?.contact_email || 'No email on record'
+  const profileName = role === 'Provider'
+    ? profileRow?.organisation_name || userEmail
+    : [profileRow?.first_name, profileRow?.last_name].filter(Boolean).join(' ').trim() || userEmail
+  const secondaryBits = [
+    role === 'Provider' ? profileRow?.contact_email : userRow?.email,
+    profileRow?.phone,
+    profileRow?.location,
+    userRow?.id,
+  ].filter(Boolean)
+
+  return {
+    id: userRow?.id,
+    role,
+    primaryLabel: profileName,
+    secondaryLabel: secondaryBits.join(' • '),
+    email: userEmail,
+    createdAt: profileRow?.created_at || userRow?.created_at || '',
+    searchIndex: [
+      profileName,
+      userEmail,
+      profileRow?.phone,
+      profileRow?.location,
+      profileRow?.about_me,
+      profileRow?.description,
+      userRow?.id,
+      role,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase(),
+  }
 }
 
 function buildDeleteStats(deletedListingsWithTypes, currentAdminId) {
@@ -167,7 +225,14 @@ export default function Admin({
   const [deleteDirectory, setDeleteDirectory] = useState(emptyDeleteDirectory)
   const [selectedDeleteListingId, setSelectedDeleteListingId] = useState('')
   const [deleteListingReason, setDeleteListingReason] = useState('')
+  const [deleteUserTab, setDeleteUserTab] = useState('applicant')
+  const [deleteUserSearchQuery, setDeleteUserSearchQuery] = useState('')
+  const [deleteUserDirectory, setDeleteUserDirectory] = useState(emptyDeleteUserDirectory)
+  const [selectedDeleteUserId, setSelectedDeleteUserId] = useState('')
+  const [selectedDeleteUserRole, setSelectedDeleteUserRole] = useState('')
+  const [deleteUserReason, setDeleteUserReason] = useState('')
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false)
+  const [isSubmittingUserDelete, setIsSubmittingUserDelete] = useState(false)
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
 
   useEffect(() => 
@@ -210,6 +275,22 @@ export default function Admin({
 
     return source.filter((item) => item.searchIndex.includes(query))
   }, [deleteDirectory, deleteEntityTab, deleteSearchQuery])
+
+  const activeDeleteUserSearchHints = deleteUserSearchHints[deleteUserTab]
+  const filteredDeleteUserRecords = useMemo(() => {
+    const query = deleteUserSearchQuery.trim().toLowerCase()
+    const source = deleteUserDirectory[deleteUserTab] || []
+
+    if (!query) {
+      return source
+    }
+
+    return source.filter((item) => item.searchIndex.includes(query))
+  }, [deleteUserDirectory, deleteUserTab, deleteUserSearchQuery])
+
+  const selectedDeleteUserRecord = selectedDeleteUserId && selectedDeleteUserRole
+    ? deleteUserDirectory[selectedDeleteUserRole.toLowerCase()]?.find((record) => record.id === selectedDeleteUserId) || null
+    : null
 
 
 
@@ -399,6 +480,11 @@ export default function Admin({
       listing: [],
     }
 
+    const nextDeleteUserDirectory = {
+      applicant: [],
+      provider: [],
+    }
+
     for (const listing of allListingsResult || []) {
       if (!listing?.id || deletedTargetIds.includes(listing.id) || listing.status !== 'Approved') {
         continue
@@ -418,6 +504,54 @@ export default function Admin({
 
     nextDeleteDirectory.listing.sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
 
+    const { data: applicantUsers, error: applicantUsersError } = await supabase
+      .from('users')
+      .select('id,email,created_at,role')
+      .eq('role', 'Applicant')
+      .order('created_at', { ascending: false })
+
+    if (!applicantUsersError) {
+      const applicantUserIds = (applicantUsers || []).map((user) => user.id).filter(Boolean)
+      let applicantProfilesByUserId = {}
+
+      if (applicantUserIds.length) {
+        const { data: applicantProfiles } = await supabase
+          .from('applicant_profiles')
+          .select('id,user_id,first_name,last_name,phone,location,about_me,created_at')
+          .in('user_id', applicantUserIds)
+
+        applicantProfilesByUserId = Object.fromEntries((applicantProfiles || []).map((profile) => [profile.user_id, profile]))
+      }
+
+      nextDeleteUserDirectory.applicant = (applicantUsers || [])
+        .map((userRow) => normalizeDeleteUserRecord(userRow, applicantProfilesByUserId[userRow.id], 'Applicant'))
+        .sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
+    }
+
+    const { data: providerUsers, error: providerUsersError } = await supabase
+      .from('users')
+      .select('id,email,created_at,role')
+      .eq('role', 'Provider')
+      .order('created_at', { ascending: false })
+
+    if (!providerUsersError) {
+      const providerUserIds = (providerUsers || []).map((user) => user.id).filter(Boolean)
+      let providerProfilesByUserId = {}
+
+      if (providerUserIds.length) {
+        const { data: providerProfiles } = await supabase
+          .from('provider_profiles')
+          .select('id,user_id,organisation_name,contact_email,phone,description,created_at')
+          .in('user_id', providerUserIds)
+
+        providerProfilesByUserId = Object.fromEntries((providerProfiles || []).map((profile) => [profile.user_id, profile]))
+      }
+
+      nextDeleteUserDirectory.provider = (providerUsers || [])
+        .map((userRow) => normalizeDeleteUserRecord(userRow, providerProfilesByUserId[userRow.id], 'Provider'))
+        .sort((a, b) => a.primaryLabel.localeCompare(b.primaryLabel))
+    }
+
     // Build stats from deleted actions with type information
     const deletedWithTypes = (deletedActions || []).map((action) => ({
       ...action,
@@ -428,6 +562,7 @@ export default function Admin({
       buildDeleteStats(deletedWithTypes, effectiveAdminId),
     )
     setDeleteDirectory(nextDeleteDirectory)
+    setDeleteUserDirectory(nextDeleteUserDirectory)
   }, [effectiveAdminId, hasProvidedListings])
 
   useEffect(() => {
@@ -515,6 +650,59 @@ export default function Admin({
       setErrorMessage('Error deleting listing')
     } finally {
       setIsSubmittingDelete(false)
+    }
+  }
+
+  const handleDeleteUser = async (userId, role, reason) => {
+    if (!userId || !role || !reason.trim()) {
+      setErrorMessage('Please provide a reason for deletion')
+      return
+    }
+
+    const userRecord = deleteUserDirectory[role.toLowerCase()]?.find((record) => record.id === userId)
+
+    if (!userRecord) {
+      setErrorMessage('Could not find the selected account')
+      return
+    }
+
+    setIsSubmittingUserDelete(true)
+    setErrorMessage('')
+
+    try {
+      if (!hasSupabaseConfig) {
+        setErrorMessage('Supabase config missing. Cannot delete user accounts.')
+        return
+      }
+
+      const { error } = await supabase.functions.invoke('delete-user-account', {
+        body: {
+          userId,
+          role,
+          reason: reason.trim(),
+          adminId: effectiveAdminId,
+        },
+      })
+
+      if (error) {
+        setErrorMessage('Failed to delete account')
+        return
+      }
+
+      setDeleteUserDirectory((prev) => ({
+        ...prev,
+        [role.toLowerCase()]: prev[role.toLowerCase()].filter((record) => record.id !== userId),
+      }))
+
+      setSelectedDeleteUserId('')
+      setSelectedDeleteUserRole('')
+      setDeleteUserReason('')
+      setStatusMessage(`Deleted ${userRecord.primaryLabel}`)
+      await fetchDeleteInsights()
+    } catch {
+      setErrorMessage('Error deleting account')
+    } finally {
+      setIsSubmittingUserDelete(false)
     }
   }
 
@@ -883,7 +1071,7 @@ export default function Admin({
     </>
   )
 
-  const renderDeleteTab = () => (
+  const renderDeleteListingTab = () => (
     <section className="admin-delete-section" aria-label="Delete insights">
       <section className="admin-kpi-row" aria-label="Delete metrics">
         <article className="admin-kpi">
@@ -1046,6 +1234,167 @@ export default function Admin({
       </section>
   )
 
+  const renderDeleteUserTab = () => (
+    <section className="admin-delete-section" aria-label="Delete user accounts">
+      <section className="admin-kpi-row" aria-label="User delete metrics">
+        <article className="admin-kpi">
+          <span>Applicants Loaded</span>
+          <strong>{deleteUserDirectory.applicant.length}</strong>
+        </article>
+        <article className="admin-kpi">
+          <span>Providers Loaded</span>
+          <strong>{deleteUserDirectory.provider.length}</strong>
+        </article>
+      </section>
+
+      <section className="admin-content-row">
+        <section className="admin-panel" aria-label="Delete user search">
+          <header className="admin-panel-head">
+            <h2>Delete User Accounts</h2>
+          </header>
+
+          <div className="admin-filter-row" role="tablist" aria-label="Delete user role filter">
+            {deleteUserTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={deleteUserTab === tab.id}
+                className={deleteUserTab === tab.id ? 'is-active' : ''}
+                onClick={() => {
+                  setDeleteUserTab(tab.id)
+                  setDeleteUserSearchQuery('')
+                  setSelectedDeleteUserId('')
+                  setSelectedDeleteUserRole('')
+                  setDeleteUserReason('')
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="search"
+            className="admin-delete-search-input"
+            value={deleteUserSearchQuery}
+            onChange={(event) => setDeleteUserSearchQuery(event.target.value)}
+            placeholder={activeDeleteUserSearchHints.placeholder}
+            aria-label={`Search ${deleteUserTab} accounts`}
+          />
+
+          <p className="admin-note">
+            Try searching: {activeDeleteUserSearchHints.examples.join(', ')}
+          </p>
+
+          {filteredDeleteUserRecords.length === 0 ? (
+            <p className="admin-note">No {deleteUserTab} accounts match your search.</p>
+          ) : (
+            <ul className="admin-history-list admin-delete-results-list">
+              {filteredDeleteUserRecords.map((record) => (
+                <li
+                  key={record.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setSelectedDeleteUserId(record.id)
+                    setSelectedDeleteUserRole(record.role)
+                    setDeleteUserReason('')
+                    setErrorMessage('')
+                    setStatusMessage('')
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      setSelectedDeleteUserId(record.id)
+                      setSelectedDeleteUserRole(record.role)
+                      setDeleteUserReason('')
+                      setErrorMessage('')
+                      setStatusMessage('')
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <strong>{record.primaryLabel}</strong>
+                  <span>{record.secondaryLabel}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <aside className="admin-panel admin-side-panel" aria-label="Delete user guidance">
+          <h2>Delete User Guidance</h2>
+          <p className="admin-note">
+            Search first in the user table, then select the matching applicant or provider profile to remove the account.
+          </p>
+          <p className="admin-note">
+            A confirmation popup will ask for a reason before the account is deleted and emailed.
+          </p>
+        </aside>
+      </section>
+
+      {selectedDeleteUserRecord && (
+        <section className="admin-modal-overlay" onClick={() => {
+          setSelectedDeleteUserId('')
+          setSelectedDeleteUserRole('')
+          setDeleteUserReason('')
+        }}>
+          <section className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Confirm User Deletion</h3>
+            {errorMessage && <p className="admin-error">{errorMessage}</p>}
+            <p>
+              Account type:{' '}
+              <strong>{selectedDeleteUserRecord.role}</strong>
+            </p>
+            <p>
+              Confirm you want to delete this person:{' '}
+              <strong>{selectedDeleteUserRecord.primaryLabel}</strong>
+            </p>
+            <p>
+              Contact email:{' '}
+              <strong>{selectedDeleteUserRecord.email}</strong>
+            </p>
+            <label htmlFor="delete-user-reason">
+              Reason for deletion
+              <textarea
+                id="delete-user-reason"
+                value={deleteUserReason}
+                onChange={(e) => setDeleteUserReason(e.target.value)}
+                placeholder="Enter reason for deletion..."
+                disabled={isSubmittingUserDelete}
+                rows={4}
+                style={{ width: '100%', padding: '8px', marginTop: '8px' }}
+              />
+            </label>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedDeleteUserId('')
+                  setSelectedDeleteUserRole('')
+                  setDeleteUserReason('')
+                  setErrorMessage('')
+                }}
+                disabled={isSubmittingUserDelete}
+                className="admin-button-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteUser(selectedDeleteUserId, selectedDeleteUserRole, deleteUserReason)}
+                disabled={isSubmittingUserDelete || !deleteUserReason.trim()}
+                className="admin-button-primary"
+              >
+                {isSubmittingUserDelete ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </section>
+        </section>
+      )}
+    </section>
+  )
+
   if (!isAuthenticated) 
   {
     return (
@@ -1121,8 +1470,10 @@ export default function Admin({
 
         {activeAdminTab === 'approve-remove' ? (
           renderApproveRemoveTab()
+        ) : activeAdminTab === 'delete-user' ? (
+          renderDeleteUserTab()
         ) : (
-          renderDeleteTab()
+          renderDeleteListingTab()
         )}
       </section>
     </main>

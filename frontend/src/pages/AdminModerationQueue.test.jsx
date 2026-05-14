@@ -21,6 +21,9 @@ vi.mock('../lib/supabaseClient', () => {
   return {
     supabase: {
       from,
+      functions: {
+        invoke: vi.fn().mockResolvedValue({ data: { success: true }, error: null }),
+      },
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: { user: { email: 'admin@example.com' } },
@@ -93,10 +96,11 @@ describe('Admin moderation queue TDD tests', () => {
     renderAdmin({ listings: [] })
 
     expect(screen.getByRole('tab', { name: /approve\/remove/i })).toBeTruthy()
-    expect(screen.getByRole('tab', { name: /^delete$/i })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^delete listing$/i })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^delete user$/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /download.*csv/i })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('tab', { name: /^delete$/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /^delete listing$/i }))
 
     expect(screen.getByText(/this admin:.*apprenticeships deleted/i)).toBeTruthy()
     expect(screen.getByText(/all admins:.*apprenticeships deleted/i)).toBeTruthy()
@@ -202,7 +206,7 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings: undefined })
 
-    fireEvent.click(await screen.findByRole('tab', { name: /^delete$/i }))
+    fireEvent.click(await screen.findByRole('tab', { name: /^delete listing$/i }))
 
     expect(await screen.findByText(/this admin:.*apprenticeships deleted/i)).toBeTruthy()
     expect(screen.getByText(/all admins:.*apprenticeships deleted/i)).toBeTruthy()
@@ -313,7 +317,7 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings: undefined })
 
-    fireEvent.click(await screen.findByRole('tab', { name: /^delete$/i }))
+    fireEvent.click(await screen.findByRole('tab', { name: /^delete listing$/i }))
     expect(await screen.findByText('Learner Support Listing')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /learner support listing/i }))
@@ -463,6 +467,124 @@ describe('Admin moderation queue TDD tests', () => {
 
     expect(onRemoveListing).not.toHaveBeenCalled()
     expect(screen.getByText(/please provide a reason before confirming/i)).toBeTruthy()
+  })
+
+  test('13. delete user tab loads applicants and providers and calls the delete function', async () => {
+    const applicantUsers = [
+      { id: 'u-app-1', email: 'applicant1@example.com', role: 'Applicant', created_at: '2026-05-01' },
+    ]
+    const providerUsers = [
+      { id: 'u-prov-1', email: 'provider1@example.com', role: 'Provider', created_at: '2026-05-02' },
+    ]
+    const applicantProfiles = [
+      { id: 'ap-1', user_id: 'u-app-1', first_name: 'Ava', last_name: 'Nkosi', phone: '0721112222', location: 'Cape Town', about_me: 'Ready to learn', created_at: '2026-05-01' },
+    ]
+    const providerProfiles = [
+      { id: 'pp-1', user_id: 'u-prov-1', organisation_name: 'Build Skills Ltd', contact_email: 'hello@buildskills.co.za', phone: '0111234567', description: 'Training partner', created_at: '2026-05-02' },
+    ]
+
+    supabase.from.mockImplementation((table) => {
+      const chain = {
+        filters: {},
+        select() {
+          return chain
+        },
+        eq(field, value) {
+          chain.filters[field] = value
+          return chain
+        },
+        in(field, values) {
+          chain.filters[field] = values
+          return chain
+        },
+        order() {
+          return chain
+        },
+        update() {
+          return chain
+        },
+        insert() {
+          return { data: null, error: null }
+        },
+        maybeSingle() {
+          return { data: null, error: null }
+        },
+        upsert() {
+          return chain
+        },
+      }
+
+      Object.defineProperty(chain, 'data', {
+        get() {
+          if (table === 'users') {
+            if (chain.filters.role === 'Applicant') {
+              return applicantUsers
+            }
+
+            if (chain.filters.role === 'Provider') {
+              return providerUsers
+            }
+
+            return []
+          }
+
+          if (table === 'applicant_profiles') {
+            if (Array.isArray(chain.filters.user_id)) {
+              return applicantProfiles.filter((profile) => chain.filters.user_id.includes(profile.user_id))
+            }
+
+            return applicantProfiles
+          }
+
+          if (table === 'provider_profiles') {
+            if (Array.isArray(chain.filters.user_id)) {
+              return providerProfiles.filter((profile) => chain.filters.user_id.includes(profile.user_id))
+            }
+
+            return providerProfiles
+          }
+
+          return []
+        },
+      })
+
+      Object.defineProperty(chain, 'error', {
+        get() {
+          return null
+        },
+      })
+
+      return chain
+    })
+
+    renderAdmin({ listings: undefined })
+
+    fireEvent.click(await screen.findByRole('tab', { name: /^delete user$/i }))
+
+    expect(await screen.findByText('Ava Nkosi')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: /^provider$/i }))
+    expect(await screen.findByText('Build Skills Ltd')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: /^applicant$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ava nkosi/i }))
+    fireEvent.change(screen.getByLabelText(/reason for deletion/i), {
+      target: { value: 'Account created in error' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /confirm delete/i }))
+
+    await waitFor(() => {
+      expect(supabase.functions.invoke).toHaveBeenCalledWith(
+        'delete-user-account',
+        expect.objectContaining({
+          body: expect.objectContaining({
+            userId: 'u-app-1',
+            role: 'Applicant',
+            reason: 'Account created in error',
+          }),
+        }),
+      )
+    })
   })
 
   test('13. non-admin cannot access moderation panel', () => {

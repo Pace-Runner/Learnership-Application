@@ -54,6 +54,11 @@ vi.mock('./lib/supabaseClient', () => ({
               maybeSingle: vi.fn(async () => ({ data: null, error: null })),
             })),
           })),
+          upsert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn(async () => ({ data: null, error: null })),
+            })),
+          })),
         }
       }
 
@@ -61,6 +66,11 @@ vi.mock('./lib/supabaseClient', () => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
             maybeSingle: mockRoleLookup,
+          })),
+        })),
+        upsert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(async () => ({ data: { role: 'Admin' }, error: null })),
           })),
         })),
       }
@@ -120,6 +130,19 @@ describe('Role-based routing runtime behavior', () => {
       error: null,
     })
     mockRoleLookup.mockResolvedValue({ data: { role: 'Admin' }, error: null })
+
+    renderApp('/admin')
+    await waitFor(() => {
+      expect(screen.getByText('Admin Workspace')).toBeTruthy()
+    })
+  })
+
+  test('restores configured admin email to Admin role when no users row exists', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { email: 'connor@yourdomain.com' } } },
+      error: null,
+    })
+    mockRoleLookup.mockResolvedValue({ data: null, error: null })
 
     renderApp('/admin')
     await waitFor(() => {
