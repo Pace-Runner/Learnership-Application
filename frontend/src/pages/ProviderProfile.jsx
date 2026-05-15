@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
@@ -70,7 +70,6 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
   const [userId, setUserId] = useState('')
   const [profileId, setProfileId] = useState('')
   const [profileForm, setProfileForm] = useState(initialProfileForm)
-  const [savedProfile, setSavedProfile] = useState(null)
   const [logoUrl, setLogoUrl] = useState('')
   const [logoPreview, setLogoPreview] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -78,18 +77,6 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
   const [loadError, setLoadError] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
-
-  const profileSummary = useMemo(() => {
-    if (!savedProfile) {
-      return {
-        organisation_name: 'Profile not saved yet',
-        phone: 'Not specified',
-        description: 'Add your organisation details on the form to show them here.',
-      }
-    }
-
-    return savedProfile
-  }, [savedProfile])
 
   useEffect(() => {
     let isMounted = true
@@ -133,7 +120,7 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
 
       const { data: profileRow, error: profileError } = await supabase
         .from('provider_profiles')
-        .select('id,organisation_name,phone,description,contact_email')
+        .select('id,organisation_name,phone,description,contact_email,logo_url')
         .eq('user_id', userRow.id)
         .maybeSingle()
 
@@ -157,7 +144,6 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
         if (profileRow?.logo_url) {
           setLogoUrl(profileRow.logo_url)
         }
-        setSavedProfile(profileRow ? createSavedProfileSnapshot(nextValues) : null)
         setIsLoading(false)
       }
     }
@@ -257,6 +243,7 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
       description: profileForm.description.trim(),
       contact_email: email,
     }
+    let persistedLogoUrl = logoUrl
 
     // Upload logo if a new file was selected
     if (profileForm.logo_file) {
@@ -268,14 +255,19 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
       if (uploadError) {
         // Logo upload failed but continue saving profile
         console.warn('Logo upload failed:', uploadError)
+        persistedLogoUrl = logoPreview || persistedLogoUrl
       } else {
         const { data: publicUrlData } = supabase.storage
           .from('provider_logos')
           .getPublicUrl(logoFileName)
         const logoPublicUrl = publicUrlData.publicUrl
         setLogoUrl(logoPublicUrl)
-        payload.logo_url = logoPublicUrl
+        persistedLogoUrl = logoPublicUrl
       }
+    }
+
+    if (persistedLogoUrl) {
+      payload.logo_url = persistedLogoUrl
     }
 
     if (profileId) {
@@ -306,7 +298,6 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
     }
 
     const nextSavedProfile = createSavedProfileSnapshot(profileForm)
-    setSavedProfile(nextSavedProfile)
     setSaveMessage('Provider profile saved successfully.')
     setIsSaving(false)
     if (onProfileSaved) {
