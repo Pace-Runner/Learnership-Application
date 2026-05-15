@@ -351,9 +351,9 @@ describe('Provider Edit/Delete listing acceptance tests', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toContain('<Route path="/provider/listings/:listingId/edit"')
-    expect(appSource).toContain('allowedRole="Provider"')
+    expect(appSource).toContain('ProviderWorkspaceRoute')
+    expect(appSource).toContain("role !== 'Provider'")
     expect(appSource).toContain('if (!signedIn)')
-    expect(appSource).toContain('if (role !== allowedRole)')
     expect(appSource).toContain('Navigate to="/"')
   })
 })

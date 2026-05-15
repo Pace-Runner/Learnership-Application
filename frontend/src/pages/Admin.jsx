@@ -849,12 +849,6 @@ export default function Admin({
     setIsSubmittingAction(false)
   }
 
-  const handleCancelAction = () => {
-    setReviewAction('')
-    setActionReason('')
-    setErrorMessage('')
-  }
-
   const handleExportModerationReport = () => {
     const fetchAllRecords = async () => {
       const { data: allRecords, error } = await supabase
@@ -975,65 +969,109 @@ export default function Admin({
                   </div>
                 </button>
 
-                {selectedListingId === listing.id ? (
-                  <section className="admin-selection-panel" aria-label="Selected listing review panel">
-                    <h3>Selected Listing</h3>
-                    <p>{listing.title}</p>
-                    <div className="admin-review-actions">
-                      <button
-                        type="button"
-                        className={reviewAction === 'approved' ? 'is-active' : ''}
-                        onClick={() => {
-                          setReviewAction('approved')
-                          setErrorMessage('')
-                        }}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        className={reviewAction === 'removed' ? 'is-active' : ''}
-                        onClick={() => {
-                          setReviewAction('removed')
-                          setErrorMessage('')
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-
-                    {reviewAction ? (
-                      <div className="admin-confirm-panel">
-                        <label className="admin-removal-label" htmlFor={`action-reason-${listing.id}`}>
-                          {reviewAction === 'approved' ? 'Approval reason' : 'Removal reason'}
-                        </label>
-                        <textarea
-                          id={`action-reason-${listing.id}`}
-                          value={actionReason}
-                          onChange={(event) => {
-                            setActionReason(event.target.value)
-                            setErrorMessage('')
-                          }}
-                          rows="3"
-                          placeholder={`Explain why this listing should be ${reviewAction === 'approved' ? 'approved' : 'removed'}.`}
-                        />
-                        <div className="admin-confirm-actions">
-                          <button type="button" onClick={handleConfirmAction} disabled={isSubmittingAction}>
-                            {isSubmittingAction ? 'Saving...' : `Confirm ${reviewAction === 'approved' ? 'Approve' : 'Remove'}`}
-                          </button>
-                          <button type="button" className="admin-ghost-btn" onClick={handleCancelAction}>
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </section>
-                ) : null}
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {selectedListingId && !reviewAction && (
+        <section className="admin-modal-overlay" onClick={() => {
+          setSelectedListingId('')
+          setReviewAction('')
+          setActionReason('')
+          setErrorMessage('')
+        }}>
+          <section className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Approve or Remove Listing?</h3>
+            {errorMessage && <p className="admin-error">{errorMessage}</p>}
+            <p>
+              <strong>{filteredQueueListings.find((l) => l.id === selectedListingId)?.title}</strong>
+            </p>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+              <button
+                type="button"
+                onClick={() => setReviewAction('approved')}
+                className="admin-button-primary"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewAction('removed')}
+                className="admin-button-primary"
+                style={{ backgroundColor: '#dc3545' }}
+              >
+                Remove
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedListingId('')
+                  setReviewAction('')
+                  setActionReason('')
+                  setErrorMessage('')
+                }}
+                className="admin-button-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </section>
+      )}
+
+      {selectedListingId && reviewAction && (
+        <section className="admin-modal-overlay" onClick={() => {
+          setSelectedListingId('')
+          setReviewAction('')
+          setActionReason('')
+          setErrorMessage('')
+        }}>
+          <section className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{reviewAction === 'approved' ? 'Approve' : 'Remove'} Listing</h3>
+            {errorMessage && <p className="admin-error">{errorMessage}</p>}
+            <p>
+              <strong>{filteredQueueListings.find((l) => l.id === selectedListingId)?.title}</strong>
+            </p>
+            <label htmlFor="action-reason">
+              {reviewAction === 'approved' ? 'Approval' : 'Removal'} reason
+              <textarea
+                id="action-reason"
+                value={actionReason}
+                onChange={(e) => setActionReason(e.target.value)}
+                placeholder={`Explain why this listing should be ${reviewAction === 'approved' ? 'approved' : 'removed'}.`}
+                disabled={isSubmittingAction}
+                rows={4}
+                style={{ width: '100%', padding: '8px', marginTop: '8px' }}
+              />
+            </label>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedListingId('')
+                  setReviewAction('')
+                  setActionReason('')
+                  setErrorMessage('')
+                }}
+                disabled={isSubmittingAction}
+                className="admin-button-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAction}
+                disabled={isSubmittingAction || !actionReason.trim()}
+                className="admin-button-primary"
+              >
+                {isSubmittingAction ? 'Saving...' : `Confirm ${reviewAction === 'approved' ? 'Approve' : 'Remove'}`}
+              </button>
+            </div>
+          </section>
+        </section>
+      )}
 
         <aside className="admin-panel admin-side-panel" aria-label="Quick actions">
           <h2>Quick Actions</h2>
@@ -1326,16 +1364,6 @@ export default function Admin({
             </ul>
           )}
         </section>
-
-        <aside className="admin-panel admin-side-panel" aria-label="Delete user guidance">
-          <h2>Delete User Guidance</h2>
-          <p className="admin-note">
-            Search first in the user table, then select the matching applicant or provider profile to remove the account.
-          </p>
-          <p className="admin-note">
-            A confirmation popup will ask for a reason before the account is deleted and emailed.
-          </p>
-        </aside>
       </section>
 
       {selectedDeleteUserRecord && (
@@ -1358,6 +1386,9 @@ export default function Admin({
             <p>
               Contact email:{' '}
               <strong>{selectedDeleteUserRecord.email}</strong>
+            </p>
+            <p style={{ color: '#dc3545', fontWeight: '500', marginTop: '12px' }}>
+              ⚠️ <strong>Warning:</strong> This action is permanent. The user will be permanently removed from all database tables.
             </p>
             <label htmlFor="delete-user-reason">
               Reason for deletion

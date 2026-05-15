@@ -37,6 +37,10 @@ vi.mock('./pages/ProviderListingEdit', () => ({
   default: () => <div>Provider Listing Edit</div>,
 }))
 
+vi.mock('./pages/ProviderProfile', () => ({
+  default: () => <div>Provider Profile Workspace</div>,
+}))
+
 vi.mock('./lib/supabaseClient', () => ({
   hasSupabaseConfig: true,
   supabase: {
@@ -159,7 +163,7 @@ describe('Role-based routing runtime behavior', () => {
 
     renderApp('/provider')
     await waitFor(() => {
-      expect(screen.getByText('Provider Workspace')).toBeTruthy()
+      expect(screen.getByText('Provider Profile Workspace')).toBeTruthy()
     })
   })
 
@@ -198,7 +202,7 @@ describe('Role-based routing runtime behavior', () => {
 
     renderApp('/')
     await waitFor(() => {
-      expect(screen.getByText('Provider Workspace')).toBeTruthy()
+      expect(screen.getByText('Provider Profile Workspace')).toBeTruthy()
     })
   })
 })

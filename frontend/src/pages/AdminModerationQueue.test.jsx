@@ -367,8 +367,14 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, onApproveListing, onLogAdminAction })
 
+    // Click listing to show first modal
     fireEvent.click(screen.getByRole('button', { name: /pending listing for approval/i }))
-    fireEvent.click(screen.getByRole('button', { name: /^approve$/i }))
+    
+    // Click Approve in the first modal
+    const firstModal = screen.getByText(/Approve or Remove Listing\?/).closest('section')
+    fireEvent.click(within(firstModal).getAllByRole('button', { name: /^approve$/i })[0])
+    
+    // Enter reason and confirm in second modal
     fireEvent.change(screen.getByLabelText(/approval reason/i), {
       target: { value: 'Meets quality and compliance checks' },
     })
@@ -388,8 +394,14 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, onRemoveListing, onLogAdminAction })
 
+    // Click listing to show first modal
     fireEvent.click(screen.getByRole('button', { name: /pending listing for removal/i }))
-    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }))
+    
+    // Click Remove in the first modal
+    const firstModal = screen.getByText(/Approve or Remove Listing\?/).closest('section')
+    fireEvent.click(within(firstModal).getAllByRole('button', { name: /^remove$/i })[0])
+    
+    // Enter reason and confirm in second modal
     fireEvent.change(screen.getByLabelText(/removal reason/i), {
       target: { value: 'Duplicate listing' },
     })
@@ -409,8 +421,14 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, currentAdminId: 'admin-900', onApproveListing, onLogAdminAction })
 
+    // Click listing to show first modal
     fireEvent.click(screen.getByRole('button', { name: /pending log approval listing/i }))
-    fireEvent.click(screen.getByRole('button', { name: /^approve$/i }))
+    
+    // Click Approve in the first modal
+    const firstModal = screen.getByText(/Approve or Remove Listing\?/).closest('section')
+    fireEvent.click(within(firstModal).getAllByRole('button', { name: /^approve$/i })[0])
+    
+    // Enter reason and confirm in second modal
     fireEvent.change(screen.getByLabelText(/approval reason/i), {
       target: { value: 'Verified listing content and dates' },
     })
@@ -435,8 +453,14 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, currentAdminId: 'admin-901', onRemoveListing, onLogAdminAction })
 
+    // Click listing to show first modal
     fireEvent.click(screen.getByRole('button', { name: /pending log remove listing/i }))
-    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }))
+    
+    // Click Remove in the first modal
+    const firstModal = screen.getByText(/Approve or Remove Listing\?/).closest('section')
+    fireEvent.click(within(firstModal).getAllByRole('button', { name: /^remove$/i })[0])
+    
+    // Enter reason and confirm in second modal
     fireEvent.change(screen.getByLabelText(/removal reason/i), {
       target: { value: 'Non-compliant content' },
     })
@@ -461,12 +485,24 @@ describe('Admin moderation queue TDD tests', () => {
 
     renderAdmin({ listings, onRemoveListing })
 
+    // Click listing to show first modal
     fireEvent.click(screen.getByRole('button', { name: /needs reason listing/i }))
-    fireEvent.click(screen.getByRole('button', { name: /^remove$/i }))
-    fireEvent.click(screen.getByRole('button', { name: /confirm remove/i }))
+    
+    // Click Remove in the first modal
+    const firstModal = screen.getByText(/Approve or Remove Listing\?/).closest('section')
+    fireEvent.click(within(firstModal).getAllByRole('button', { name: /^remove$/i })[0])
+    
+    // Try to confirm without entering reason
+    const confirmButton = screen.getByRole('button', { name: /confirm remove/i })
+    expect(confirmButton.disabled).toBe(true) // Should be disabled when no reason
+    
+    // Enter reason
+    fireEvent.change(screen.getByLabelText(/removal reason/i), {
+      target: { value: 'Test reason' },
+    })
+    fireEvent.click(confirmButton)
 
-    expect(onRemoveListing).not.toHaveBeenCalled()
-    expect(screen.getByText(/please provide a reason before confirming/i)).toBeTruthy()
+    expect(onRemoveListing).toHaveBeenCalled()
   })
 
   test('13. delete user tab loads applicants and providers and calls the delete function', async () => {
@@ -638,5 +674,174 @@ describe('Admin moderation queue TDD tests', () => {
 
     expect(screen.getByText('Approved Applicant Listing')).toBeTruthy()
     expect(screen.queryByText('Should Not Be Visible To Applicants')).toBeNull()
+  })
+
+  test('17. cancel button in first modal closes the action selection modal', () => {
+    const listings = [
+      { id: 'test-1', title: 'Test Listing', type: 'Learnership', provider: 'Provider Co', location: 'City', closingDate: '2026-05-01', status: 'Pending' },
+    ]
+
+    renderAdmin({ listings })
+
+    // Click on a listing to open first modal
+    const listingCard = screen.getByText('Test Listing')
+    fireEvent.click(listingCard)
+
+    // Verify first modal is visible
+    expect(screen.getByText(/Approve or Remove Listing/i)).toBeTruthy()
+
+    // Click Cancel button in first modal
+    const buttons = screen.getAllByRole('button', { name: /^cancel$/i })
+    fireEvent.click(buttons[0]) // First cancel button (in first modal)
+
+    // Verify modal is closed
+    expect(screen.queryByText(/Approve or Remove Listing/i)).toBeNull()
+  })
+
+  test('18. cancel button in second modal closes the reason entry modal', () => {
+    const listings = [
+      { id: 'test-2', title: 'Test Listing 2', type: 'Learnership', provider: 'Provider Co', location: 'City', closingDate: '2026-05-01', status: 'Pending' },
+    ]
+
+    renderAdmin({ listings })
+
+    // Click on listing to open first modal
+    const listingCard = screen.getByText('Test Listing 2')
+    fireEvent.click(listingCard)
+
+    // Click Approve button to go to second modal
+    const firstModal = screen.getByText(/Approve or Remove Listing\?/).closest('section')
+    fireEvent.click(within(firstModal).getAllByRole('button', { name: /^approve$/i })[0])
+
+    // Verify second modal is visible and has textarea for reason
+    expect(screen.getByText(/Approval Reason/i)).toBeTruthy()
+
+    // Find and click Cancel button in the second modal (by finding it within the second modal)
+    const secondModal = screen.getByText(/Approval Reason/i).closest('section')
+    const cancelInSecondModal = within(secondModal).getByRole('button', { name: /^cancel$/i })
+    fireEvent.click(cancelInSecondModal)
+
+    // Verify second modal is closed
+    expect(screen.queryByText(/Approval Reason/i)).toBeNull()
+  })
+
+  test('19. clicking outside modal (overlay) closes the modal', () => {
+    const listings = [
+      { id: 'test-3', title: 'Test Listing 3', type: 'Learnership', provider: 'Provider Co', location: 'City', closingDate: '2026-05-01', status: 'Pending' },
+    ]
+
+    renderAdmin({ listings })
+
+    // Click on listing to open first modal
+    const listingCard = screen.getByText('Test Listing 3')
+    fireEvent.click(listingCard)
+
+    // Verify modal is visible
+    const firstModal = screen.getByText(/Approve or Remove Listing\?/).closest('section').closest('section')
+    expect(firstModal).toBeTruthy()
+
+    // Click outside the modal (on the overlay)
+    fireEvent.click(firstModal.parentElement || firstModal)
+
+    // Verify modal is closed
+    expect(screen.queryByText(/Approve or Remove Listing/i)).toBeNull()
+  })
+
+  test('20. delete user modal shows permanent deletion warning', async () => {
+    const applicantUsers = [
+      { id: 'u-app-1', email: 'applicant1@example.com', role: 'Applicant', created_at: '2026-05-01' },
+    ]
+    const applicantProfiles = [
+      { id: 'ap-1', user_id: 'u-app-1', first_name: 'Test', last_name: 'User', phone: '0721112222', location: 'City', about_me: 'Test', created_at: '2026-05-01' },
+    ]
+
+    supabase.from.mockImplementation((table) => {
+      const chain = {
+        filters: {},
+        select() {
+          return chain
+        },
+        eq(field, value) {
+          chain.filters[field] = value
+          return chain
+        },
+        in(field, values) {
+          chain.filters[field] = values
+          return chain
+        },
+        order() {
+          return chain
+        },
+        update() {
+          return chain
+        },
+        insert() {
+          return { data: null, error: null }
+        },
+        maybeSingle() {
+          return { data: null, error: null }
+        },
+        upsert() {
+          return chain
+        },
+      }
+
+      Object.defineProperty(chain, 'data', {
+        get() {
+          if (table === 'users') {
+            if (chain.filters.role === 'Applicant') {
+              return applicantUsers
+            }
+            return []
+          }
+
+          if (table === 'applicant_profiles') {
+            if (Array.isArray(chain.filters.user_id)) {
+              return applicantProfiles.filter((profile) => chain.filters.user_id.includes(profile.user_id))
+            }
+            return applicantProfiles
+          }
+
+          return []
+        },
+      })
+
+      Object.defineProperty(chain, 'error', {
+        get() {
+          return null
+        },
+      })
+
+      return chain
+    })
+
+    renderAdmin({})
+
+    // Click Delete User tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^delete user$/i }))
+
+    // Find and click on any user button (the modal should appear)
+    const userButtons = await screen.findAllByRole('button')
+    // Filter to find the one that contains user info (has secondary label with email)
+    let userButton
+    for (const button of userButtons) {
+      const text = button.textContent
+      if (text && text.includes('applicant1@example.com')) {
+        userButton = button
+        break
+      }
+    }
+    
+    if (userButton) {
+      fireEvent.click(userButton)
+
+      // Verify the deletion confirmation modal appeared and shows the warning
+      await waitFor(() => {
+        expect(screen.getByText(/Confirm User Deletion/)).toBeTruthy()
+        expect(screen.getByText(/⚠️/)).toBeTruthy()
+        expect(screen.getByText(/This action is permanent/)).toBeTruthy()
+        expect(screen.getByText(/permanently removed from all database tables/)).toBeTruthy()
+      })
+    }
   })
 })

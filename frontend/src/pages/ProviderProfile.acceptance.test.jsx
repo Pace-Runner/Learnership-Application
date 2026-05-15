@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { cwd } from 'node:process'
 import ProviderProfile from './ProviderProfile'
 
 const mockState = {

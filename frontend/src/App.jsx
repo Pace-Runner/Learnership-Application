@@ -411,7 +411,7 @@ function App() {
       isMounted = false
       subscription.unsubscribe()
     }
-  }, [clearOAuthTimeout, getRoleForEmail, getApplicantLandingRouteForEmail])
+  }, [clearOAuthTimeout, getRoleForEmail, getApplicantLandingRouteForEmail, getProviderLandingRouteForEmail])
 
   // AUTO-REDIRECT: Send logged-in users to their role-appropriate dashboard
   // WHEN: User has loaded auth state, is signed in, has a role, and is on home page
