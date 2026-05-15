@@ -83,7 +83,7 @@ function ProviderWorkspaceRoute({ role, signedIn, isLoading, providerLandingRout
   return children
 }
 
-function ProviderProfileRoute({ role, signedIn, isLoading, providerLandingRoute, children }) {
+function ProviderProfileRoute({ role, signedIn, isLoading, children }) {
   const location = useLocation()
 
   if (isLoading && !signedIn) {
@@ -100,10 +100,6 @@ function ProviderProfileRoute({ role, signedIn, isLoading, providerLandingRoute,
 
   if (role !== 'Provider') {
     return <Navigate to="/" replace state={{ from: location }} />
-  }
-
-  if (providerLandingRoute === '/provider') {
-    return <Navigate to="/provider" replace state={{ from: location }} />
   }
 
   return children
@@ -803,7 +799,7 @@ return (
 } />
 
 <Route path="/provider/profile" element={
-  <ProviderProfileRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
+  <ProviderProfileRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth}>
     <ProviderProfile
       onLogout={handleLogout}
       onProfileSaved={() => setProviderLandingRoute('/provider')}

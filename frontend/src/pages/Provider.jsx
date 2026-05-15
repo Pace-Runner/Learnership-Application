@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
-const providerActions = ['Create a new listing', 'Review applicants', 'Publish selected listing']
-
 const fallbackListings = [
   {
     id: 'sample-1',
@@ -266,33 +264,6 @@ export default function Provider({ onLogout }) {
             </button>
           </nav>
         </header>
-
-        <section className="provider-actions-panel user-panel">
-          <header>
-            <p className="provider-panel-kicker">Quick actions</p>
-            <h2>Keep posting moving</h2>
-            <p className="user-panel-copy">
-              Use the shortcuts below to draft, review, and publish listings without leaving the
-              workspace.
-            </p>
-          </header>
-
-          <menu className="provider-action-row">
-            {providerActions.map((action) => (
-              <li key={action}>
-                {action === 'Create a new listing' ? (
-                  <button type="button" className="user-action-btn provider-action-link" onClick={handleCreateListing}>
-                    {action}
-                  </button>
-                ) : (
-                  <button type="button" className="user-action-btn">
-                    {action}
-                  </button>
-                )}
-              </li>
-            ))}
-          </menu>
-        </section>
 
         <section className="user-stat-grid" aria-label="Provider quick stats">
           {providerStats.map((item) => (

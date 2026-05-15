@@ -112,8 +112,9 @@ describe('Provider profile acceptance tests', () => {
     expect(await screen.findByDisplayValue('Khayelitsha Skills Centre')).toBeTruthy()
     expect(screen.getByDisplayValue('0215551000')).toBeTruthy()
     expect(screen.getByDisplayValue('We support young people into workplace-ready training opportunities.')).toBeTruthy()
-    expect(screen.getByText('Saved profile')).toBeTruthy()
-    expect(screen.getByText('Khayelitsha Skills Centre')).toBeTruthy()
+    expect(screen.getByText('Build your profile')).toBeTruthy()
+    expect(screen.getByText('Profile preview')).toBeTruthy()
+    expect(screen.getAllByText('Khayelitsha Skills Centre').length).toBeGreaterThan(0)
   })
 
   test('2. Provider profile form saves to provider_profiles and updates the visible summary', async () => {
@@ -122,17 +123,17 @@ describe('Provider profile acceptance tests', () => {
 
     renderProfilePage(onProfileSaved)
 
-    await screen.findByText('Profile form')
+    await screen.findByText('Build your profile')
 
-    fireEvent.change(screen.getByLabelText('Company / organisation name'), {
+    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
       target: { value: 'Ubuntu Training Hub' },
     })
-    fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '0821234567' } })
-    fireEvent.change(screen.getByLabelText('Description'), {
+    fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '0821234567' } })
+    fireEvent.change(screen.getByLabelText(/About your organisation/i), {
       target: { value: 'We connect applicants to structured workplace learning pathways.' },
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save provider profile' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
 
     await waitFor(() => expect(mockState.insertedProfilePayload).toBeTruthy())
     expect(mockState.insertedProfilePayload.user_id).toBe('user-1')
@@ -141,14 +142,23 @@ describe('Provider profile acceptance tests', () => {
     expect(mockState.insertedProfilePayload.description).toBe(
       'We connect applicants to structured workplace learning pathways.',
     )
-    expect(await screen.findByText('Provider profile saved successfully.')).toBeTruthy()
-    expect(screen.getByText('Ubuntu Training Hub')).toBeTruthy()
-    expect(screen.getByText('0821234567')).toBeTruthy()
+    expect(await screen.findAllByText('Provider profile saved successfully.')).toHaveLength(2)
+    expect(screen.getByText('Profile preview')).toBeTruthy()
+    expect(screen.getAllByText('Ubuntu Training Hub').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('0821234567').length).toBeGreaterThan(0)
     expect(onProfileSaved).toHaveBeenCalledTimes(1)
     expect(onProfileSaved.mock.calls[0][0]).toEqual({
       organisation_name: 'Ubuntu Training Hub',
       phone: '0821234567',
       description: 'We connect applicants to structured workplace learning pathways.',
     })
+  })
+
+  test('3. Provider profile route stays accessible for editing after completion', async () => {
+    renderProfilePage()
+
+    expect(await screen.findByText('Build your profile')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save profile' })).toBeTruthy()
+    expect(screen.getByText('Profile preview')).toBeTruthy()
   })
 })

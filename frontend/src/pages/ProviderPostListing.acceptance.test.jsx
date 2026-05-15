@@ -301,7 +301,7 @@ describe('Provider Post a Listing acceptance tests', () => {
     expect(appSource).toContain("providerLandingRoute={providerLandingRoute}")
     expect(appSource).toContain('if (!signedIn)')
     expect(appSource).toContain("if (providerLandingRoute !== '/provider')")
-    expect(appSource).toContain("if (providerLandingRoute === '/provider')")
+    expect(appSource).not.toContain("if (providerLandingRoute === '/provider')")
     expect(appSource).toContain('Navigate to="/"')
   })
 })

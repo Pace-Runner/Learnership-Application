@@ -139,6 +139,14 @@ describe('Role based tests', () => {
     expect(appSource).toContain("return <Navigate to=\"/provider/profile\" replace state={{ from: location }} />")
   })
 
+  test('Provider profile route stays open for editing', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('function ProviderProfileRoute')
+    expect(appSource).toContain("if (role !== 'Provider')")
+    expect(appSource).not.toContain("providerLandingRoute === '/provider'")
+  })
+
   test('Redirect logic implemented for unauthorized access', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 

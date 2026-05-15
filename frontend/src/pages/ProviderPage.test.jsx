@@ -24,7 +24,7 @@ test('PROVIDER-DASHBOARD: renders provider dashboard heading and welcome message
   expect(screen.getByText(/Manage your learnership pipeline/i)).toBeTruthy()
 })
 
-test('PROVIDER-DASHBOARD: renders quick actions, stats, and listing overview', async () => {
+test('PROVIDER-DASHBOARD: renders stats and listing overview', async () => {
   const onLogout = vi.fn()
   render(
     <MemoryRouter>
@@ -32,10 +32,8 @@ test('PROVIDER-DASHBOARD: renders quick actions, stats, and listing overview', a
     </MemoryRouter>
   )
 
-  expect(screen.getByText('Quick actions')).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Create a new listing' })).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Review applicants' })).toBeTruthy()
-  expect(screen.getByRole('button', { name: 'Publish selected listing' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Profile' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'New Listing' })).toBeTruthy()
   expect(screen.getByText('Active listings')).toBeTruthy()
   expect(screen.getByText('Pending approval')).toBeTruthy()
   expect(screen.getByText('Approved listings')).toBeTruthy()

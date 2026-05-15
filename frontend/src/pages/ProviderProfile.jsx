@@ -7,6 +7,7 @@ const initialProfileForm = {
   organisation_name: '',
   phone: '',
   description: '',
+  logo_file: null,
 }
 
 function getFriendlySupabaseError(error, fallbackMessage) {
@@ -70,6 +71,8 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
   const [profileId, setProfileId] = useState('')
   const [profileForm, setProfileForm] = useState(initialProfileForm)
   const [savedProfile, setSavedProfile] = useState(null)
+  const [logoUrl, setLogoUrl] = useState('')
+  const [logoPreview, setLogoPreview] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -151,6 +154,9 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
           description: profileRow?.description || '',
         }
         setProfileForm(nextValues)
+        if (profileRow?.logo_url) {
+          setLogoUrl(profileRow.logo_url)
+        }
         setSavedProfile(profileRow ? createSavedProfileSnapshot(nextValues) : null)
         setIsLoading(false)
       }
@@ -180,6 +186,22 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
       delete updated[name]
       return updated
     })
+  }
+
+  const handleLogoChange = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setProfileForm((current) => ({
+      ...current,
+      logo_file: file,
+    }))
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setLogoPreview(e.target?.result || '')
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleSubmit = async (event) => {
@@ -234,6 +256,26 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
       phone: profileForm.phone.trim(),
       description: profileForm.description.trim(),
       contact_email: email,
+    }
+
+    // Upload logo if a new file was selected
+    if (profileForm.logo_file) {
+      const logoFileName = `${resolvedUserId}-${Date.now()}-${profileForm.logo_file.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('provider_logos')
+        .upload(logoFileName, profileForm.logo_file, { upsert: true })
+
+      if (uploadError) {
+        // Logo upload failed but continue saving profile
+        console.warn('Logo upload failed:', uploadError)
+      } else {
+        const { data: publicUrlData } = supabase.storage
+          .from('provider_logos')
+          .getPublicUrl(logoFileName)
+        const logoPublicUrl = publicUrlData.publicUrl
+        setLogoUrl(logoPublicUrl)
+        payload.logo_url = logoPublicUrl
+      }
     }
 
     if (profileId) {
@@ -299,91 +341,124 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
           </nav>
         </header>
 
-        <section className="profile-overview-grid">
-          <article className="user-panel profile-card profile-card-personal">
-            <h2>Profile form</h2>
+        <section className="profile-content-section">
+          <article className="user-panel profile-form-card">
+            <h2>Build your profile</h2>
+            <p className="profile-form-intro">Add your company details so applicants know who they're working with.</p>
 
-            <form onSubmit={handleSubmit} className="profile-fields-grid" noValidate>
-              <label
-                className={`profile-field ${fieldErrors.organisation_name ? 'profile-field-invalid' : ''}`}
-                htmlFor="provider-organisation-name"
-              >
-                <span>Company / organisation name</span>
-                <input
-                  className="profile-input"
-                  id="provider-organisation-name"
-                  name="organisation_name"
-                  value={profileForm.organisation_name}
-                  onChange={handleChange}
-                  aria-invalid={Boolean(fieldErrors.organisation_name)}
-                />
-                {fieldErrors.organisation_name ? (
-                  <p className="profile-field-error">{fieldErrors.organisation_name}</p>
-                ) : null}
-              </label>
+            {isLoading ? <p className="user-panel-copy">Loading your profile...</p> : null}
+            {loadError ? <p className="user-panel-copy error">{loadError}</p> : null}
 
-              <label className={`profile-field ${fieldErrors.phone ? 'profile-field-invalid' : ''}`} htmlFor="provider-phone">
-                <span>Phone number</span>
-                <input
-                  className="profile-input"
-                  id="provider-phone"
-                  name="phone"
-                  inputMode="tel"
-                  maxLength={20}
-                  placeholder="e.g. 0821234567"
-                  value={profileForm.phone}
-                  onChange={handleChange}
-                  aria-invalid={Boolean(fieldErrors.phone)}
-                />
-                {fieldErrors.phone ? <p className="profile-field-error">{fieldErrors.phone}</p> : null}
-              </label>
+            <form onSubmit={handleSubmit} className="profile-form-layout" noValidate>
+              <div className="profile-form-group logo-upload-group">
+                <label htmlFor="provider-logo">
+                  <span>Company logo (optional)</span>
+                </label>
+                <div className="logo-upload-container">
+                  {(logoPreview || logoUrl) && (
+                    <div className="logo-preview">
+                      <img src={logoPreview || logoUrl} alt="Company logo preview" />
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    id="provider-logo"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    className="profile-file-input"
+                  />
+                </div>
+              </div>
 
-              <label
-                className={`profile-field ${fieldErrors.description ? 'profile-field-invalid' : ''}`}
-                htmlFor="provider-description"
-              >
-                <span>Description</span>
-                <textarea
-                  className="profile-input"
-                  id="provider-description"
-                  name="description"
-                  rows={6}
-                  placeholder="Describe your organisation, what you offer, and what applicants can expect."
-                  value={profileForm.description}
-                  onChange={handleChange}
-                  aria-invalid={Boolean(fieldErrors.description)}
-                />
-                {fieldErrors.description ? (
-                  <p className="profile-field-error">{fieldErrors.description}</p>
-                ) : null}
-              </label>
+              <div className="profile-form-group">
+                <label className={`profile-field ${fieldErrors.organisation_name ? 'profile-field-invalid' : ''}`} htmlFor="provider-organisation-name">
+                  <span>Company / organisation name *</span>
+                  <input
+                    className="profile-input"
+                    id="provider-organisation-name"
+                    name="organisation_name"
+                    value={profileForm.organisation_name}
+                    onChange={handleChange}
+                    placeholder="e.g. Skills Hub Africa"
+                    aria-invalid={Boolean(fieldErrors.organisation_name)}
+                  />
+                  {fieldErrors.organisation_name ? (
+                    <p className="profile-field-error">{fieldErrors.organisation_name}</p>
+                  ) : null}
+                </label>
+              </div>
 
-              <button type="submit" className="user-action-btn provider-inline-btn" disabled={isSaving}>
-                {isSaving ? 'Saving profile...' : 'Save provider profile'}
-              </button>
+              <div className="profile-form-group">
+                <label className={`profile-field ${fieldErrors.phone ? 'profile-field-invalid' : ''}`} htmlFor="provider-phone">
+                  <span>Phone number *</span>
+                  <input
+                    className="profile-input"
+                    id="provider-phone"
+                    name="phone"
+                    inputMode="tel"
+                    maxLength={20}
+                    placeholder="e.g. +27 21 555 1000"
+                    value={profileForm.phone}
+                    onChange={handleChange}
+                    aria-invalid={Boolean(fieldErrors.phone)}
+                  />
+                  {fieldErrors.phone ? <p className="profile-field-error">{fieldErrors.phone}</p> : null}
+                </label>
+              </div>
+
+              <div className="profile-form-group description-group">
+                <label className={`profile-field ${fieldErrors.description ? 'profile-field-invalid' : ''}`} htmlFor="provider-description">
+                  <span>About your organisation *</span>
+                  <textarea
+                    className="profile-input profile-textarea"
+                    id="provider-description"
+                    name="description"
+                    placeholder="Describe your organisation, what you offer learners, and what they can expect from the experience."
+                    value={profileForm.description}
+                    onChange={handleChange}
+                    aria-invalid={Boolean(fieldErrors.description)}
+                  />
+                  {fieldErrors.description ? (
+                    <p className="profile-field-error">{fieldErrors.description}</p>
+                  ) : null}
+                </label>
+              </div>
+
+              <div className="profile-form-actions">
+                <button type="submit" className="user-action-btn provider-submit-btn" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save profile'}
+                </button>
+                {saveMessage ? <p className="profile-save-message">{saveMessage}</p> : null}
+              </div>
             </form>
           </article>
 
-          <article className="user-panel profile-card">
-            <h2>Saved profile</h2>
-            <p className="user-item-meta">
-              This is the information applicants will see on your provider profile page.
-            </p>
+          <article className="user-panel profile-preview-card">
+            <h2>Profile preview</h2>
+            <p className="profile-form-intro">This is how applicants will see your profile.</p>
 
-            <div className="provider-profile-summary">
-              <p className="provider-profile-summary-label">Company / organisation name</p>
-              <strong>{profileSummary.organisation_name}</strong>
+            <div className="profile-preview-content">
+              {(logoPreview || logoUrl) && (
+                <div className="preview-logo">
+                  <img src={logoPreview || logoUrl} alt="Company logo" />
+                </div>
+              )}
+              
+              <div className="preview-field">
+                <p className="preview-label">Organisation</p>
+                <p className="preview-value">{profileForm.organisation_name || 'Not added yet'}</p>
+              </div>
 
-              <p className="provider-profile-summary-label">Phone number</p>
-              <strong>{profileSummary.phone}</strong>
+              <div className="preview-field">
+                <p className="preview-label">Contact</p>
+                <p className="preview-value">{profileForm.phone || 'Not added yet'}</p>
+              </div>
 
-              <p className="provider-profile-summary-label">Description</p>
-              <p className="provider-profile-summary-copy">{profileSummary.description}</p>
+              <div className="preview-field">
+                <p className="preview-label">About us</p>
+                <p className="preview-value">{profileForm.description || 'Not added yet'}</p>
+              </div>
             </div>
-
-            <Link to="/provider" className="user-link-btn provider-inline-btn">
-              View provider workspace
-            </Link>
           </article>
         </section>
       </section>
