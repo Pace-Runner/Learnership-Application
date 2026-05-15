@@ -97,6 +97,37 @@
   font-size: 0.8rem;
 }
 
+.provider-profile-summary {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.9rem 0 1.2rem;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(160, 203, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.provider-profile-summary-label {
+  margin: 0;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(204, 225, 255, 0.82);
+}
+
+.provider-profile-summary strong {
+  color: #f7fbff;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.provider-profile-summary-copy {
+  margin: 0;
+  color: rgba(223, 234, 250, 0.96);
+  line-height: 1.55;
+}
+
 .provider-listing-controls {
   margin-top: 0.55rem;
   display: flex;

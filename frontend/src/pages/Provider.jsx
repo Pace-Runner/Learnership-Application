@@ -50,6 +50,10 @@ export default function Provider({ onLogout }) {
   const [listingsError, setListingsError] = useState('')
   const [providerId, setProviderId] = useState('')
 
+  const handleOpenProfile = () => {
+    navigate('/provider/profile')
+  }
+
   const handleCreateListing = () => {
     navigate('/provider/listings/new')
   }
@@ -183,39 +187,23 @@ export default function Provider({ onLogout }) {
         return
       }
 
-      let providerId = providerRow?.id
-
-      if (!providerId) {
-        const { data: createdProvider, error: createProviderError } = await supabase
-          .from('provider_profiles')
-          .insert({
-            user_id: userRow.id,
-            organisation_name: 'New Provider Organisation',
-            contact_email: email,
-          })
-          .select('id')
-          .single()
-
-        if (createProviderError || !createdProvider?.id) {
-          if (isMounted) {
-            setListings([])
-            setListingsError('Provider profile could not be created. Please try again.')
-            setIsLoadingListings(false)
-          }
-          return
+      if (!providerRow?.id) {
+        if (isMounted) {
+          setListings([])
+          setListingsError('Complete your provider profile before accessing the workspace.')
+          setIsLoadingListings(false)
         }
-
-        providerId = createdProvider.id
+        return
       }
 
       // Load only the signed-in provider's listings so the dashboard reflects that provider's current submission statuses.
       if (isMounted) {
-        setProviderId(providerId)
+        setProviderId(providerRow.id)
       }
       const { data: opportunityRows, error: opportunityError } = await supabase
         .from('opportunities')
         .select('id,title,type,stipend,location,duration,closing_date,status,created_at')
-        .eq('provider_id', providerId)
+        .eq('provider_id', providerRow.id)
         .order('created_at', { ascending: false })
 
       if (opportunityError) {
@@ -267,6 +255,9 @@ export default function Provider({ onLogout }) {
           </section>
 
           <nav className="user-nav-actions" aria-label="Provider actions">
+            <button type="button" className="user-link-btn" onClick={handleOpenProfile}>
+              Profile
+            </button>
             <button type="button" className="user-link-btn" onClick={handleCreateListing}>
               New Listing
             </button>

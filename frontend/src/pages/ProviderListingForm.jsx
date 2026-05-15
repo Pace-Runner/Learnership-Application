@@ -184,26 +184,12 @@ export default function ProviderListingForm() {
       return
     }
 
-    let providerId = providerRow?.id
+    const providerId = providerRow?.id
 
     if (!providerId) {
-      const { data: createdProvider, error: createProviderError } = await supabase
-        .from('provider_profiles')
-        .insert({
-          user_id: userRow.id,
-          organisation_name: 'New Provider Organisation',
-          contact_email: email,
-        })
-        .select('id')
-        .single()
-
-      if (createProviderError || !createdProvider?.id) {
-        setIsSubmitting(false)
-        setSubmitError('Provider profile could not be created. Please try again.')
-        return
-      }
-
-      providerId = createdProvider.id
+      setIsSubmitting(false)
+      setSubmitError('Complete your provider profile before creating listings.')
+      return
     }
 
     // New provider listings always start as Pending so the admin moderation flow can approve them later.

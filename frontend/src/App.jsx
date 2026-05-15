@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard'
 import ApplicantProfile from './pages/ApplicantProfile'
 import ApplicantListingDetail from './pages/ApplicantListingDetail'
 import Provider from './pages/Provider'
+import ProviderProfile from './pages/ProviderProfile'
 import ProviderListingForm from './pages/ProviderListingForm'
 import ProviderListingEdit from './pages/ProviderListingEdit'
 import ProviderListingApplications from './pages/ProviderListingApplications'
@@ -56,11 +57,76 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   return children
 }
 
+function ProviderWorkspaceRoute({ role, signedIn, isLoading, providerLandingRoute, children }) {
+  const location = useLocation()
+
+  if (isLoading && !signedIn) {
+    return (
+      <main className="auth-loading-shell" aria-busy="true" aria-live="polite">
+        <p>Checking your session...</p>
+      </main>
+    )
+  }
+
+  if (!signedIn) {
+    return <Navigate to="/" replace state={{ from: location }} />
+  }
+
+  if (role !== 'Provider') {
+    return <Navigate to="/" replace state={{ from: location }} />
+  }
+
+  if (providerLandingRoute !== '/provider') {
+    return <Navigate to="/provider/profile" replace state={{ from: location }} />
+  }
+
+  return children
+}
+
+function ProviderProfileRoute({ role, signedIn, isLoading, providerLandingRoute, children }) {
+  const location = useLocation()
+
+  if (isLoading && !signedIn) {
+    return (
+      <main className="auth-loading-shell" aria-busy="true" aria-live="polite">
+        <p>Checking your session...</p>
+      </main>
+    )
+  }
+
+  if (!signedIn) {
+    return <Navigate to="/" replace state={{ from: location }} />
+  }
+
+  if (role !== 'Provider') {
+    return <Navigate to="/" replace state={{ from: location }} />
+  }
+
+  if (providerLandingRoute === '/provider') {
+    return <Navigate to="/provider" replace state={{ from: location }} />
+  }
+
+  return children
+}
+
 // Redirect logic: where should each role go after logging in?
 function getLandingRoute(role) {
   if (role === 'Admin') return '/admin'
   if (role === 'Provider') return '/provider'
   return '/dashboard'
+}
+
+function isProviderProfileComplete(profile) {
+  return Boolean(
+    profile?.id
+      && profile?.organisation_name?.trim()
+      && profile?.phone?.trim()
+      && profile?.description?.trim(),
+  )
+}
+
+function getProviderLandingRoute(profile) {
+  return isProviderProfileComplete(profile) ? '/provider' : '/provider/profile'
 }
 
 function isApplicantProfileComplete(profile) {
@@ -98,6 +164,7 @@ function App() {
   const [pendingEmail, setPendingEmail] = useState('') // New user email waiting for role selection
   const [isSavingRole, setIsSavingRole] = useState(false) // True while inserting user into database
   const [applicantLandingRoute, setApplicantLandingRoute] = useState('/dashboard')
+  const [providerLandingRoute, setProviderLandingRoute] = useState('/provider/profile')
   const oauthTimeoutRef = useRef(null)
 
   // Animation state for the 3D particle effect
@@ -174,6 +241,30 @@ function App() {
     return isApplicantProfileComplete(profileRow) ? '/dashboard' : '/profile'
   }, [])
 
+  const getProviderLandingRouteForEmail = useCallback(async (email) => {
+    if (!hasSupabaseConfig || !email) {
+      return '/provider/profile'
+    }
+
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (!userRow?.id) {
+      return '/provider/profile'
+    }
+
+    const { data: profileRow } = await supabase
+      .from('provider_profiles')
+      .select('id,organisation_name,phone,description')
+      .eq('user_id', userRow.id)
+      .maybeSingle()
+
+    return getProviderLandingRoute(profileRow)
+  }, [])
+
   // AUTH BOOTSTRAP: Restore user session on app load and listen for auth changes
   // FLOW:
   // 1. Check if session exists in browser cookies (user already logged in before)
@@ -216,6 +307,7 @@ function App() {
           setSignedIn(false)
           setRole(null)
           setApplicantLandingRoute('/dashboard')
+          setProviderLandingRoute('/provider/profile')
           setIsLoadingAuth(false)
         }
         return
@@ -226,12 +318,15 @@ function App() {
         const resolvedLandingRoute =
           resolvedRole === 'Applicant'
             ? await getApplicantLandingRouteForEmail(existingSession.user.email)
+            : resolvedRole === 'Provider'
+              ? await getProviderLandingRouteForEmail(existingSession.user.email)
             : getLandingRoute(resolvedRole)
         if (isMounted) {
           setSignedIn(true)
           setRole(resolvedRole)
           setPendingEmail(resolvedRole ? '' : existingSession.user.email)
           setApplicantLandingRoute(resolvedLandingRoute)
+          setProviderLandingRoute(resolvedRole === 'Provider' ? resolvedLandingRoute : '/provider/profile')
           setAuthError('')
         }
       } catch {
@@ -239,6 +334,7 @@ function App() {
           setSignedIn(false)
           setRole(null)
           setApplicantLandingRoute('/dashboard')
+          setProviderLandingRoute('/provider/profile')
           setAuthError('Signed in, but role lookup failed. Check your users table and policies.')
         }
       } finally {
@@ -270,6 +366,7 @@ function App() {
         setPendingEmail('')
         setIsSavingRole(false)
         setApplicantLandingRoute('/dashboard')
+        setProviderLandingRoute('/provider/profile')
         setIsLoadingAuth(false)
         return
       }
@@ -279,6 +376,8 @@ function App() {
         const resolvedLandingRoute =
           resolvedRole === 'Applicant'
             ? await getApplicantLandingRouteForEmail(session.user.email)
+            : resolvedRole === 'Provider'
+              ? await getProviderLandingRouteForEmail(session.user.email)
             : getLandingRoute(resolvedRole)
         if (!isMounted) {
           return
@@ -288,6 +387,7 @@ function App() {
         setRole(resolvedRole)
         setPendingEmail(resolvedRole ? '' : session.user.email)
         setApplicantLandingRoute(resolvedLandingRoute)
+        setProviderLandingRoute(resolvedRole === 'Provider' ? resolvedLandingRoute : '/provider/profile')
         setAuthError('')
       } catch {
         if (!isMounted) {
@@ -296,6 +396,7 @@ function App() {
         setSignedIn(false)
         setRole(null)
         setApplicantLandingRoute('/dashboard')
+        setProviderLandingRoute('/provider/profile')
         setAuthError('OAuth succeeded, but role lookup failed. Please verify Supabase table policies.')
       } finally {
         if (isMounted) {
@@ -318,12 +419,17 @@ function App() {
   useEffect(() => {
     const redirectedFromProtectedRoute = Boolean(location.state?.from)
     const keepApplicantOnHome = redirectedFromProtectedRoute && role === 'Applicant'
-    const landingRoute = role === 'Applicant' ? applicantLandingRoute : getLandingRoute(role)
+    const landingRoute =
+      role === 'Applicant'
+        ? applicantLandingRoute
+        : role === 'Provider'
+          ? providerLandingRoute
+          : getLandingRoute(role)
 
     if (!isLoadingAuth && signedIn && role && location.pathname === '/' && !keepApplicantOnHome) {
       navigate(landingRoute, { replace: true })
     }
-  }, [isLoadingAuth, signedIn, role, applicantLandingRoute, location.pathname, location.state, navigate])
+  }, [isLoadingAuth, signedIn, role, applicantLandingRoute, providerLandingRoute, location.pathname, location.state, navigate])
 
   // Clear session and reset all state when logging out
   const handleLogout = async () => {
@@ -337,6 +443,7 @@ function App() {
     setPendingEmail('')
     setIsSavingRole(false)
     setApplicantLandingRoute('/dashboard')
+    setProviderLandingRoute('/provider/profile')
     navigate('/')
   }
 
@@ -375,6 +482,12 @@ function App() {
     if (resolvedRole === 'Applicant') {
       setApplicantLandingRoute('/profile')
       navigate('/profile', { replace: true })
+      return
+    }
+
+    if (resolvedRole === 'Provider') {
+      setProviderLandingRoute('/provider/profile')
+      navigate('/provider/profile', { replace: true })
       return
     }
 
@@ -684,27 +797,33 @@ return (
   } />
 
 <Route path="/provider" element={
-  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
+  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
     <Provider onLogout={handleLogout} />
-  </ProtectedRoute>
+  </ProviderWorkspaceRoute>
+} />
+
+<Route path="/provider/profile" element={
+  <ProviderProfileRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
+    <ProviderProfile onLogout={handleLogout} />
+  </ProviderProfileRoute>
 } />
 
 <Route path="/provider/listings/new" element={
-  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
+  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
     <ProviderListingForm />
-  </ProtectedRoute>
+  </ProviderWorkspaceRoute>
 } />
 
 <Route path="/provider/listings/:listingId/edit" element={
-  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
+  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
     <ProviderListingEdit />
-  </ProtectedRoute>
+  </ProviderWorkspaceRoute>
 } />
 
 <Route path="/provider/listings/:listingId/applications" element={
-  <ProtectedRoute role={role} allowedRole="Provider" signedIn={signedIn} isLoading={isLoadingAuth}>
+  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
     <ProviderListingApplications />
-  </ProtectedRoute>
+  </ProviderWorkspaceRoute>
 } />
 
 <Route path="/admin" element={

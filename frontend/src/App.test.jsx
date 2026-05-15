@@ -39,19 +39,21 @@ describe('Provider tests', () => {
     expect(appSource).toContain("handleRoleSelection('Provider')")
   })
 
-  test('Provider selection leads to provider route', () => {
+  test('Provider selection leads to provider profile first', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
-    expect(appSource).toContain('<Route path="/provider"')
+    expect(appSource).toContain("if (resolvedRole === 'Provider') {")
+    expect(appSource).toContain("navigate('/provider/profile', { replace: true })")
+    expect(appSource).toContain("setProviderLandingRoute('/provider/profile')")
   })
 
-  test('Provider route is protected and mounted correctly', () => {
+  test('Provider route is protected by provider workspace gate', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toContain('<Route path="/provider"')
-    expect(appSource).toMatch(/allowedRole="Provider"/)
-    expect(appSource).toContain('ProtectedRoute')
+    expect(appSource).toContain('ProviderWorkspaceRoute')
+    expect(appSource).toContain('ProviderProfileRoute')
+    expect(appSource).toContain("providerLandingRoute={providerLandingRoute}")
   })
 })
 
@@ -99,10 +101,12 @@ describe('Role based tests', () => {
     expect(appSource).toContain("return '/dashboard'")
   })
 
-  test('Provider role redirects to /provider', () => {
+  test('Provider role redirects to profile setup first', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+    expect(appSource).toContain("role === 'Provider'")
+    expect(appSource).toContain("providerLandingRoute")
+    expect(appSource).toContain("/provider/profile")
   })
 
   test('Admin role redirects to /admin', () => {
@@ -125,6 +129,14 @@ describe('Role based tests', () => {
     expect(appSource).toContain('function ProtectedRoute')
     expect(appSource).toContain('!signedIn')
     expect(appSource).toContain('role !== allowedRole')
+  })
+
+  test('Provider workspace gate blocks access until profile is complete', () => {
+    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+
+    expect(appSource).toContain('function ProviderWorkspaceRoute')
+    expect(appSource).toContain("if (providerLandingRoute !== '/provider')")
+    expect(appSource).toContain("return <Navigate to=\"/provider/profile\" replace state={{ from: location }} />")
   })
 
   test('Redirect logic implemented for unauthorized access', () => {
@@ -181,7 +193,7 @@ describe('Role based tests', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toMatch(/allowedRole="Applicant"/)
-    expect(appSource).toMatch(/allowedRole="Provider"/)
+    expect(appSource).toContain('ProviderWorkspaceRoute')
     expect(appSource).toMatch(/allowedRole="Admin"/)
   })
 
