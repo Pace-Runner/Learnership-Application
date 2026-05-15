@@ -13,10 +13,63 @@ const mockState = {
   usersRow: { id: 'user-1' },
   providerRow: { id: 'provider-1' },
   opportunitiesRows: [],
+  opportunityQueries: [],
   opportunityInsertResult: { id: 'opportunity-1' },
   opportunityRequirementsError: null,
   insertedOpportunityPayload: null,
   insertedRequirementsPayload: null,
+}
+
+function buildOpportunitySelectQuery() {
+  const filters = {
+    providerId: null,
+    status: null,
+    statuses: null,
+  }
+
+  const query = {
+    eq: vi.fn((column, value) => {
+      if (column === 'provider_id') {
+        filters.providerId = value
+      }
+
+      if (column === 'status') {
+        filters.status = value
+      }
+
+      return query
+    }),
+    in: vi.fn((column, values) => {
+      if (column === 'status') {
+        filters.statuses = values
+      }
+
+      return query
+    }),
+    order: vi.fn(async () => {
+      mockState.opportunityQueries.push({ ...filters })
+
+      const data = mockState.opportunitiesRows.filter((row) => {
+        if (filters.providerId && row.provider_id !== filters.providerId) {
+          return false
+        }
+
+        if (filters.status) {
+          return (row.status || '') === filters.status
+        }
+
+        if (filters.statuses) {
+          return filters.statuses.includes(row.status || '')
+        }
+
+        return true
+      })
+
+      return { data, error: null }
+    }),
+  }
+
+  return query
 }
 
 function buildTableQuery(tableName) {
@@ -56,11 +109,7 @@ function buildTableQuery(tableName) {
 
   if (tableName === 'opportunities') {
     return {
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          order: vi.fn(async () => ({ data: mockState.opportunitiesRows, error: null })),
-        })),
-      })),
+      select: vi.fn(() => buildOpportunitySelectQuery()),
       insert: vi.fn((payload) => {
         mockState.insertedOpportunityPayload = payload
         return {
@@ -150,6 +199,7 @@ beforeEach(() => {
   mockState.usersRow = { id: 'user-1' }
   mockState.providerRow = { id: 'provider-1' }
   mockState.opportunitiesRows = []
+  mockState.opportunityQueries = []
   mockState.opportunityInsertResult = { id: 'opportunity-1' }
   mockState.opportunityRequirementsError = null
   mockState.insertedOpportunityPayload = null
@@ -252,6 +302,7 @@ describe('Provider Post a Listing acceptance tests', () => {
         duration: '12 months',
         closing_date: getFutureDate(),
         status: 'Pending',
+        provider_id: 'provider-1',
       },
     ]
 
@@ -265,7 +316,74 @@ describe('Provider Post a Listing acceptance tests', () => {
     expect(screen.getByText('Status: Pending')).toBeTruthy()
   })
 
-  test('10. Provider cannot submit listing with invalid stipend', async () => {
+  test('10. Provider dashboard filters listings by status without leaving the page', async () => {
+    mockState.opportunitiesRows = [
+      {
+        id: 'listing-pending',
+        title: 'Pending Listing',
+        type: 'Internship',
+        location: 'Cape Town',
+        duration: '6 months',
+        closing_date: getFutureDate(),
+        status: 'Pending',
+        provider_id: 'provider-1',
+      },
+      {
+        id: 'listing-approved',
+        title: 'Approved Listing',
+        type: 'Learnership',
+        location: 'Pretoria',
+        duration: '12 months',
+        closing_date: getFutureDate(),
+        status: 'Approved',
+        provider_id: 'provider-1',
+      },
+      {
+        id: 'listing-declined',
+        title: 'Declined Listing',
+        type: 'Apprenticeship',
+        location: 'Durban',
+        duration: '18 months',
+        closing_date: getFutureDate(),
+        status: 'Removed',
+        provider_id: 'provider-1',
+      },
+    ]
+
+    render(
+      <MemoryRouter>
+        <Provider onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Pending Listing')).toBeTruthy()
+    expect(screen.getByText('Status: Pending')).toBeTruthy()
+    expect(screen.getByText('Status: Approved')).toBeTruthy()
+    expect(screen.getByText('Status: Declined')).toBeTruthy()
+    expect(mockState.opportunityQueries[0]).toEqual({ providerId: 'provider-1', status: null, statuses: null })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Approved' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Approved Listing')).toBeTruthy()
+      expect(screen.queryByText('Pending Listing')).toBeNull()
+      expect(screen.queryByText('Declined Listing')).toBeNull()
+    })
+
+    expect(mockState.opportunityQueries.at(-1)).toEqual({ providerId: 'provider-1', status: 'Approved', statuses: null })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Declined' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Declined Listing')).toBeTruthy()
+      expect(screen.queryByText('Pending Listing')).toBeNull()
+      expect(screen.queryByText('Approved Listing')).toBeNull()
+    })
+
+    expect(mockState.opportunityQueries.at(-1)).toEqual({ providerId: 'provider-1', status: null, statuses: ['Declined', 'Removed'] })
+  })
+
+  test('11. Provider cannot submit listing with invalid stipend', async () => {
     renderListingForm()
 
     await fillValidForm()
@@ -276,7 +394,7 @@ describe('Provider Post a Listing acceptance tests', () => {
     expect(mockState.insertedOpportunityPayload).toBeNull()
   })
 
-  test('11. Listing does not appear in applicant search before approval', () => {
+  test('12. Listing does not appear in applicant search before approval', () => {
     const listings = [
       { id: 'pending-1', title: 'Pending Listing', status: 'Pending' },
       { id: 'approved-1', title: 'Approved Listing', status: 'Approved' },
@@ -292,7 +410,7 @@ describe('Provider Post a Listing acceptance tests', () => {
     expect(screen.getByText('Approved Listing')).toBeTruthy()
   })
 
-  test('12/13. Listing page access is restricted to signed-in Provider role by route guard', () => {
+  test('13/14. Listing page access is restricted to signed-in Provider role by route guard', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toContain('<Route path="/provider/listings/new"')

@@ -65,6 +65,24 @@
   gap: 0.9rem;
 }
 
+.provider-status-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.provider-status-filter-btn {
+  width: auto;
+  min-width: 0;
+  padding-inline: 0.85rem;
+}
+
+.provider-status-filter-btn-active {
+  border-color: rgba(255, 210, 168, 0.82);
+  background: rgba(255, 186, 120, 0.16);
+  color: #fff7ef;
+}
+
 .provider-panel-head h2,
 .provider-actions-panel h2 {
   margin: 0;

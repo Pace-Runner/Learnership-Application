@@ -18,6 +18,7 @@ const mockState = {
   insertedNotificationPayload: null,
   invokedEmailFunction: '',
   invokedEmailPayload: null,
+  signedUrlPaths: [],
 }
 
 function buildTableQuery(tableName) {
@@ -114,10 +115,14 @@ vi.mock('../lib/supabaseClient', () => ({
     },
     storage: {
       from: vi.fn(() => ({
-        createSignedUrl: vi.fn(async () => ({
+        createSignedUrl: vi.fn(async (path) => {
+          mockState.signedUrlPaths.push(path)
+
+          return {
           data: { signedUrl: 'https://example.com/signed-cv.pdf' },
           error: null,
-        })),
+          }
+        }),
       })),
     },
   },
@@ -162,6 +167,7 @@ beforeEach(() => {
   mockState.insertedNotificationPayload = null
   mockState.invokedEmailFunction = ''
   mockState.invokedEmailPayload = null
+  mockState.signedUrlPaths = []
 })
 
 afterEach(() => {
@@ -282,5 +288,18 @@ describe('Provider manage application statuses acceptance tests', () => {
       message: 'Your application for IT Support Internship 2026 is now Accepted.',
     })
     expect(screen.getByText('Updated Ava Dlamini to Accepted, but the email notification could not be sent.')).toBeTruthy()
+  })
+
+  test('7. A filename-only CV resolves to a valid provider download link', async () => {
+    mockState.applicationRows[0].applicant_profiles.user_id = ''
+    mockState.applicationRows[0].applicant_profiles.cv_url = 'ava-dlamini-cv.pdf'
+
+    renderApplicationsPage()
+
+    expect(await screen.findByText('Ava Dlamini')).toBeTruthy()
+    expect(mockState.signedUrlPaths).toEqual(['ava-dlamini-cv.pdf'])
+    expect(screen.getByRole('link', { name: 'Download CV' }).getAttribute('href')).toBe(
+      'https://example.com/signed-cv.pdf',
+    )
   })
 })

@@ -183,7 +183,7 @@ export default function ProviderListingApplications() {
           }
 
           const authUserId = item.applicant?.user_id || ''
-          const normalizedPath = cv.includes('/') ? cv : `${authUserId}/${cv}`
+          const normalizedPath = cv.includes('/') ? cv : authUserId ? `${authUserId}/${cv}` : cv
 
           try {
             const { data } = await supabase.storage.from(DOCS_BUCKET).createSignedUrl(normalizedPath, 60 * 10)

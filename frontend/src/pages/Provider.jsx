@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
+const providerActions = ['Create a new listing', 'Review applicants', 'Publish selected listing']
+const providerStatusFilters = [
+  { value: 'All', label: 'All' },
+  { value: 'Pending', label: 'Pending' },
+  { value: 'Approved', label: 'Approved' },
+  { value: 'Declined', label: 'Declined' },
+]
 const fallbackListings = [
   {
     id: 'sample-1',
@@ -26,8 +33,27 @@ const fallbackListings = [
 
 function getStatusClass(status) {
   if (status === 'Approved') return 'status-chip status-chip-approved'
-  if (status === 'Removed') return 'status-chip status-chip-removed'
+  if (status === 'Removed' || status === 'Declined') return 'status-chip status-chip-removed'
   return 'status-chip status-chip-pending'
+}
+
+function getDisplayStatus(status) {
+  if (status === 'Removed' || status === 'Declined') return 'Declined'
+  if (status === 'Approved') return 'Approved'
+  if (status === 'Pending') return 'Pending'
+  return status || 'Pending'
+}
+
+function isDeclinedStatus(status) {
+  return status === 'Removed' || status === 'Declined'
+}
+
+function filterListingsByStatus(listings, selectedStatus) {
+  if (selectedStatus === 'All') {
+    return listings
+  }
+
+  return listings.filter((listing) => getDisplayStatus(listing.status) === selectedStatus)
 }
 
 function formatClosingDate(value) {
@@ -47,6 +73,7 @@ export default function Provider({ onLogout }) {
   const [isLoadingListings, setIsLoadingListings] = useState(true)
   const [listingsError, setListingsError] = useState('')
   const [providerId, setProviderId] = useState('')
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('All')
 
   const handleOpenProfile = () => {
     navigate('/provider/profile')
@@ -128,7 +155,7 @@ export default function Provider({ onLogout }) {
 
       if (!hasSupabaseConfig) {
         if (isMounted) {
-          setListings(fallbackListings)
+          setListings(filterListingsByStatus(fallbackListings, selectedStatusFilter))
           setIsLoadingListings(false)
         }
         return
@@ -140,7 +167,7 @@ export default function Provider({ onLogout }) {
       // For local dev/testing: if no session, use fallback listings.
       if (import.meta.env.DEV && (sessionError || !email)) {
         if (isMounted) {
-          setListings(fallbackListings)
+          setListings(filterListingsByStatus(fallbackListings, selectedStatusFilter))
           setIsLoadingListings(false)
         }
         return
@@ -198,11 +225,21 @@ export default function Provider({ onLogout }) {
       if (isMounted) {
         setProviderId(providerRow.id)
       }
-      const { data: opportunityRows, error: opportunityError } = await supabase
+
+      let opportunityQuery = supabase
         .from('opportunities')
         .select('id,title,type,stipend,location,duration,closing_date,status,created_at')
         .eq('provider_id', providerRow.id)
-        .order('created_at', { ascending: false })
+
+      if (selectedStatusFilter === 'Pending') {
+        opportunityQuery = opportunityQuery.eq('status', 'Pending')
+      } else if (selectedStatusFilter === 'Approved') {
+        opportunityQuery = opportunityQuery.eq('status', 'Approved')
+      } else if (selectedStatusFilter === 'Declined') {
+        opportunityQuery = opportunityQuery.in('status', ['Declined', 'Removed'])
+      }
+
+      const { data: opportunityRows, error: opportunityError } = await opportunityQuery.order('created_at', { ascending: false })
 
       if (opportunityError) {
         if (isMounted) {
@@ -224,12 +261,12 @@ export default function Provider({ onLogout }) {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [selectedStatusFilter])
 
   const providerStats = useMemo(() => {
-    const activeCount = listings.filter((item) => item.status !== 'Removed').length
-    const pendingCount = listings.filter((item) => item.status === 'Pending').length
-    const approvedCount = listings.filter((item) => item.status === 'Approved').length
+    const activeCount = listings.filter((item) => !isDeclinedStatus(item.status)).length
+    const pendingCount = listings.filter((item) => getDisplayStatus(item.status) === 'Pending').length
+    const approvedCount = listings.filter((item) => getDisplayStatus(item.status) === 'Approved').length
 
     // These dashboard totals give providers a quick view of what is still pending review versus already approved.
     return [
@@ -284,6 +321,21 @@ export default function Provider({ onLogout }) {
               <span className="status-chip status-chip-soft">Status updates</span>
             </header>
 
+            <div className="provider-status-filter-row" role="tablist" aria-label="Filter listings by status">
+              {providerStatusFilters.map((filter) => (
+                <button
+                  key={filter.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedStatusFilter === filter.value}
+                  className={`user-action-btn provider-status-filter-btn${selectedStatusFilter === filter.value ? ' provider-status-filter-btn-active' : ''}`}
+                  onClick={() => setSelectedStatusFilter(filter.value)}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+
             {isLoadingListings ? <p className="user-panel-copy">Loading your listings...</p> : null}
             {!isLoadingListings && listingsError ? <p className="user-panel-copy">{listingsError}</p> : null}
 
@@ -300,7 +352,7 @@ export default function Provider({ onLogout }) {
                       <small className="user-item-meta">Location: {item.location || 'Not specified'}</small>
                       <small className="user-item-meta">Duration: {item.duration || 'Not specified'}</small>
                       <small className="provider-detail">Closing date: {formatClosingDate(item.closing_date)}</small>
-                      <small className={getStatusClass(item.status)}>Status: {item.status || 'Pending'}</small>
+                      <small className={getStatusClass(item.status)}>Status: {getDisplayStatus(item.status)}</small>
                       <div className="provider-listing-controls">
                         <button
                           type="button"
