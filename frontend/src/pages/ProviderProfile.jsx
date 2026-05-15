@@ -64,7 +64,7 @@ function createSavedProfileSnapshot(profileValues) {
   }
 }
 
-export default function ProviderProfile({ onLogout }) {
+export default function ProviderProfile({ onLogout, onProfileSaved }) {
   const navigate = useNavigate()
   const [userId, setUserId] = useState('')
   const [profileId, setProfileId] = useState('')
@@ -267,6 +267,9 @@ export default function ProviderProfile({ onLogout }) {
     setSavedProfile(nextSavedProfile)
     setSaveMessage('Provider profile saved successfully.')
     setIsSaving(false)
+    if (onProfileSaved) {
+      onProfileSaved(nextSavedProfile)
+    }
     navigate('/provider', { replace: true })
   }
 

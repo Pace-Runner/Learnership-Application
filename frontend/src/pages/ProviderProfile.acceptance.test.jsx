@@ -83,10 +83,10 @@ vi.mock('../lib/supabaseClient', () => {
   }
 })
 
-function renderProfilePage() {
+function renderProfilePage(onProfileSaved = vi.fn()) {
   return render(
     <MemoryRouter>
-      <ProviderProfile onLogout={vi.fn()} />
+      <ProviderProfile onLogout={vi.fn()} onProfileSaved={onProfileSaved} />
     </MemoryRouter>,
   )
 }
@@ -121,7 +121,9 @@ describe('Provider profile acceptance tests', () => {
 
   test('2. Provider profile form saves to provider_profiles and updates the visible summary', async () => {
     mockState.profileRow = null
-    renderProfilePage()
+    const onProfileSaved = vi.fn()
+
+    renderProfilePage(onProfileSaved)
 
     await screen.findByText('Profile form')
 
@@ -145,5 +147,11 @@ describe('Provider profile acceptance tests', () => {
     expect(await screen.findByText('Provider profile saved successfully.')).toBeTruthy()
     expect(screen.getByText('Ubuntu Training Hub')).toBeTruthy()
     expect(screen.getByText('0821234567')).toBeTruthy()
+    expect(onProfileSaved).toHaveBeenCalledTimes(1)
+    expect(onProfileSaved.mock.calls[0][0]).toEqual({
+      organisation_name: 'Ubuntu Training Hub',
+      phone: '0821234567',
+      description: 'We connect applicants to structured workplace learning pathways.',
+    })
   })
 })

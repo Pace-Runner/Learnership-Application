@@ -749,6 +749,7 @@
 .profile-field {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .profile-field span {
@@ -766,9 +767,15 @@
   color: #eff7ff;
   padding: 0.62rem 0.72rem;
   font-family: 'Manrope', 'Segoe UI', sans-serif;
+  line-height: 1.45;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
+
+textarea.profile-input {
+  min-height: 10rem;
+  resize: vertical;
 }
 
 .profile-input[aria-invalid='true'] {

@@ -804,7 +804,10 @@ return (
 
 <Route path="/provider/profile" element={
   <ProviderProfileRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
-    <ProviderProfile onLogout={handleLogout} />
+    <ProviderProfile
+      onLogout={handleLogout}
+      onProfileSaved={() => setProviderLandingRoute('/provider')}
+    />
   </ProviderProfileRoute>
 } />
 
