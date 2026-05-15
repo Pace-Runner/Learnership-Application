@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
-const providerActions = ['Create a new listing', 'Review applicants', 'Publish selected listing']
 const providerStatusFilters = [
   { value: 'All', label: 'All' },
   { value: 'Pending', label: 'Pending' },
