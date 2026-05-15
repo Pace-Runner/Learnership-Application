@@ -632,4 +632,46 @@ describe('ApplicantProfile coverage', () => {
     const latestUpdatePayload = applicantSpies.profileUpdate.mock.calls.at(-1)?.[0]
     expect(latestUpdatePayload.cv_url).toContain('second-cv.pdf')
   })
+
+  test('uploads a profile picture and refreshes the preview state', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+
+    const fileInputs = document.querySelectorAll('input[type="file"]')
+    const profileInput = fileInputs[0]
+
+    fireEvent.change(profileInput, {
+      target: { files: [new File(['img'], 'new-avatar.png', { type: 'image/png' })] },
+    })
+
+    await waitFor(() => expect(applicantSpies.profileStorageUpload).toHaveBeenCalled())
+    expect(applicantSpies.profileStorageUpload.mock.calls[0]?.[0]).toContain('user-1/profile.png')
+    expect(applicantSpies.profileStorageCreateSignedUrl).toHaveBeenCalled()
+    expect(await screen.findByText(/Profile picture uploaded successfully/i)).toBeTruthy()
+  })
+
+  test('deletes the existing profile picture and refreshes the avatar state', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+
+    fireEvent.click(screen.getByRole('button', { name: /Delete profile picture/i }))
+
+    await waitFor(() => expect(applicantSpies.profileStorageRemove).toHaveBeenCalled())
+    expect(applicantSpies.profileStorageRemove.mock.calls[0]?.[0]).toEqual(['user-1/profile.png'])
+    expect(await screen.findByText(/Profile picture deleted/i)).toBeTruthy()
+  })
 })

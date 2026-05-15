@@ -29,6 +29,13 @@ test('ADMIN-DASHBOARD: logout button is clickable and triggers callback', () => 
   expect(onLogout).toHaveBeenCalledTimes(1)
 })
 
+test('ADMIN-DASHBOARD: non-admin users see access denied', () => {
+  render(<Admin onLogout={vi.fn()} isAuthenticated userRole="Applicant" />)
+
+  expect(screen.getByText('Access denied. Admins only.')).toBeTruthy()
+  expect(screen.queryByText('Admin Workspace')).toBeNull()
+})
+
 // ===== ADMIN ACCEPTANCE TESTS =====
 test('ADMIN-ACCEPTANCE-1: Admin email addresses are seeded in database with Admin role', () => {
   const schemaSql = readFileSync(resolve(cwd(), '../supabase/schema.sql'), 'utf8')

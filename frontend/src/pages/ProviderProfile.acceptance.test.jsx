@@ -14,6 +14,27 @@ const mockState = {
   },
   insertedProfilePayload: null,
   updatedProfilePayload: null,
+  insertError: null,
+  updateError: null,
+  logoUploadError: null,
+  logoPublicUrl: 'https://cdn.example.com/provider-logo.png',
+  uploadedLogoPath: null,
+  uploadedLogoFile: null,
+  publicUrlRequestedPath: null,
+}
+
+let originalFileReader = global.FileReader
+
+class MockFileReader {
+  constructor() {
+    this.onload = null
+  }
+
+  readAsDataURL() {
+    if (this.onload) {
+      this.onload({ target: { result: 'data:image/png;base64,preview-data' } })
+    }
+  }
 }
 
 function buildTableQuery(tableName) {
@@ -40,8 +61,8 @@ function buildTableQuery(tableName) {
         return {
           select: vi.fn(() => ({
             single: vi.fn(async () => ({
-              data: { id: 'provider-profile-2', ...payload },
-              error: null,
+              data: mockState.insertError ? null : { id: 'provider-profile-2', ...payload },
+              error: mockState.insertError,
             })),
           })),
         }
@@ -50,7 +71,7 @@ function buildTableQuery(tableName) {
         mockState.updatedProfilePayload = payload
 
         return {
-          eq: vi.fn(async () => ({ error: null })),
+          eq: vi.fn(async () => ({ error: mockState.updateError })),
         }
       }),
     }
@@ -76,6 +97,30 @@ vi.mock('../lib/supabaseClient', () => {
         })),
       },
       from: vi.fn((tableName) => buildTableQuery(tableName)),
+      storage: {
+        from: vi.fn((bucketName) => {
+          if (bucketName !== 'provider_logos') {
+            return {
+              upload: vi.fn(async () => ({ error: null })),
+              getPublicUrl: vi.fn(() => ({ data: { publicUrl: '' } })),
+            }
+          }
+
+          return {
+            upload: vi.fn(async (path, file) => {
+              mockState.uploadedLogoPath = path
+              mockState.uploadedLogoFile = file
+
+              return { error: mockState.logoUploadError }
+            }),
+            getPublicUrl: vi.fn((path) => {
+              mockState.publicUrlRequestedPath = path
+
+              return { data: { publicUrl: mockState.logoPublicUrl } }
+            }),
+          }
+        }),
+      },
     },
   }
 })
@@ -89,6 +134,8 @@ function renderProfilePage(onProfileSaved = vi.fn()) {
 }
 
 beforeEach(() => {
+  originalFileReader = global.FileReader
+  global.FileReader = MockFileReader
   mockState.authEmail = 'provider@example.com'
   mockState.userRow = { id: 'user-1' }
   mockState.profileRow = {
@@ -99,9 +146,17 @@ beforeEach(() => {
   }
   mockState.insertedProfilePayload = null
   mockState.updatedProfilePayload = null
+  mockState.insertError = null
+  mockState.updateError = null
+  mockState.logoUploadError = null
+  mockState.logoPublicUrl = 'https://cdn.example.com/provider-logo.png'
+  mockState.uploadedLogoPath = null
+  mockState.uploadedLogoFile = null
+  mockState.publicUrlRequestedPath = null
 })
 
 afterEach(() => {
+  global.FileReader = originalFileReader
   cleanup()
 })
 
@@ -161,4 +216,122 @@ describe('Provider profile acceptance tests', () => {
     expect(screen.getByRole('button', { name: 'Save profile' })).toBeTruthy()
     expect(screen.getByText('Profile preview')).toBeTruthy()
   })
+
+  test('4. Validation errors display when required fields are empty', async () => {
+    mockState.profileRow = null
+    renderProfilePage()
+
+    await screen.findByText('Build your profile')
+
+    // Try to submit with empty fields
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    // Should see validation error messages
+    await waitFor(() => {
+      expect(screen.getByText(/Company \/ organisation name is required/i)).toBeTruthy()
+      expect(screen.getByText(/Phone number is required/i)).toBeTruthy()
+      expect(screen.getByText(/Description is required/i)).toBeTruthy()
+    })
+  })
+
+  test('5. Invalid phone number shows validation error', async () => {
+    mockState.profileRow = null
+    renderProfilePage()
+
+    await screen.findByText('Build your profile')
+
+    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+      target: { value: 'Test Org' },
+    })
+    fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: 'invalid' } })
+    fireEvent.change(screen.getByLabelText(/About your organisation/i), {
+      target: { value: 'Description' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Enter a valid phone number/i)).toBeTruthy()
+    })
+  })
+
+  test('6. Profile update path persists changes to existing profile', async () => {
+    const onProfileSaved = vi.fn()
+    renderProfilePage(onProfileSaved)
+
+    await screen.findByDisplayValue('Khayelitsha Skills Centre')
+
+    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+      target: { value: 'Updated Skills Centre' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    await waitFor(() => expect(mockState.updatedProfilePayload).toBeTruthy())
+    expect(mockState.updatedProfilePayload.organisation_name).toBe('Updated Skills Centre')
+  })
+
+  test('7. Field error clears when user changes the field', async () => {
+    mockState.profileRow = null
+    renderProfilePage()
+
+    await screen.findByText('Build your profile')
+
+    // Submit with empty fields to trigger validation
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Company \/ organisation name is required/i)).toBeTruthy()
+    })
+
+    // Now fill in the field
+    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+      target: { value: 'Test Org' },
+    })
+
+    // Error should disappear
+    await waitFor(() => {
+      expect(screen.queryByText(/Company \/ organisation name is required/i)).toBeFalsy()
+    })
+  })
+
+  test('8. Logo upload is persisted when saving an existing profile', async () => {
+    renderProfilePage()
+
+    await screen.findByDisplayValue('Khayelitsha Skills Centre')
+
+    const logoInput = document.getElementById('provider-logo')
+    fireEvent.change(logoInput, {
+      target: { files: [new File(['logo'], 'provider-logo.png', { type: 'image/png' })] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    await waitFor(() => expect(mockState.updatedProfilePayload).toBeTruthy())
+    expect(mockState.uploadedLogoPath).toMatch(/^user-1-\d+-provider-logo\.png$/)
+    expect(mockState.uploadedLogoFile?.name).toBe('provider-logo.png')
+    expect(mockState.publicUrlRequestedPath).toBe(mockState.uploadedLogoPath)
+    expect(mockState.updatedProfilePayload.logo_url).toBe(mockState.logoPublicUrl)
+  })
+
+  test('9. Logo upload failure still saves the profile with the preview data', async () => {
+    mockState.logoUploadError = { message: 'storage unavailable' }
+
+    renderProfilePage()
+
+    await screen.findByDisplayValue('Khayelitsha Skills Centre')
+
+    const logoInput = document.getElementById('provider-logo')
+    fireEvent.change(logoInput, {
+      target: { files: [new File(['logo'], 'provider-logo.png', { type: 'image/png' })] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    await waitFor(() => expect(mockState.updatedProfilePayload).toBeTruthy())
+    expect(mockState.uploadedLogoPath).toMatch(/^user-1-\d+-provider-logo\.png$/)
+    expect(mockState.publicUrlRequestedPath).toBeNull()
+    expect(mockState.updatedProfilePayload.logo_url).toBe('data:image/png;base64,preview-data')
+  })
+
 })

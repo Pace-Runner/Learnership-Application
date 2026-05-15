@@ -19,6 +19,16 @@ import ProviderListingForm from './pages/ProviderListingForm'
 import ProviderListingEdit from './pages/ProviderListingEdit'
 import ProviderListingApplications from './pages/ProviderListingApplications'
 import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
+import {
+  getLandingRoute,
+  isProviderProfileComplete,
+  getProviderLandingRoute,
+  isApplicantProfileComplete,
+  getConfiguredAdminEmails,
+  getRoleForEmail,
+  getApplicantLandingRouteForEmail,
+  getProviderLandingRouteForEmail,
+} from './app-helpers'
 const AdminDashboardShell = Admin
 
 // ProtectedRoute: Guard component that restricts access to role-specific pages
@@ -178,88 +188,7 @@ function App() {
     }
   }, [])
 
-  // Query users table to get applicant/provider/admin role based on email
-  const getRoleForEmail = useCallback(async (email) => {
-    // Query users table: find role by email address
-    const { data: userRecord, error: fetchError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('email', email)
-      .maybeSingle() // null if no match
-
-    if (fetchError) {
-      throw fetchError
-    }
-
-    if (!userRecord?.role) {
-      const normalizedEmail = email?.trim().toLowerCase()
-      const configuredAdminEmails = getConfiguredAdminEmails()
-
-      if (normalizedEmail && configuredAdminEmails.includes(normalizedEmail)) {
-        const { data: restoredAdmin, error: restoreError } = await supabase
-          .from('users')
-          .upsert({ email: normalizedEmail, role: 'Admin' }, { onConflict: 'email' })
-          .select('role')
-          .single()
-
-        if (restoreError) {
-          throw restoreError
-        }
-
-        return restoredAdmin?.role ?? 'Admin'
-      }
-    }
-
-    return userRecord?.role ?? null
-  }, [])
-
-  const getApplicantLandingRouteForEmail = useCallback(async (email) => {
-    if (!hasSupabaseConfig || !email) {
-      return '/profile'
-    }
-
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle()
-
-    if (!userRow?.id) {
-      return '/profile'
-    }
-
-    const { data: profileRow } = await supabase
-      .from('applicant_profiles')
-      .select('id,first_name,last_name,phone,location,date_of_birth,id_number,cv_url')
-      .eq('user_id', userRow.id)
-      .maybeSingle()
-
-    return isApplicantProfileComplete(profileRow) ? '/dashboard' : '/profile'
-  }, [])
-
-  const getProviderLandingRouteForEmail = useCallback(async (email) => {
-    if (!hasSupabaseConfig || !email) {
-      return '/provider/profile'
-    }
-
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle()
-
-    if (!userRow?.id) {
-      return '/provider/profile'
-    }
-
-    const { data: profileRow } = await supabase
-      .from('provider_profiles')
-      .select('id,organisation_name,phone,description')
-      .eq('user_id', userRow.id)
-      .maybeSingle()
-
-    return getProviderLandingRoute(profileRow)
-  }, [])
+// helper functions are implemented in ./app-helpers and imported above
 
   // AUTH BOOTSTRAP: Restore user session on app load and listen for auth changes
   // FLOW:
@@ -836,3 +765,14 @@ return (
 }
 
 export default App
+export {
+  ProtectedRoute,
+  ProviderWorkspaceRoute,
+  ProviderProfileRoute,
+  getLandingRoute,
+  isProviderProfileComplete,
+  getProviderLandingRoute,
+  isApplicantProfileComplete,
+  getConfiguredAdminEmails,
+}
+export { getRoleForEmail, getApplicantLandingRouteForEmail, getProviderLandingRouteForEmail } from './app-helpers'

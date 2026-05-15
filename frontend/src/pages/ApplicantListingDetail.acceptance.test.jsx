@@ -240,4 +240,69 @@ describe('Applicant listing detail acceptance tests', () => {
     expect(await screen.findByText(/You have already applied to this listing/i)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Apply now' })).toBeNull()
   })
+
+  test('4. shows profile preview with applicant name and CV', async () => {
+    const ApplicantListingDetail = await loadApplicantListingDetail()
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/listings/listing-1']}>
+        <Routes>
+          <Route path="/dashboard/listings/:listingId" element={<ApplicantListingDetail onLogout={vi.fn()} />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Ava Ndlovu/)).toBeTruthy()
+    expect(screen.getByText(/user-1\/ava-cv\.pdf/i)).toBeTruthy()
+    expect(screen.getByText(/Ready to apply/i)).toBeTruthy()
+  })
+
+  test('5. displays all listing details including location, duration, and type', async () => {
+    const ApplicantListingDetail = await loadApplicantListingDetail()
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/listings/listing-1']}>
+        <Routes>
+          <Route path="/dashboard/listings/:listingId" element={<ApplicantListingDetail onLogout={vi.fn()} />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Business Administration NQF 4/)).toBeTruthy()
+    expect(screen.getByText(/Cape Town/i)).toBeTruthy()
+    expect(screen.getByText(/12 months/i)).toBeTruthy()
+    expect(screen.getByText(/Learnership/i)).toBeTruthy()
+  })
+
+  test('6. blocks application when profile is incomplete and shows the missing fields', async () => {
+    detailState.profileRow = {
+      id: 'profile-1',
+      user_id: 'user-1',
+      first_name: 'Ava',
+      last_name: '',
+      phone: '0825551111',
+      location: 'Cape Town',
+      date_of_birth: '2001-03-04',
+      id_number: '0103045009087',
+      cv_url: '',
+      about_me: 'Ready to learn and contribute.',
+    }
+    detailState.existingApplicationRow = null
+    detailSpies.profileMaybeSingle.mockResolvedValue({ data: detailState.profileRow, error: null })
+    detailSpies.applicationMaybeSingle.mockResolvedValue({ data: null, error: null })
+
+    const ApplicantListingDetail = await loadApplicantListingDetail()
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard/listings/listing-1']}>
+        <Routes>
+          <Route path="/dashboard/listings/:listingId" element={<ApplicantListingDetail onLogout={vi.fn()} />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText(/Profile incomplete/i)).toBeTruthy()
+    expect(screen.getByText(/last name/i)).toBeTruthy()
+    expect(screen.getByText('CV', { selector: 'li' })).toBeTruthy()
+  })
 })

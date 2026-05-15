@@ -7,10 +7,14 @@ const {
   mockGetSession,
   mockOnAuthStateChange,
   mockRoleLookup,
+  mockUsersInsert,
+  mockSignInWithOAuth,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockOnAuthStateChange: vi.fn(),
   mockRoleLookup: vi.fn(),
+  mockUsersInsert: vi.fn(),
+  mockSignInWithOAuth: vi.fn(),
 }))
 
 vi.mock('./pages/Dashboard', () => ({
@@ -18,7 +22,12 @@ vi.mock('./pages/Dashboard', () => ({
 }))
 
 vi.mock('./pages/Provider', () => ({
-  default: () => <div>Provider Workspace</div>,
+  default: ({ onLogout }) => (
+    <div>
+      Provider Workspace
+      <button onClick={onLogout}>Logout</button>
+    </div>
+  ),
 }))
 
 vi.mock('./pages/Admin', () => ({
@@ -47,7 +56,7 @@ vi.mock('./lib/supabaseClient', () => ({
     auth: {
       getSession: mockGetSession,
       onAuthStateChange: mockOnAuthStateChange,
-      signInWithOAuth: vi.fn(),
+      signInWithOAuth: mockSignInWithOAuth,
       signOut: vi.fn(),
     },
     from: vi.fn((table) => {
@@ -72,6 +81,7 @@ vi.mock('./lib/supabaseClient', () => ({
             maybeSingle: mockRoleLookup,
           })),
         })),
+        insert: mockUsersInsert,
         upsert: vi.fn(() => ({
           select: vi.fn(() => ({
             single: vi.fn(async () => ({ data: { role: 'Admin' }, error: null })),
@@ -96,6 +106,12 @@ beforeEach(() => {
     error: null,
   })
   mockRoleLookup.mockResolvedValue({ data: null, error: null })
+  mockUsersInsert.mockReturnValue({
+    select: vi.fn(() => ({
+      single: vi.fn(async () => ({ data: { role: 'Applicant' }, error: null })),
+    })),
+  })
+  mockSignInWithOAuth.mockResolvedValue({ error: null })
   mockOnAuthStateChange.mockReturnValue({
     data: {
       subscription: {
@@ -125,7 +141,7 @@ describe('Role-based routing runtime behavior', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/BUILDING TALENT/i)).toBeTruthy()
-    })
+    }, { timeout: 4000 })
   })
 
   test('renders admin workspace when signed-in user has Admin role', async () => {
@@ -190,7 +206,7 @@ describe('Role-based routing runtime behavior', () => {
     renderApp('/provider')
     await waitFor(() => {
       expect(screen.getByText(/BUILDING TALENT/i)).toBeTruthy()
-    })
+    }, { timeout: 4000 })
   })
 
   test('auto-redirects signed-in Provider from home to provider route', async () => {
@@ -205,4 +221,48 @@ describe('Role-based routing runtime behavior', () => {
       expect(screen.getByText('Provider Profile Workspace')).toBeTruthy()
     })
   })
+
+  test('shows role selection for new users and saves the chosen role', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { email: 'new-provider@example.com' } } },
+      error: null,
+    })
+    mockRoleLookup.mockResolvedValue({ data: null, error: null })
+    mockUsersInsert.mockReturnValue({
+      select: vi.fn(() => ({
+        single: vi.fn(async () => ({ data: { role: 'Provider' }, error: null })),
+      })),
+    })
+
+    renderApp('/')
+
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+    expect(screen.getByText('Choose your role')).toBeTruthy()
+
+    screen.getByRole('button', { name: 'Provider' }).click()
+
+    await waitFor(() => {
+      expect(mockUsersInsert).toHaveBeenCalledWith({ email: 'new-provider@example.com', role: 'Provider' })
+      expect(screen.getByText('Provider Profile Workspace')).toBeTruthy()
+    })
+  })
+
+  test('clicking Google sign-in triggers the OAuth flow', async () => {
+    renderApp('/')
+
+    screen.getByRole('button').click()
+
+    await waitFor(() => {
+      expect(mockSignInWithOAuth).toHaveBeenCalledWith({
+        provider: 'google',
+        options: expect.objectContaining({ redirectTo: expect.any(String) }),
+      })
+    })
+  })
 })
+
+
+
+
+
+

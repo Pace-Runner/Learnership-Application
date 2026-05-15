@@ -253,6 +253,18 @@ describe('Provider Edit/Delete listing acceptance tests', () => {
     expect(mockState.updatedOpportunityPayload).toBeNull()
   })
 
+  test('6. Edit form blocks past closing dates before saving', async () => {
+    renderEditPage()
+
+    await screen.findByDisplayValue('Original Listing')
+    fireEvent.change(screen.getByLabelText('Closing date'), { target: { value: '2000-01-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(await screen.findByText('Closing date cannot be in the past.')).toBeTruthy()
+    expect(mockState.updatedOpportunityPayload).toBeNull()
+    expect(mockState.updatedRequirementPayload).toBeNull()
+  })
+
   test('6/7/8. Delete asks for confirmation, removes db record, and updates dashboard list', async () => {
     mockState.listings = [
       {
@@ -311,7 +323,30 @@ describe('Provider Edit/Delete listing acceptance tests', () => {
     confirmSpy.mockRestore()
   })
 
-  test('10. Approved listing delete requires warning confirmation', async () => {
+  test('10. Cancelling approved edit confirmation prevents saving changes', async () => {
+    mockState.listingForEdit = {
+      ...mockState.listingForEdit,
+      status: 'Approved',
+    }
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    renderEditPage()
+
+    await screen.findByDisplayValue('Original Listing')
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Blocked Update' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      'This listing is already approved. Are you sure you want to edit it?',
+    )
+    expect(mockState.updatedOpportunityPayload).toBeNull()
+    expect(mockState.updatedRequirementPayload).toBeNull()
+
+    confirmSpy.mockRestore()
+  })
+
+  test('11. Approved listing delete requires warning confirmation', async () => {
     mockState.listings = [
       {
         id: 'listing-approved-2',
@@ -339,7 +374,7 @@ describe('Provider Edit/Delete listing acceptance tests', () => {
     confirmSpy.mockRestore()
   })
 
-  test('11. Provider can only edit or delete their own listings (query constrained by provider_id)', () => {
+  test('12. Provider can only edit or delete their own listings (query constrained by provider_id)', () => {
     const providerSource = readFileSync(resolve(cwd(), 'src/pages/Provider.jsx'), 'utf8')
     const editSource = readFileSync(resolve(cwd(), 'src/pages/ProviderListingEdit.jsx'), 'utf8')
 
@@ -347,7 +382,34 @@ describe('Provider Edit/Delete listing acceptance tests', () => {
     expect(editSource).toContain(".eq('provider_id', providerRow.id)")
   })
 
-  test('12/13. Applicant, Admin, and unauthenticated users are blocked by route guard', () => {
+  test('13. Saving with no requirements row inserts new requirements', async () => {
+    mockState.requirementRow = null
+
+    renderEditPage()
+
+    await screen.findByDisplayValue('Original Listing')
+    fireEvent.change(screen.getByLabelText('Requirements'), { target: { value: 'Updated requirements text' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+
+    await waitFor(() => {
+      expect(mockState.updatedOpportunityPayload).toBeTruthy()
+      expect(mockState.insertedRequirementPayload).toBeTruthy()
+    })
+
+    expect(mockState.insertedRequirementPayload.opportunity_id).toBe('listing-1')
+    expect(mockState.insertedRequirementPayload.description).toBe('Updated requirements text')
+  })
+
+  test('14. Missing provider profile blocks loading the edit form', async () => {
+    mockState.providerRow = null
+
+    renderEditPage()
+
+    expect(await screen.findByText('Provider profile was not found.')).toBeTruthy()
+    expect(screen.queryByDisplayValue('Original Listing')).toBeNull()
+  })
+
+  test('15. Applicant, Admin, and unauthenticated users are blocked by route guard', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toContain('<Route path="/provider/listings/:listingId/edit"')
@@ -357,3 +419,7 @@ describe('Provider Edit/Delete listing acceptance tests', () => {
     expect(appSource).toContain('Navigate to="/"')
   })
 })
+
+
+
+
