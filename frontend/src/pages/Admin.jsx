@@ -675,7 +675,7 @@ export default function Admin({
         return
       }
 
-      const { error } = await supabase.functions.invoke('delete-user-account', {
+      const { error, data } = await supabase.functions.invoke('delete-user-account', {
         body: {
           userId,
           role,
@@ -685,7 +685,12 @@ export default function Admin({
       })
 
       if (error) {
-        setErrorMessage('Failed to delete account')
+        setErrorMessage(error?.message || 'Failed to delete account')
+        return
+      }
+
+      if (data?.error) {
+        setErrorMessage(data.error)
         return
       }
 
