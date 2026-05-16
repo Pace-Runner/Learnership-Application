@@ -302,4 +302,29 @@ describe('Provider manage application statuses acceptance tests', () => {
       'https://example.com/signed-cv.pdf',
     )
   })
+
+  test('8. Shows an empty state when the listing has no applications yet', async () => {
+    mockState.applicationRows = []
+
+    renderApplicationsPage()
+
+    expect(await screen.findByText('No applications have been submitted yet.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Update status' })).toBeNull()
+  })
+
+  test('9. Shows a sign-in error when the provider session is missing', async () => {
+    mockState.authEmail = ''
+
+    renderApplicationsPage()
+
+    expect(await screen.findByText('You must be signed in as a Provider to view applicants.')).toBeTruthy()
+  })
+
+  test('10. Shows a permission error when the listing does not belong to the provider', async () => {
+    mockState.listingRow = { id: 'listing-1', title: 'IT Support Internship 2026', provider_id: 'other-provider' }
+
+    renderApplicationsPage()
+
+    expect(await screen.findByText('Listing not found or you do not have permission to view it.')).toBeTruthy()
+  })
 })

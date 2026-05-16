@@ -18,6 +18,7 @@ const mockState = {
   updatedRequirementPayload: null,
   insertedRequirementPayload: null,
   deletedOpportunityIds: [],
+  requirementError: null,
 }
 
 function buildTableQuery(tableName) {
@@ -99,7 +100,7 @@ function buildTableQuery(tableName) {
     return {
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          maybeSingle: vi.fn(async () => ({ data: mockState.requirementRow, error: null })),
+              maybeSingle: vi.fn(async () => ({ data: mockState.requirementRow, error: mockState.requirementError })),
         })),
       })),
       update: vi.fn((payload) => {
@@ -186,6 +187,7 @@ beforeEach(() => {
   mockState.updatedRequirementPayload = null
   mockState.insertedRequirementPayload = null
   mockState.deletedOpportunityIds = []
+  mockState.requirementError = null
 })
 
 afterEach(() => {
@@ -409,7 +411,24 @@ describe('Provider Edit/Delete listing acceptance tests', () => {
     expect(screen.queryByDisplayValue('Original Listing')).toBeNull()
   })
 
-  test('15. Applicant, Admin, and unauthenticated users are blocked by route guard', () => {
+  test('15. Provider dashboard uses fallback listings in dev when the session is missing', async () => {
+    mockState.authEmail = ''
+
+    renderProviderPage()
+
+    expect(await screen.findByText('Business Administration NQF 4')).toBeTruthy()
+    expect(screen.getByText('Electrical Trade Apprenticeship')).toBeTruthy()
+  })
+
+  test('16. Provider dashboard shows an empty state when there are no listings', async () => {
+    mockState.listings = []
+
+    renderProviderPage()
+
+    expect(await screen.findByText('You have not submitted any listings yet.')).toBeTruthy()
+  })
+
+  test('17. Applicant, Admin, and unauthenticated users are blocked by route guard', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toContain('<Route path="/provider/listings/:listingId/edit"')

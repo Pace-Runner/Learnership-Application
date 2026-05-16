@@ -89,7 +89,7 @@ vi.mock('../lib/supabaseClient', () => ({
               })),
             })),
           })),
-          insert: detailSpies.applicationInsert.mockImplementation(async (payload) => {
+          insert: async (payload) => {
             applicationInsertCalls.push(payload)
             detailState.applicationInsertPayload = payload
 
@@ -104,7 +104,7 @@ vi.mock('../lib/supabaseClient', () => ({
             }
 
             return { data: null, error: null }
-          }),
+          },
         }
       }
 
@@ -170,7 +170,7 @@ beforeEach(() => {
 })
 
 describe('Applicant listing detail acceptance tests', () => {
-  test('renders the listing detail page and one-click apply button', async () => {
+  test('1. renders the listing detail page and one-click apply button', async () => {
     const ApplicantListingDetail = await loadApplicantListingDetail()
 
     render(
@@ -187,7 +187,7 @@ describe('Applicant listing detail acceptance tests', () => {
     expect(screen.getByText(/user-1\/ava-cv\.pdf/i)).toBeTruthy()
   })
 
-  test('submits an application using the saved profile and CV and falls back when Pending is rejected', async () => {
+  test('2. submits an application using the saved profile and CV and falls back when Pending is rejected', async () => {
     const ApplicantListingDetail = await loadApplicantListingDetail()
 
     render(
@@ -220,7 +220,7 @@ describe('Applicant listing detail acceptance tests', () => {
     ).toBeTruthy()
   })
 
-  test('shows already applied state and hides the apply button when an application exists', async () => {
+  test('3. shows already applied state and hides the apply button when an application exists', async () => {
     detailState.existingApplicationRow = {
       id: 'application-1',
       status: 'Pending',
