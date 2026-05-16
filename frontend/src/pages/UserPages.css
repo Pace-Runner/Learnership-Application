@@ -629,6 +629,10 @@
   margin-top: 0.62rem;
 }
 
+.user-list li .listing-card-actions .user-action-btn-inline {
+  margin-top: 0;
+}
+
 .user-list span {
   display: block;
   color: rgba(200, 223, 250, 0.84);
