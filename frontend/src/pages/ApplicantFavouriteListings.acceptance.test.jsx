@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Dashboard from './Dashboard'
 
@@ -106,14 +106,7 @@ vi.mock('../lib/supabaseClient', () => ({
               }),
             }),
           }),
-          insert: (payload) => {
-            favouriteSpies.favouritesInsert(payload)
-            return {
-              select: () => ({
-                maybeSingle: favouriteSpies.favouritesInsertMaybeSingle,
-              }),
-            }
-          },
+          insert: favouriteSpies.favouritesInsert,
           delete: () => ({
             eq: () => ({
               eq: favouriteSpies.favouritesDeleteOpportunityEq,
@@ -180,11 +173,7 @@ beforeEach(() => {
     error: null,
   }))
   favouriteSpies.favouritesMaybeSingle.mockResolvedValue({ data: null, error: null })
-  favouriteSpies.favouritesInsert.mockReturnValue(undefined)
-  favouriteSpies.favouritesInsertMaybeSingle.mockResolvedValue({
-    data: { id: 'favourite-inserted', created_at: '2026-05-16T11:00:00.000Z' },
-    error: null,
-  })
+  favouriteSpies.favouritesInsert.mockResolvedValue({ data: null, error: null })
   favouriteSpies.favouritesDeleteOpportunityEq.mockResolvedValue({ data: null, error: null })
   favouriteSpies.removeChannel.mockResolvedValue({})
 })
@@ -200,7 +189,9 @@ describe('Applicant favourite listings acceptance tests', () => {
     expect(await screen.findByText('Listing Test')).toBeTruthy()
     expect(screen.getByText('You have not saved any opportunities yet.')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Listing Test to favourites' }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save Listing Test to favourites' }))
+    })
 
     await waitFor(() => {
       expect(favouriteSpies.favouritesInsert).toHaveBeenCalledWith({
