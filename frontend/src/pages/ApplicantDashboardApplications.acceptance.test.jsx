@@ -152,14 +152,7 @@ vi.mock('../lib/supabaseClient', () => ({
               }),
             }),
           }),
-          insert: (payload) => {
-            dashboardSpies.favouritesInsert(payload)
-            return {
-              select: () => ({
-                maybeSingle: dashboardSpies.favouritesInsertMaybeSingle,
-              }),
-            }
-          },
+          insert: dashboardSpies.favouritesInsert,
           delete: () => ({
             eq: () => ({
               eq: dashboardSpies.favouritesDeleteOpportunityEq,
@@ -285,11 +278,7 @@ beforeEach(() => {
     error: null,
   }))
   dashboardSpies.favouritesMaybeSingle.mockResolvedValue({ data: null, error: null })
-  dashboardSpies.favouritesInsert.mockReturnValue(undefined)
-  dashboardSpies.favouritesInsertMaybeSingle.mockResolvedValue({
-    data: { id: 'favourite-inserted', created_at: '2026-05-16T11:00:00.000Z' },
-    error: null,
-  })
+  dashboardSpies.favouritesInsert.mockResolvedValue({ data: null, error: null })
   dashboardSpies.favouritesDeleteOpportunityEq.mockResolvedValue({ data: null, error: null })
   dashboardSpies.removeChannel.mockResolvedValue({})
 })
