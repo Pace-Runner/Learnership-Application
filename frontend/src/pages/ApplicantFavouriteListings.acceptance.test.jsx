@@ -32,7 +32,9 @@ const favouriteSpies = vi.hoisted(() => ({
   applicationsOrder: vi.fn(),
   notificationsOrder: vi.fn(),
   favouritesOrder: vi.fn(),
+  favouritesMaybeSingle: vi.fn(),
   favouritesInsert: vi.fn(),
+  favouritesInsertMaybeSingle: vi.fn(),
   favouritesDeleteOpportunityEq: vi.fn(),
   removeChannel: vi.fn(),
 }))
@@ -99,9 +101,19 @@ vi.mock('../lib/supabaseClient', () => ({
           select: () => ({
             eq: () => ({
               order: favouriteSpies.favouritesOrder,
+              eq: () => ({
+                maybeSingle: favouriteSpies.favouritesMaybeSingle,
+              }),
             }),
           }),
-          insert: favouriteSpies.favouritesInsert,
+          insert: (payload) => {
+            favouriteSpies.favouritesInsert(payload)
+            return {
+              select: () => ({
+                maybeSingle: favouriteSpies.favouritesInsertMaybeSingle,
+              }),
+            }
+          },
           delete: () => ({
             eq: () => ({
               eq: favouriteSpies.favouritesDeleteOpportunityEq,
@@ -167,7 +179,12 @@ beforeEach(() => {
     data: favouriteState.favouriteRows,
     error: null,
   }))
-  favouriteSpies.favouritesInsert.mockResolvedValue({ data: null, error: null })
+  favouriteSpies.favouritesMaybeSingle.mockResolvedValue({ data: null, error: null })
+  favouriteSpies.favouritesInsert.mockReturnValue(undefined)
+  favouriteSpies.favouritesInsertMaybeSingle.mockResolvedValue({
+    data: { id: 'favourite-inserted', created_at: '2026-05-16T11:00:00.000Z' },
+    error: null,
+  })
   favouriteSpies.favouritesDeleteOpportunityEq.mockResolvedValue({ data: null, error: null })
   favouriteSpies.removeChannel.mockResolvedValue({})
 })
