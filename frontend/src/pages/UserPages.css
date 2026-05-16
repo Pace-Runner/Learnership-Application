@@ -492,7 +492,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.52rem;
-  align-items: stretch;
+  align-items: center;
 }
 
 .listing-card-actions .user-action-btn-inline {
@@ -500,16 +500,18 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-width: 6.25rem;
-  min-height: 2.55rem;
+  flex: 0 0 6.25rem;
+  width: 6.25rem;
+  height: 2.42rem;
+  min-width: 0;
+  min-height: 0;
   margin-top: 0;
-  padding: 0.66rem 0.78rem;
+  padding: 0 0.72rem;
   line-height: 1;
 }
 
 .listing-card-actions .provider-action-link,
 .listing-card-actions .favourite-toggle-btn {
-  width: 6.25rem;
   text-align: center;
 }
 
