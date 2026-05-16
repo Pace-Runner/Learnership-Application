@@ -23,7 +23,7 @@ const mockState = {
   publicUrlRequestedPath: null,
 }
 
-let originalFileReader = global.FileReader
+let originalFileReader = globalThis.FileReader
 
 class MockFileReader {
   constructor() {
@@ -134,8 +134,8 @@ function renderProfilePage(onProfileSaved = vi.fn()) {
 }
 
 beforeEach(() => {
-  originalFileReader = global.FileReader
-  global.FileReader = MockFileReader
+  originalFileReader = globalThis.FileReader
+  globalThis.FileReader = MockFileReader
   mockState.authEmail = 'provider@example.com'
   mockState.userRow = { id: 'user-1' }
   mockState.profileRow = {
@@ -156,7 +156,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  global.FileReader = originalFileReader
+  globalThis.FileReader = originalFileReader
   cleanup()
 })
 

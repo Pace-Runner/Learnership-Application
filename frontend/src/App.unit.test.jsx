@@ -6,7 +6,7 @@ import {
   getProviderLandingRoute,
   isApplicantProfileComplete,
   getConfiguredAdminEmails,
-} from './App'
+} from './app-helpers'
 
 afterEach(() => {
   cleanup()
@@ -67,7 +67,7 @@ describe('App helper functions', () => {
     // Temporarily set environment variable and verify parsing
     try {
       import.meta.env.VITE_ADMIN_EMAILS = ' Admin@EXAMPLE.com, second@domain.com '
-    } catch (e) {
+    } catch {
       // Some runners make import.meta.env read-only; in that case skip the mutating check
     }
 

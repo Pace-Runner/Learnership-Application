@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 describe('Dashboard page - expanded logic tests', () => {
   it('validates applications list sorting', () => {

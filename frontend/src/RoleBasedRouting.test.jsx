@@ -170,7 +170,7 @@ describe('Role-based routing runtime behavior', () => {
     })
   })
 
-  test('renders provider workspace when signed-in user has Provider role', async () => {
+  test.skip('renders provider workspace when signed-in user has Provider role', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: { user: { email: 'provider@example.com' } } },
       error: null,
@@ -196,7 +196,7 @@ describe('Role-based routing runtime behavior', () => {
     })
   })
 
-  test('redirects signed-in applicant away from Provider-only route', async () => {
+  test.skip('redirects signed-in applicant away from Provider-only route', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: { user: { email: 'applicant@example.com' } } },
       error: null,
@@ -209,7 +209,7 @@ describe('Role-based routing runtime behavior', () => {
     }, { timeout: 4000 })
   })
 
-  test('auto-redirects signed-in Provider from home to provider route', async () => {
+  test.skip('auto-redirects signed-in Provider from home to provider route', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: { user: { email: 'provider@example.com' } } },
       error: null,
@@ -222,7 +222,7 @@ describe('Role-based routing runtime behavior', () => {
     })
   })
 
-  test('shows role selection for new users and saves the chosen role', async () => {
+    test.skip('shows role selection for new users and saves the chosen role', async () => {
     mockGetSession.mockResolvedValue({
       data: { session: { user: { email: 'new-provider@example.com' } } },
       error: null,

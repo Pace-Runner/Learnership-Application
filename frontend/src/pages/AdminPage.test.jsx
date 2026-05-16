@@ -47,15 +47,16 @@ test('ADMIN-ACCEPTANCE-1: Admin email addresses are seeded in database with Admi
 test('ADMIN-ACCEPTANCE-2: OAuth callback checks email against admin list and assigns Admin role', () => {
   const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-  expect(appSource).toContain("if (role === 'Admin')")
   expect(appSource).toContain('handleRoleSelection')
+  expect(appSource).toContain('allowedRole="Admin"')
 })
 
 test('ADMIN-ACCEPTANCE-3: Admin dashboard shell exists at /admin route with moderation controls', () => {
   const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+  const appHelpersSource = readFileSync(resolve(cwd(), 'src/app-helpers.js'), 'utf8')
 
   expect(appSource).toContain('<Route path="/admin"')
-  expect(appSource).toContain('if (role === \'Admin\') return \'/admin\'')
+  expect(appHelpersSource).toContain("if (role === 'Admin') return '/admin'")
 })
 
 test('ADMIN-ACCEPTANCE-4: Non-admin users visiting /admin are redirected away', () => {

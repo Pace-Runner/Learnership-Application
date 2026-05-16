@@ -82,7 +82,8 @@ test('PROVIDER-ACCEPTANCE-3: OAuth callback supports Provider role assignment fl
 
 test('PROVIDER-ACCEPTANCE-4: Successful Provider login landing route is /provider', () => {
   const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+  const appHelpersSource = readFileSync(resolve(cwd(), 'src/app-helpers.js'), 'utf8')
 
-  expect(appSource).toContain("if (role === 'Provider') return '/provider'")
+  expect(appHelpersSource).toContain("if (role === 'Provider') return '/provider'")
   expect(appSource).toContain('<Route path="/provider"')
 })

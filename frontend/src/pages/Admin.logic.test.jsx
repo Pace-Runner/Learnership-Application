@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 describe('Admin page logic tests', () => {
   it('validates moderation action types', () => {
@@ -69,12 +69,13 @@ describe('Admin page logic tests', () => {
       { type: 'rejected' },
       { type: 'deleted' },
     ]
-    const counts = {
-      rejected: 2,
-      flagged: 1,
-      deleted: 1,
-    }
+    const counts = actions.reduce((acc, action) => {
+      acc[action.type] = (acc[action.type] || 0) + 1
+      return acc
+    }, {})
     expect(counts.rejected).toBe(2)
+    expect(counts.flagged).toBe(1)
+    expect(counts.deleted).toBe(1)
   })
 
   it('validates permission for moderation actions', () => {

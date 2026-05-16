@@ -1,0 +1,177 @@
+
+[1m[46m RUN [49m[22m [36mv4.1.3 [39m[90mE:/UNI/Year 3/Learnership-Application/frontend[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32mΓ£ô[39m src/pages/ApplicantListingDetail.acceptance.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1630[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 1. renders the listing detail page and one-click apply button [33m 1052[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderPostListing.acceptance.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[33m 2762[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 1. Listing form renders all required fields [33m 314[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 3. Listing form blocks submission when required fields are empty [33m 760[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 4. Closing date field rejects past dates [33m 523[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 5/6/7. Successful submission saves listing, sets Pending, and links the signed-in provider [33m 343[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 11. Provider cannot submit listing with invalid stipend [33m 333[2mms[22m[39m
+stderr | src/App.routing.test.jsx > App routing tests > renders home page for unknown routes
+No routes matched location "/unknown-route" 
+
+stderr | src/App.routing.test.jsx > App routing tests > renders home page for unknown routes
+No routes matched location "/unknown-route" 
+
+ [32mΓ£ô[39m src/App.integration.coverage.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 4832[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a config error when Supabase is missing [33m 1502[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a restore-session error when getSession fails [33m 687[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a role-selection overlay for a new user and reports insert failures [33m 867[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m surfaces Google sign-in failures [33m 729[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m handles signed-out auth state changes by clearing the current session state [33m 919[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AdminModerationQueue.test.jsx [2m([22m[2m21 tests[22m[2m)[22m[33m 4872[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 4. approve/remove tab shows the queue, delete tab, and download button [33m 845[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 6. delete action removes a listing and logs the listing type [33m 492[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 8. approve action updates listing status and removes from queue [33m 422[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 9. remove action updates listing status and removes from queue [33m 415[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 10. approve action is logged in admin_actions payload [33m 362[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 11. remove action is logged in admin_actions payload [33m 340[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 12. remove action requires a reason [33m 316[2mms[22m[39m
+ [32mΓ£ô[39m src/App.routing.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[33m 5159[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows home page when unauthenticated [33m 2737[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders home page for unknown routes [33m 2087[2mms[22m[39m
+stderr | src/pages/ProviderProfile.acceptance.test.jsx > Provider profile acceptance tests > 9. Logo upload failure still saves the profile with the preview data
+Logo upload failed: { message: 'storage unavailable' }
+
+ [32mΓ£ô[39m src/pages/ProviderProfile.acceptance.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[33m 2251[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 2. Provider profile form saves to provider_profiles and updates the visible summary [33m 826[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantProfile.coverage.test.jsx [2m([22m[2m16 tests[22m[2m)[22m[33m 8355[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m loads profile, education, skills, and uploaded files from Supabase [33m 1547[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m creates a new applicant profile and saves education plus skills to Supabase [33m 1562[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m validates CV uploads, persists CV url, and opens uploaded documents [33m 603[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m keeps unsaved personal details and selected skills after CV upload [33m 347[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m blocks submission when required fields are missing [33m 344[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m supports multiple education entries and saves all of them [33m 841[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m allows selecting multiple skills and saves all selected values [33m 1374[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m edits an existing profile and re-saves updated values [33m 412[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m deletes the existing profile picture and refreshes the avatar state [33m 388[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantSearchListings.test.jsx [2m([22m[2m13 tests[22m[2m)[22m[33m 8080[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders search bar and listing type filter on the dashboard [33m 807[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m returns matching approved listings for a keyword search [33m 728[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m finds listings by location entered into the search bar [33m 641[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses the search term and type filter together [33m 651[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the results panel without a full page reload [33m 614[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m restores the full approved listings list after clearing the search and resetting the filter [33m 1162[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a clear no-results message when nothing matches [33m 562[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m search is case insensitive [33m 694[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m never shows pending listings even when the keyword matches [33m 677[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m never shows removed listings even when the keyword matches [33m 624[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects unauthenticated users away from the listings page [33m 693[2mms[22m[39m
+ [32mΓ£ô[39m src/RoleBasedRouting.test.jsx [2m([22m[2m10 tests[22m[2m | [22m[33m4 skipped[39m[2m)[22m[33m 2361[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects unauthenticated users from protected route to home [33m 668[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m clicking Google sign-in triggers the OAuth flow [33m 1189[2mms[22m[39m
+ [32mΓ£ô[39m src/App.test.jsx [2m([22m[2m44 tests[22m[2m | [22m[90m12 todo[39m[2m)[22m[33m 2507[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Google OAuth entry is available for provider registration [33m 621[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Home page renders all three landing sections with proper hierarchy [33m 609[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Home page topbar links are visible [33m 452[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Sign-in page displays auth status message [33m 302[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderEditDeleteListing.acceptance.test.jsx [2m([22m[2m16 tests[22m[2m)[22m[33m 2593[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 3. Saving an edited listing updates the database payload [33m 765[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 6/7/8. Delete asks for confirmation, removes db record, and updates dashboard list [33m 313[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/Dashboard.coverage.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[33m 2285[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m searching for a missing listing shows the no-results state [33m 1246[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m searching by location keeps only the matching approved listing [33m 755[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderManageApplicationStatuses.acceptance.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[33m 2084[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 2. Updating an applicant status writes the mapped status to the applications table [33m 918[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 3. Changing an applicant status triggers the status delivery function for in-app notification [33m 305[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/UserPages.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 2070[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Applicant workspace renders correctly [33m 377[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Listings section and search controls visible [33m 489[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Profile page renders with document actions [33m 729[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantDashboardApplications.acceptance.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 2349[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows each submitted application with the requested status label [33m 554[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows unread notifications, marks them as read on click, and lets the applicant reveal read history [33m 1091[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m refreshes the notification inbox when a realtime notification arrives [33m 521[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/Provider.test.jsx [2m([22m[2m12 tests[22m[2m)[22m[33m 1983[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders provider dashboard with listings and header [33m 358[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows Profile, New Listing, and Logout buttons in header [33m 1023[2mms[22m[39m
+ [32mΓ£ô[39m src/App.render.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[33m 324[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m exports App component [33m 318[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderPage.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1278[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m PROVIDER-DASHBOARD: renders stats and listing overview [33m 864[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AdminPage.test.jsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1251[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m ADMIN-DASHBOARD: renders admin workspace heading and console title [33m 318[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m ADMIN-DASHBOARD: logout button is clickable and triggers callback [33m 734[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/Admin.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[32m 170[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/Dashboard.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[32m 222[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/Admin-ConnorLaptop.test.jsx [2m([22m[2m1 test[22m[2m)[22m[32m 205[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/index.smoke.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[32m 184[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantProfile.logic.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32mΓ£ô[39m src/App.routes.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[32m 182[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderProfile.logic.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32mΓ£ô[39m src/App.oauth.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32mΓ£ô[39m src/App.logic.test.jsx [2m([22m[2m19 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32mΓ£ô[39m src/App.unit.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+[90mstdout[2m | src/App.supabase.test.jsx[2m > [22m[2mApp supabase helpers[2m > [22m[2mgetRoleForEmail returns role when user exists
+[22m[39mApp keys at test start: [
+  [32m'default'[39m,
+  [32m'ProtectedRoute'[39m,
+  [32m'ProviderWorkspaceRoute'[39m,
+  [32m'ProviderProfileRoute'[39m,
+  [32m'getLandingRoute'[39m,
+  [32m'isProviderProfileComplete'[39m,
+  [32m'getProviderLandingRoute'[39m,
+  [32m'isApplicantProfileComplete'[39m,
+  [32m'getConfiguredAdminEmails'[39m,
+  [32m'getRoleForEmail'[39m,
+  [32m'getApplicantLandingRouteForEmail'[39m,
+  [32m'getProviderLandingRouteForEmail'[39m
+]
+typeof getRoleForEmail: function [36m[AsyncFunction: getRoleForEmail][39m
+
+ [32mΓ£ô[39m src/App.supabase.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/Dashboard.expanded.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantListingDetail.logic.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/Admin.logic.test.jsx [2m([22m[2m11 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderListingForm.logic.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32mΓ£ô[39m src/App.pure.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+[90mstdout[2m | src/debug-import.test.jsx[2m > [22m[2mdebug exports
+[22m[39mApp exports: [
+  [32m'default'[39m,
+  [32m'ProtectedRoute'[39m,
+  [32m'ProviderWorkspaceRoute'[39m,
+  [32m'ProviderProfileRoute'[39m,
+  [32m'getLandingRoute'[39m,
+  [32m'isProviderProfileComplete'[39m,
+  [32m'getProviderLandingRoute'[39m,
+  [32m'isApplicantProfileComplete'[39m,
+  [32m'getConfiguredAdminEmails'[39m,
+  [32m'getRoleForEmail'[39m,
+  [32m'getApplicantLandingRouteForEmail'[39m,
+  [32m'getProviderLandingRouteForEmail'[39m
+]
+
+ [32mΓ£ô[39m src/debug-import.test.jsx [2m([22m[2m1 test[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32mΓ£ô[39m src/App.auth.integration.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m37 passed[39m[22m[90m (37)[39m
+[2m      Tests [22m [1m[32m319 passed[39m[22m[2m | [22m[33m4 skipped[39m[2m | [22m[90m12 todo[39m[90m (335)[39m
+[2m   Start at [22m 02:19:23
+[2m   Duration [22m 33.57s[2m (transform 3.45s, setup 750ms, import 21.56s, tests 60.20s, environment 110.15s)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   66.81 |    61.46 |   72.46 |   67.31 |                   
+ src               |   72.81 |    68.26 |   69.56 |   72.82 |                   
+  App.jsx          |   69.88 |    63.12 |   62.16 |      70 | ...07-511,623,734 
+  app-helpers.js   |    92.3 |    85.41 |     100 |   91.89 | 71,83,107         
+ src/lib           |     100 |    66.66 |     100 |     100 |                   
+  ...baseClient.js |     100 |    66.66 |     100 |     100 | 16-17             
+ src/pages         |   66.01 |    60.69 |   72.76 |   66.56 |                   
+  ...norLaptop.jsx |     100 |      100 |     100 |     100 |                   
+  Admin.jsx        |   74.79 |    59.66 |   76.92 |    74.4 | ...1373,1409-1412 
+  ...st.backup.jsx |       0 |        0 |       0 |       0 | 2-488             
+  ...ingDetail.jsx |    60.4 |    59.47 |     100 |   65.67 | ...09-210,239-248 
+  ...ntProfile.jsx |   66.77 |    54.97 |   73.68 |   68.32 | ...1418,1465-1477 
+  Dashboard.jsx    |   78.22 |    69.01 |   97.82 |   77.92 | ...89,472,483,497 
+  Provider.jsx     |   80.66 |    73.39 |   77.41 |   81.48 | ...76-181,234,359 
+  ...lications.jsx |    70.3 |    57.59 |   74.19 |   69.81 | ...29-330,423-473 
+  ...stingEdit.jsx |    65.4 |    62.31 |     100 |    67.1 | ...98-300,309-311 
+  ...stingForm.jsx |   72.65 |    81.11 |     100 |   71.66 | ...13-215,227-230 
+  ...erProfile.jsx |   67.94 |     61.8 |   86.66 |   67.97 | ...82,292-294,326 
+-------------------|---------|----------|---------|---------|-------------------

@@ -1,0 +1,749 @@
+
+> frontend@0.0.0 test
+> vitest run --coverage
+
+
+[1m[46m RUN [49m[22m [36mv4.1.3 [39m[90mE:/UNI/Year 3/Learnership-Application/frontend[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+stderr | src/App.routing.test.jsx > App routing tests > renders home page for unknown routes
+No routes matched location "/unknown-route" 
+
+stderr | src/App.routing.test.jsx > App routing tests > renders home page for unknown routes
+No routes matched location "/unknown-route" 
+
+ [32mΓ£ô[39m src/pages/ProviderPostListing.acceptance.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[33m 4210[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 1. Listing form renders all required fields [33m 363[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 3. Listing form blocks submission when required fields are empty [33m 888[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 4. Closing date field rejects past dates [33m 919[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 5/6/7. Successful submission saves listing, sets Pending, and links the signed-in provider [33m 652[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 10. Provider dashboard filters listings by status without leaving the page [33m 548[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 11. Provider cannot submit listing with invalid stipend [33m 553[2mms[22m[39m
+stderr | src/App.auth.bootstrap.test.jsx > App auth bootstrap and role flows > initializes signed-in user when role lookup succeeds
+No routes matched location "/not-home" 
+
+stderr | src/App.auth.bootstrap.test.jsx > App auth bootstrap and role flows > initializes signed-in user when role lookup succeeds
+No routes matched location "/not-home" 
+
+ [32mΓ£ô[39m src/App.routing.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[33m 5635[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows home page when unauthenticated [33m 3126[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders home page for unknown routes [33m 2084[2mms[22m[39m
+stderr | src/App.auth.bootstrap.test.jsx > App auth bootstrap and role flows > handleLogout calls supabase.signOut and resets UI
+No routes matched location "/not-home" 
+
+stderr | src/App.auth.bootstrap.test.jsx > App auth bootstrap and role flows > handleLogout calls supabase.signOut and resets UI
+No routes matched location "/not-home" 
+
+ [32mΓ£ô[39m src/RoleBasedRouting.test.jsx [2m([22m[2m10 tests[22m[2m)[22m[33m 6233[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects unauthenticated users from protected route to home [33m 1123[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects signed-in applicant away from Provider-only route [33m 685[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m auto-redirects signed-in Provider from home to provider route [33m 1416[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows role selection for new users and saves the chosen role [33m 1643[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m clicking Google sign-in triggers the OAuth flow [33m 534[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AdminModerationQueue.test.jsx [2m([22m[2m21 tests[22m[2m)[22m[33m 6742[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 4. approve/remove tab shows the queue, delete tab, and download button [33m 1063[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 5. delete stats count apprenticeships, internships, and learnerships [33m 353[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 6. delete action removes a listing and logs the listing type [33m 1092[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 7. moderation queue can be filtered by type [33m 391[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 8. approve action updates listing status and removes from queue [33m 732[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 9. remove action updates listing status and removes from queue [33m 628[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 10. approve action is logged in admin_actions payload [33m 450[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 11. remove action is logged in admin_actions payload [33m 343[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 13. delete user tab loads applicants and providers and calls the delete function [33m 484[2mms[22m[39m
+ [31mΓ¥»[39m src/App.auth.bootstrap.test.jsx [2m([22m[2m5 tests[22m[2m | [22m[31m2 failed[39m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 7509[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows error when Supabase config is missing [33m 1578[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows role selection when session exists but role lookup returns null [33m 2846[2mms[22m[39m
+[31m     [31m├ù[31m initializes signed-in user when role lookup succeeds[39m[33m 1363[2mms[22m[39m
+     [2m[90mΓåô[39m[22m responds to auth state change SIGNED_IN then SIGNED_OUT
+[31m     [31m├ù[31m handleLogout calls supabase.signOut and resets UI[39m[33m 1711[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantSearchListings.test.jsx [2m([22m[2m13 tests[22m[2m)[22m[33m 8957[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders search bar and listing type filter on the dashboard [33m 1029[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m returns matching approved listings for a keyword search [33m 871[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m finds listings by location entered into the search bar [33m 1001[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uses the search term and type filter together [33m 702[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m updates the results panel without a full page reload [33m 702[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m restores the full approved listings list after clearing the search and resetting the filter [33m 1237[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows a clear no-results message when nothing matches [33m 646[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m search is case insensitive [33m 610[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m never shows pending listings even when the keyword matches [33m 606[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m never shows removed listings even when the keyword matches [33m 596[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m redirects unauthenticated users away from the listings page [33m 701[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantProfile.coverage.test.jsx [2m([22m[2m16 tests[22m[2m)[22m[33m 10890[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m loads profile, education, skills, and uploaded files from Supabase [33m 1818[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m creates a new applicant profile and saves education plus skills to Supabase [33m 2518[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m validates CV uploads, persists CV url, and opens uploaded documents [33m 796[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m keeps unsaved personal details and selected skills after CV upload [33m 360[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m blocks submission when required fields are missing [33m 408[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m supports multiple education entries and saves all of them [33m 941[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m allows selecting multiple skills and saves all selected values [33m 1593[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m edits an existing profile and re-saves updated values [33m 424[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m unauthenticated users cannot start CV upload [33m 356[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m uploads a profile picture and refreshes the preview state [33m 384[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m deletes the existing profile picture and refreshes the avatar state [33m 570[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderEditDeleteListing.acceptance.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 4202[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 1. Edit form renders with existing listing data pre-populated [33m 468[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 2. Edit form contains same fields as create form [33m 432[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 3. Saving an edited listing updates the database payload [33m 1113[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 6. Edit form blocks past closing dates before saving [33m 311[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 6/7/8. Delete asks for confirmation, removes db record, and updates dashboard list [33m 387[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 11. Approved listing delete requires warning confirmation [33m 507[2mms[22m[39m
+ [32mΓ£ô[39m src/App.test.jsx [2m([22m[2m44 tests[22m[2m | [22m[90m12 todo[39m[2m)[22m[33m 3775[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Google OAuth entry is available for provider registration [33m 1141[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Home page renders all three landing sections with proper hierarchy [33m 910[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Home page includes scroll animation hooks [33m 436[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Home page topbar links are visible [33m 582[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Sign-in page displays auth status message [33m 353[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/Dashboard.coverage.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[33m 2910[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows approved listings and the empty search state with listings prop [33m 468[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m searching for a missing listing shows the no-results state [33m 1678[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m searching by location keeps only the matching approved listing [33m 759[2mms[22m[39m
+stderr | src/pages/ProviderProfile.acceptance.test.jsx > Provider profile acceptance tests > 9. Logo upload failure still saves the profile with the preview data
+Logo upload failed: { message: 'storage unavailable' }
+
+ [32mΓ£ô[39m src/pages/ProviderProfile.acceptance.test.jsx [2m([22m[2m9 tests[22m[2m)[22m[33m 4278[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 1. Provider profile page renders saved profile information from Supabase [33m 754[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 2. Provider profile form saves to provider_profiles and updates the visible summary [33m 1318[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 3. Provider profile route stays accessible for editing after completion [33m 311[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 4. Validation errors display when required fields are empty [33m 305[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 7. Field error clears when user changes the field [33m 326[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 8. Logo upload is persisted when saving an existing profile [33m 314[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 9. Logo upload failure still saves the profile with the preview data [33m 384[2mms[22m[39m
+ [32mΓ£ô[39m src/App.auth.integration.test.jsx [2m([22m[2m1 test[22m[2m)[22m[33m 3382[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Clicking Google sign-in shows auth error when signInWithOAuth fails [33m 3364[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderManageApplicationStatuses.acceptance.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[33m 3844[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 1. Applications page renders a status control with Pending, Reviewed, Accepted, and Rejected options [33m 770[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 2. Updating an applicant status writes the mapped status to the applications table [33m 1304[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 3. Changing an applicant status triggers the status delivery function for in-app notification [33m 368[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 4. Changing an applicant status falls back to Received if the database rejects Pending [33m 366[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 5. The visible application status updates after saving the provider action [33m 337[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m 7. A filename-only CV resolves to a valid provider download link [33m 465[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/UserPages.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 3598[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Applicant workspace renders correctly [33m 477[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Listings section and search controls visible [33m 1246[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Example listings and profile navigation present [33m 328[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Logout button functional [33m 414[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m Profile page renders with document actions [33m 944[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantDashboardApplications.acceptance.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 2594[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows each submitted application with the requested status label [33m 563[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m shows unread notifications, marks them as read on click, and lets the applicant reveal read history [33m 1420[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m refreshes the notification inbox when a realtime notification arrives [33m 357[2mms[22m[39m
+ [32mΓ£ô[39m src/App.routes.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 316[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ApplicantListingDetail.acceptance.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 2443[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m renders the listing detail page and one-click apply button [33m 1496[2mms[22m[39m
+     [33m[2mΓ£ô[22m[39m submits an application using the saved profile and CV and falls back when Pending is rejected [33m 310[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/ProviderPage.test.jsx [2m([22m[2m7 tests[22m[2m)[22m[33m 2065[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m PROVIDER-DASHBOARD: renders provider dashboard heading and welcome message [33m 386[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m PROVIDER-DASHBOARD: renders stats and listing overview [33m 1464[2mms[22m[39m
+ [32mΓ£ô[39m src/App.oauth.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+ [32mΓ£ô[39m src/pages/AdminPage.test.jsx [2m([22m[2m8 tests[22m[2m)[22m[33m 2230[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m ADMIN-DASHBOARD: renders admin workspace heading and console title [33m 459[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m ADMIN-DASHBOARD: logout button is clickable and triggers callback [33m 1351[2mms[22m[39m
+   [33m[2mΓ£ô[22m[39m ADMIN-ACCEPTANCE-5: Admin can access and view the platform moderation console [33m 348[2mms[22m[39m
+[90mstdout[2m | src/App.supabase.test.jsx[2m > [22m[2mApp supabase helpers[2m > [22m[2mgetRoleForEmail returns role when user exists
+[22m[39mApp keys at test start: [
+  [32m'default'[39m,
+  [32m'ProtectedRoute'[39m,
+  [32m'ProviderWorkspaceRoute'[39m,
+  [32m'ProviderProfileRoute'[39m,
+  [32m'getLandingRoute'[39m,
+  [32m'isProviderProfileComplete'[39m,
+  [32m'getProviderLandingRoute'[39m,
+  [32m'isApplicantProfileComplete'[39m,
+  [32m'getConfiguredAdminEmails'[39m,
+  [32m'getRoleForEmail'[39m,
+  [32m'getApplicantLandingRouteForEmail'[39m,
+  [32m'getProviderLandingRouteForEmail'[39m
+]
+typeof getRoleForEmail: function [36m[AsyncFunction: getRoleForEmail][39m
+
+ [32mΓ£ô[39m src/App.supabase.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32mΓ£ô[39m src/App.pure.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32mΓ£ô[39m src/App.unit.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+[90mstdout[2m | src/debug-import.test.jsx[2m > [22m[2mdebug exports
+[22m[39mApp exports: [
+  [32m'default'[39m,
+  [32m'ProtectedRoute'[39m,
+  [32m'ProviderWorkspaceRoute'[39m,
+  [32m'ProviderProfileRoute'[39m,
+  [32m'getLandingRoute'[39m,
+  [32m'isProviderProfileComplete'[39m,
+  [32m'getProviderLandingRoute'[39m,
+  [32m'isApplicantProfileComplete'[39m,
+  [32m'getConfiguredAdminEmails'[39m,
+  [32m'getRoleForEmail'[39m,
+  [32m'getApplicantLandingRouteForEmail'[39m,
+  [32m'getProviderLandingRouteForEmail'[39m
+]
+
+ [32mΓ£ô[39m src/debug-import.test.jsx [2m([22m[2m1 test[22m[2m)[22m[32m 8[2mms[22m[39m
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ» Failed Tests 2 ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+
+ FAIL  src/App.auth.bootstrap.test.jsx > App auth bootstrap and role flows > initializes signed-in user when role lookup succeeds
+TestingLibraryElementError: Unable to find an element with the text: Applicant. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="foundry-clone"
+    >
+      <header
+        class="global-topbar "
+      >
+        <div
+          class="topbar-main"
+        >
+          <div
+            class="topbar-brand"
+          >
+            SA LEARNERSHIP FOUNDRY
+          </div>
+          <nav
+            class="topbar-nav"
+          >
+            <a
+              href="#"
+            >
+              Why Portal
+            </a>
+            <a
+              href="#"
+            >
+              Pathways
+            </a>
+            <a
+              href="#"
+            >
+              Team
+            </a>
+            <a
+              href="#"
+            >
+              Insights
+            </a>
+            <a
+              href="#"
+            >
+              Contact
+            </a>
+          </nav>
+        </div>
+        <div
+          class="topbar-auth"
+        >
+          <button
+            class="google-auth"
+          >
+            Log In with Google
+          </button>
+        </div>
+      </header>
+      <section
+        class="page-one"
+      >
+        <div
+          class="hero-main"
+        >
+          <h1
+            class="left-title"
+          >
+            BUILDING TALENT
+            <br />
+            PATHWAYS THAT
+          </h1>
+          <div
+            class="interactive-model"
+            style="--px: 0; --py: 0;"
+          >
+            <div
+              class="orbital-core"
+            >
+              <span
+                class="orbit orbit-a"
+              />
+              <span
+                class="orbit orbit-b"
+              />
+              <span
+                class="orbit orbit-c"
+              />
+            </div>
+            <div
+              class="dot-volume"
+            >
+              <span
+                class="dot"
+                style="--x: -340px; --y: -240px; --z: -32px;"
+              />
+              <span
+                class="dot"
+                style="--x: -319.39393939393943px; --y: -240px; --z: -30.060606060606062px;"
+              />
+              <span
+                class="dot"
+                style="--x: -298.7878787878788px; --y: -240px; --z: -28.12121212121212px;"
+              />
+              <span
+                class="dot"
+                style="--x: -278.1818181818182px; --y: -240px; --z: -26.181818181818183px;"
+              />
+              <span
+                class="dot"
+                style="--x: -257.57575757575756px; --y: -240px; --z: -24.242424242424242px;"
+              />
+              <span
+                class="dot"
+                style="--x: -236.969696969697px; --y: -240px; --z: -22.303030303030305px;"
+              />
+              <span
+                class="dot"
+                style="--x: -216.36363636363637px; --y: -240px; --z: -20.363636363636363px;"
+              />
+              <span
+                class="dot"
+                style="--x: -195.75757575757578px; --y: -240px; --z: -18.424242424242426px;"
+              />
+              <span
+                class="dot"
+                style="--x: -175.15151515151516px; --y: -240px; --z: -16.484848484848484px;"
+              />
+              <span
+                class="dot"
+                style="--x: -154.54545454545453px; --y: -240px; --z: -14.545454545454545px;"
+              />
+              <span
+                class="dot"
+                style="--x: -133.93939393939394px; --y: -240px; --z: -12.606060606060606px;"
+              />
+              <span
+                class="dot"
+                style="--x: -113.33333333333333px; --y: -240px; --z: -10.666666666666666px;"
+              />
+              <span
+                class="dot"
+                style="--x: -92.72727272727272px; --y: -240px; --z: -8.727272727272727px;"
+              />
+              <span
+                class="dot"
+                style="--x: -72.12121212121212px; --y: -240px; --z: -6.787878787878788px;"
+              />
+              <span
+                class="dot"
+                style="--x: -51.515151515151516px; --y: -240px; --z: -4.848484848484849px;"
+              />
+              <span
+                class="dot"
+                style="--x: -30.90909090909091px; --y: -240px; --z: -2.909090909090909px;"
+              />
+              <span
+                class="dot"
+                style="--x: -10.303030303030303px; --y: -240px; --z: -0.9696969696969697px;"
+              />
+              <span
+                class="dot"
+                style="--x: 10.303030303030303px; --y: -240px; --z: -0.9696969696969697px;"
+              />
+              <span
+                class="dot"
+                style="--x: 30.90909090909091px; --y: -240px; --z: -2.909090909090909px;"
+              />
+              <span
+                class="do...
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <main
+      class="foundry-clone"
+    >
+      <header
+        class="global-topbar "
+      >
+        <div
+          class="topbar-main"
+        >
+          <div
+            class="topbar-brand"
+          >
+            SA LEARNERSHIP FOUNDRY
+          </div>
+          <nav
+            class="topbar-nav"
+          >
+            <a
+              href="#"
+            >
+              Why Portal
+            </a>
+            <a
+              href="#"
+            >
+              Pathways
+            </a>
+            <a
+              href="#"
+            >
+              Team
+            </a>
+            <a
+              href="#"
+            >
+              Insights
+            </a>
+            <a
+              href="#"
+            >
+              Contact
+            </a>
+          </nav>
+        </div>
+        <div
+          class="topbar-auth"
+        >
+          <button
+            class="google-auth"
+          >
+            Log In with Google
+          </button>
+        </div>
+      </header>
+      <section
+        class="page-one"
+      >
+        <div
+          class="hero-main"
+        >
+          <h1
+            class="left-title"
+          >
+            BUILDING TALENT
+            <br />
+            PATHWAYS THAT
+          </h1>
+          <div
+            class="interactive-model"
+            style="--px: 0; --py: 0;"
+          >
+            <div
+              class="orbital-core"
+            >
+              <span
+                class="orbit orbit-a"
+              />
+              <span
+                class="orbit orbit-b"
+              />
+              <span
+                class="orbit orbit-c"
+              />
+            </div>
+            <div
+              class="dot-volume"
+            >
+              <span
+                class="dot"
+                style="--x: -340px; --y: -240px; --z: -32px;"
+              />
+              <span
+                class="dot"
+                style="--x: -319.39393939393943px; --y: -240px; --z: -30.060606060606062px;"
+              />
+              <span
+                class="dot"
+                style="--x: -298.7878787878788px; --y: -240px; --z: -28.12121212121212px;"
+              />
+              <span
+                class="dot"
+                style="--x: -278.1818181818182px; --y: -240px; --z: -26.181818181818183px;"
+              />
+              <span
+                class="dot"
+                style="--x: -257.57575757575756px; --y: -240px; --z: -24.242424242424242px;"
+              />
+              <span
+                class="dot"
+                style="--x: -236.969696969697px; --y: -240px; --z: -22.303030303030305px;"
+              />
+              <span
+                class="dot"
+                style="--x: -216.36363636363637px; --y: -240px; --z: -20.363636363636363px;"
+              />
+              <span
+                class="dot"
+                style="--x: -195.75757575757578px; --y: -240px; --z: -18.424242424242426px;"
+              />
+              <span
+                class="dot"
+                style="--x: -175.15151515151516px; --y: -240px; --z: -16.484848484848484px;"
+              />
+              <span
+                class="dot"
+                style="--x: -154.54545454545453px; --y: -240px; --z: -14.545454545454545px;"
+              />
+              <span
+                class="dot"
+                style="--x: -133.93939393939394px; --y: -240px; --z: -12.606060606060606px;"
+              />
+              <span
+                class="dot"
+                style="--x: -113.33333333333333px; --y: -240px; --z: -10.666666666666666px;"
+              />
+              <span
+                class="dot"
+                style="--x: -92.72727272727272px; --y: -240px; --z: -8.727272727272727px;"
+              />
+              <span
+                class="dot"
+                style="--x: -72.12121212121212px; --y: -240px; --z: -6.787878787878788px;"
+              />
+              <span
+                class="dot"
+                style="--x: -51.515151515151516px; --y: -240px; --z: -4.848484848484849px;"
+              />
+              <span
+                class="dot"
+                style="--x: -30.90909090909091px; --y: -240px; --z: -2.909090909090909px;"
+              />
+              <span
+                class="dot"
+                style="--x: -10.303030303030303px; --y: -240px; --z: -0.9696969696969697px;"
+              />
+              <span
+                class="dot"
+                style="--x: 10.303030303030303px; --y: -240px; --z: -0.9696969696969697px;"
+              />
+              <span
+                class="dot"
+                style="--x: 30.90909090909091px; --y: -240px; --z: -2.909090909090909px;"
+              />
+              <span
+                class="do...
+ Γ¥» waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ Γ¥» node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ Γ¥» src/App.auth.bootstrap.test.jsx:122:25
+    120|
+    121|     // role display should appear for resolved role
+    122|     expect(await screen.findByText('Applicant')).toBeTruthy()
+       |                         ^
+    123|   })
+    124|
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[1/2]ΓÄ»
+
+ FAIL  src/App.auth.bootstrap.test.jsx > App auth bootstrap and role flows > handleLogout calls supabase.signOut and resets UI
+AssertionError: expected "vi.fn()" to be called at least once
+
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <main
+        class="foundry-clone"
+      >
+        <header
+          class="global-topbar "
+        >
+          <div
+            class="topbar-main"
+          >
+            <div
+              class="topbar-brand"
+            >
+              SA LEARNERSHIP FOUNDRY
+            </div>
+            <nav
+              class="topbar-nav"
+            >
+              <a
+                href="#"
+              >
+                Why Portal
+              </a>
+              <a
+                href="#"
+              >
+                Pathways
+              </a>
+              <a
+                href="#"
+              >
+                Team
+              </a>
+              <a
+                href="#"
+              >
+                Insights
+              </a>
+              <a
+                href="#"
+              >
+                Contact
+              </a>
+            </nav>
+          </div>
+          <div
+            class="topbar-auth"
+          >
+            <button
+              class="google-auth"
+            >
+              Log In with Google
+            </button>
+          </div>
+        </header>
+        <section
+          class="page-one"
+        >
+          <div
+            class="hero-main"
+          >
+            <h1
+              class="left-title"
+            >
+              BUILDING TALENT
+              <br />
+              PATHWAYS THAT
+            </h1>
+            <div
+              class="interactive-model"
+              style="--px: 0; --py: 0;"
+            >
+              <div
+                class="orbital-core"
+              >
+                <span
+                  class="orbit orbit-a"
+                />
+                <span
+                  class="orbit orbit-b"
+                />
+                <span
+                  class="orbit orbit-c"
+                />
+              </div>
+              <div
+                class="dot-volume"
+              >
+                <span
+                  class="dot"
+                  style="--x: -340px; --y: -240px; --z: -32px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -319.39393939393943px; --y: -240px; --z: -30.060606060606062px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -298.7878787878788px; --y: -240px; --z: -28.12121212121212px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -278.1818181818182px; --y: -240px; --z: -26.181818181818183px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -257.57575757575756px; --y: -240px; --z: -24.242424242424242px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -236.969696969697px; --y: -240px; --z: -22.303030303030305px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -216.36363636363637px; --y: -240px; --z: -20.363636363636363px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -195.75757575757578px; --y: -240px; --z: -18.424242424242426px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -175.15151515151516px; --y: -240px; --z: -16.484848484848484px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -154.54545454545453px; --y: -240px; --z: -14.545454545454545px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -133.93939393939394px; --y: -240px; --z: -12.606060606060606px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -113.33333333333333px; --y: -240px; --z: -10.666666666666666px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -92.72727272727272px; --y: -240px; --z: -8.727272727272727px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -72.12121212121212px; --y: -240px; --z: -6.787878787878788px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -51.515151515151516px; --y: -240px; --z: -4.848484848484849px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -30.90909090909091px; --y: -240px; --z: -2.909090909090909px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: -10.303030303030303px; --y: -240px; --z: -0.9696969696969697px;"
+                />
+                <span
+                  class="dot"
+                  style="--x: 10.303030303030303px; -...
+ Γ¥» src/App.auth.bootstrap.test.jsx:222:26
+    220|
+    221|     await waitFor(() => {
+    222|       expect(signOutSpy).toHaveBeenCalled()
+       |                          ^
+    223|       expect(screen.getByText('Log In with Google')).toBeTruthy()
+    224|     })
+ Γ¥» runWithExpensiveErrorDiagnosticsDisabled node_modules/@testing-library/dom/dist/config.js:47:12
+ Γ¥» checkCallback node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ Γ¥» Timeout.checkRealTimersCallback node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»[2/2]ΓÄ»
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ» Unhandled Errors ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+ΓÄ»ΓÄ»ΓÄ»ΓÄ» Unhandled Rejection ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+TypeError: supabase.auth.signOut is not a function
+ Γ¥» handleLogout src/App.jsx:364:27
+    362|
+    363|     if (hasSupabaseConfig) {
+    364|       await supabase.auth.signOut() // Clear session cookie
+       |                           ^
+    365|     }
+    366|     setSignedIn(false)
+ Γ¥» executeDispatch node_modules/react-dom/cjs/react-dom-client.development.js:19116:9
+ Γ¥» runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ Γ¥» processDispatchQueue node_modules/react-dom/cjs/react-dom-client.development.js:19166:19
+ Γ¥» node_modules/react-dom/cjs/react-dom-client.development.js:19767:9
+ Γ¥» batchedUpdates$1 node_modules/react-dom/cjs/react-dom-client.development.js:3255:40
+ Γ¥» dispatchEventForPluginEventSystem node_modules/react-dom/cjs/react-dom-client.development.js:19320:7
+ Γ¥» dispatchEvent node_modules/react-dom/cjs/react-dom-client.development.js:23585:11
+ Γ¥» dispatchDiscreteEvent node_modules/react-dom/cjs/react-dom-client.development.js:23553:11
+ Γ¥» HTMLDivElement.callTheUserObjectsOperation node_modules/jsdom/lib/generated/idl/EventListener.js:26:30
+
+This error originated in "src/App.auth.bootstrap.test.jsx" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "handleLogout calls supabase.signOut and resets UI". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»ΓÄ»
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m23 passed[39m[22m[90m (24)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m211 passed[39m[22m[2m | [22m[33m1 skipped[39m[2m | [22m[90m12 todo[39m[90m (226)[39m
+[2m     Errors [22m [1m[31m1 error[39m[22m
+[2m   Start at [22m 00:50:34
+[2m   Duration [22m 37.18s[2m (transform 5.10s, setup 1.22s, import 32.98s, tests 85.99s, environment 94.30s)[22m
+

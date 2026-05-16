@@ -1,6 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { describe, it, expect } from 'vitest'
 
 describe('Page Component Loading Tests - Smoke Tests', () => {
   it('ApplicantListingDetail component imports successfully', async () => {

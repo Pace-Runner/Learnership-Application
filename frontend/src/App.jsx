@@ -21,10 +21,6 @@ import ProviderListingApplications from './pages/ProviderListingApplications'
 import { hasSupabaseConfig, supabase } from './lib/supabaseClient'
 import {
   getLandingRoute,
-  isProviderProfileComplete,
-  getProviderLandingRoute,
-  isApplicantProfileComplete,
-  getConfiguredAdminEmails,
   getRoleForEmail,
   getApplicantLandingRouteForEmail,
   getProviderLandingRouteForEmail,
@@ -113,52 +109,6 @@ function ProviderProfileRoute({ role, signedIn, isLoading, children }) {
   }
 
   return children
-}
-
-// Redirect logic: where should each role go after logging in?
-function getLandingRoute(role) {
-  if (role === 'Admin') return '/admin'
-  if (role === 'Provider') return '/provider'
-  return '/dashboard'
-}
-
-function isProviderProfileComplete(profile) {
-  return Boolean(
-    profile?.id
-      && profile?.organisation_name?.trim()
-      && profile?.phone?.trim()
-      && profile?.description?.trim(),
-  )
-}
-
-function getProviderLandingRoute(profile) {
-  return isProviderProfileComplete(profile) ? '/provider' : '/provider/profile'
-}
-
-function isApplicantProfileComplete(profile) {
-  return Boolean(
-    profile?.id
-      && profile?.first_name?.trim()
-      && profile?.last_name?.trim()
-      && profile?.phone?.trim()
-      && profile?.location?.trim()
-      && profile?.date_of_birth
-      && profile?.id_number?.trim()
-      && profile?.cv_url?.trim(),
-  )
-}
-
-function getConfiguredAdminEmails() {
-  const configuredEmails = import.meta.env.VITE_ADMIN_EMAILS?.trim()
-
-  if (configuredEmails) {
-    return configuredEmails
-      .split(',')
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean)
-  }
-
-  return ['connor@yourdomain.com', 'anotheradmin@yourdomain.com']
 }
 
 function App() {
@@ -336,7 +286,7 @@ function App() {
       isMounted = false
       subscription.unsubscribe()
     }
-  }, [clearOAuthTimeout, getRoleForEmail, getApplicantLandingRouteForEmail, getProviderLandingRouteForEmail])
+  }, [clearOAuthTimeout])
 
   // AUTO-REDIRECT: Send logged-in users to their role-appropriate dashboard
   // WHEN: User has loaded auth state, is signed in, has a role, and is on home page
@@ -765,14 +715,3 @@ return (
 }
 
 export default App
-export {
-  ProtectedRoute,
-  ProviderWorkspaceRoute,
-  ProviderProfileRoute,
-  getLandingRoute,
-  isProviderProfileComplete,
-  getProviderLandingRoute,
-  isApplicantProfileComplete,
-  getConfiguredAdminEmails,
-}
-export { getRoleForEmail, getApplicantLandingRouteForEmail, getProviderLandingRouteForEmail } from './app-helpers'

@@ -77,8 +77,9 @@ describe('Admin tests', () => {
   test.todo('Non-admin email never gets the Admin role')
   test('Admin lands on /admin after login', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+    const appHelpersSource = readFileSync(resolve(cwd(), 'src/app-helpers.js'), 'utf8')
 
-    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
+    expect(appHelpersSource).toContain("if (role === 'Admin') return '/admin'")
     expect(appSource).toContain('<Route path="/admin"')
   })
 
@@ -96,9 +97,9 @@ describe('Admin tests', () => {
 
 describe('Role based tests', () => {
   test('Applicant role redirects to /dashboard', () => {
-    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+    const appHelpersSource = readFileSync(resolve(cwd(), 'src/app-helpers.js'), 'utf8')
 
-    expect(appSource).toContain("return '/dashboard'")
+    expect(appHelpersSource).toContain("return '/dashboard'")
   })
 
   test('Provider role redirects to profile setup first', () => {
@@ -110,9 +111,9 @@ describe('Role based tests', () => {
   })
 
   test('Admin role redirects to /admin', () => {
-    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+    const appHelpersSource = readFileSync(resolve(cwd(), 'src/app-helpers.js'), 'utf8')
 
-    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
+    expect(appHelpersSource).toContain("if (role === 'Admin') return '/admin'")
   })
 
   test('Unauthenticated users blocked from protected routes', () => {
@@ -155,12 +156,12 @@ describe('Role based tests', () => {
   })
   test.todo('Auth loading state displays during verification')
   test('getLandingRoute function routes each role correctly', () => {
-    const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
+    const appHelpersSource = readFileSync(resolve(cwd(), 'src/app-helpers.js'), 'utf8')
 
-    expect(appSource).toContain('function getLandingRoute(role)')
-    expect(appSource).toContain("if (role === 'Admin') return '/admin'")
-    expect(appSource).toContain("if (role === 'Provider') return '/provider'")
-    expect(appSource).toContain("return '/dashboard'")
+    expect(appHelpersSource).toContain('export function getLandingRoute(role)')
+    expect(appHelpersSource).toContain("if (role === 'Admin') return '/admin'")
+    expect(appHelpersSource).toContain("if (role === 'Provider') return '/provider'")
+    expect(appHelpersSource).toContain("return '/dashboard'")
   })
   test.todo('Protected route middleware prevents cross-role navigation')
   test('All role routes mounted in App.jsx', () => {
@@ -289,3 +290,5 @@ describe('General home and auth tests', () => {
     expect(googleAuthButton?.className).toContain('google-auth')
   })
 })
+
+
