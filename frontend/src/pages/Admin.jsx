@@ -176,6 +176,8 @@ function buildDeleteStats(deletedListingsWithTypes, currentAdminId) {
   return stats
 }
 
+export { getPendingListings, buildAdminActionPayload, normalizeListing, normalizeDeleteUserRecord, buildDeleteStats }
+
 
 
 

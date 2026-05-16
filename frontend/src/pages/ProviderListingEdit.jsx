@@ -470,3 +470,6 @@ export default function ProviderListingEdit() {
     </main>
   )
 }
+
+// Export helpers for unit testing
+export { validateForm, formatRandAmount }

@@ -134,6 +134,8 @@ function debugLog(...messages) {
 }
 
 // Main applicant page: handles profile form state, uploads, validation, and saves.
+export { createEducationRow, isCvFile, getFriendlySupabaseError }
+
 export default function ApplicantProfile({ onLogout }) {
   const [userId, setUserId] = useState('')
   const [profileId, setProfileId] = useState('')

@@ -483,3 +483,12 @@ export default function ProviderListingApplications() {
     </main>
   )
 }
+
+// Export helpers for unit testing
+export {
+  getApplicationStatusLabel,
+  normalizeApplicationStatus,
+  getApplicationStatusClass,
+  formatRandAmount,
+  formatShortDate,
+}
