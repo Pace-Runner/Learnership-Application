@@ -1,0 +1,224 @@
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import Dashboard from './Dashboard'
+
+const favouriteState = vi.hoisted(() => ({
+  authEmail: 'applicant@example.com',
+  userRow: { id: 'user-1' },
+  profileRow: { id: 'profile-1', user_id: 'user-1' },
+  approvedRows: [
+    {
+      id: 'listing-1',
+      title: 'Listing Test',
+      type: 'Learnership',
+      description: 'Saved listing acceptance test',
+      location: 'Cape Town',
+      closing_date: '2026-10-10',
+      stipend: 2400,
+      status: 'Approved',
+    },
+  ],
+  favouriteRows: [],
+  applicationRows: [],
+  notificationRows: [],
+}))
+
+const favouriteSpies = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  userMaybeSingle: vi.fn(),
+  profileMaybeSingle: vi.fn(),
+  opportunitiesOrder: vi.fn(),
+  applicationsOrder: vi.fn(),
+  notificationsOrder: vi.fn(),
+  favouritesOrder: vi.fn(),
+  favouritesInsert: vi.fn(),
+  favouritesDeleteOpportunityEq: vi.fn(),
+  removeChannel: vi.fn(),
+}))
+
+vi.mock('../lib/supabaseClient', () => ({
+  hasSupabaseConfig: true,
+  supabase: {
+    auth: {
+      getSession: favouriteSpies.getSession,
+    },
+    from: vi.fn((tableName) => {
+      if (tableName === 'opportunities') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: favouriteSpies.opportunitiesOrder,
+            }),
+          }),
+        }
+      }
+
+      if (tableName === 'users') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: favouriteSpies.userMaybeSingle,
+            }),
+          }),
+        }
+      }
+
+      if (tableName === 'applicant_profiles') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: favouriteSpies.profileMaybeSingle,
+            }),
+          }),
+        }
+      }
+
+      if (tableName === 'applications') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: favouriteSpies.applicationsOrder,
+            }),
+          }),
+        }
+      }
+
+      if (tableName === 'notifications') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: favouriteSpies.notificationsOrder,
+            }),
+          }),
+        }
+      }
+
+      if (tableName === 'favourites') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: favouriteSpies.favouritesOrder,
+            }),
+          }),
+          insert: favouriteSpies.favouritesInsert,
+          delete: () => ({
+            eq: () => ({
+              eq: favouriteSpies.favouritesDeleteOpportunityEq,
+            }),
+          }),
+        }
+      }
+
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+          }),
+        }),
+      }
+    }),
+    channel: vi.fn(() => {
+      const channel = {
+        on: vi.fn(() => channel),
+        subscribe: vi.fn(() => channel),
+      }
+
+      return channel
+    }),
+    removeChannel: favouriteSpies.removeChannel,
+  },
+}))
+
+function renderDashboard() {
+  return render(
+    <MemoryRouter>
+      <Dashboard onLogout={vi.fn()} />
+    </MemoryRouter>,
+  )
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+
+  favouriteState.favouriteRows = []
+  favouriteState.applicationRows = []
+  favouriteState.notificationRows = []
+
+  favouriteSpies.getSession.mockResolvedValue({
+    data: { session: { user: { email: favouriteState.authEmail } } },
+    error: null,
+  })
+  favouriteSpies.userMaybeSingle.mockResolvedValue({ data: favouriteState.userRow, error: null })
+  favouriteSpies.profileMaybeSingle.mockResolvedValue({ data: favouriteState.profileRow, error: null })
+  favouriteSpies.opportunitiesOrder.mockImplementation(async () => ({
+    data: favouriteState.approvedRows,
+    error: null,
+  }))
+  favouriteSpies.applicationsOrder.mockImplementation(async () => ({
+    data: favouriteState.applicationRows,
+    error: null,
+  }))
+  favouriteSpies.notificationsOrder.mockImplementation(async () => ({
+    data: favouriteState.notificationRows,
+    error: null,
+  }))
+  favouriteSpies.favouritesOrder.mockImplementation(async () => ({
+    data: favouriteState.favouriteRows,
+    error: null,
+  }))
+  favouriteSpies.favouritesInsert.mockResolvedValue({ data: null, error: null })
+  favouriteSpies.favouritesDeleteOpportunityEq.mockResolvedValue({ data: null, error: null })
+  favouriteSpies.removeChannel.mockResolvedValue({})
+})
+
+afterEach(() => {
+  cleanup()
+})
+
+describe('Applicant favourite listings acceptance tests', () => {
+  test('saves an approved listing to the applicant favourites table', async () => {
+    renderDashboard()
+
+    expect(await screen.findByText('Listing Test')).toBeTruthy()
+    expect(screen.getByText('You have not saved any opportunities yet.')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Listing Test to favourites' }))
+
+    await waitFor(() => {
+      expect(favouriteSpies.favouritesInsert).toHaveBeenCalledWith({
+        applicant_id: 'profile-1',
+        opportunity_id: 'listing-1',
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('1 saved')).toBeTruthy()
+    })
+    expect(screen.getByRole('button', { name: 'Remove Listing Test from favourites' })).toBeTruthy()
+  })
+
+  test('loads saved opportunities and removes a favourite listing', async () => {
+    favouriteState.favouriteRows = [
+      {
+        id: 'favourite-1',
+        opportunity_id: 'listing-1',
+        created_at: '2026-05-16T10:00:00.000Z',
+        opportunities: favouriteState.approvedRows[0],
+      },
+    ]
+
+    renderDashboard()
+
+    expect(await screen.findByText('1 saved')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove saved Listing Test' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove saved Listing Test' }))
+
+    await waitFor(() => {
+      expect(favouriteSpies.favouritesDeleteOpportunityEq).toHaveBeenCalledWith('opportunity_id', 'listing-1')
+    })
+
+    expect(screen.getByText('You have not saved any opportunities yet.')).toBeTruthy()
+  })
+})

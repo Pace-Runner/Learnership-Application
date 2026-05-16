@@ -105,6 +105,32 @@ create policy "applicant_skills_own"
     )
   );
 
+-- Enable RLS on favourites
+alter table favourites enable row level security;
+
+-- Applicants can save and remove only their own favourite listings.
+drop policy if exists "favourites_own" on favourites;
+create policy "favourites_own"
+  on favourites
+  for all
+  to authenticated
+  using (
+    applicant_id in (
+      select ap.id
+      from applicant_profiles ap
+      join users u on u.id = ap.user_id
+      where u.email = auth.jwt() ->> 'email'
+    )
+  )
+  with check (
+    applicant_id in (
+      select ap.id
+      from applicant_profiles ap
+      join users u on u.id = ap.user_id
+      where u.email = auth.jwt() ->> 'email'
+    )
+  );
+
 -- Enable RLS on skill_tags
 alter table skill_tags enable row level security;
 

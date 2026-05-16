@@ -472,6 +472,35 @@
   justify-self: start;
 }
 
+.favourite-listings-panel {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.favourite-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.listing-card-actions {
+  margin-top: 0.72rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.52rem;
+  align-items: center;
+}
+
+.favourite-toggle-btn {
+  min-width: 5.5rem;
+}
+
+.favourite-toggle-btn-active {
+  border-color: rgba(133, 225, 190, 0.72);
+  background: rgba(133, 225, 190, 0.15);
+  color: #dfffee;
+}
+
 .application-list-item {
   display: grid;
   gap: 0.05rem;

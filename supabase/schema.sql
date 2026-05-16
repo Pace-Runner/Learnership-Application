@@ -105,6 +105,13 @@ create table if not exists applications (
   updated_at timestamp default now()
 );
 
+create table if not exists favourites (
+  id uuid primary key default gen_random_uuid(),
+  applicant_id uuid not null references applicant_profiles(id) on delete cascade,
+  opportunity_id uuid not null references opportunities(id) on delete cascade,
+  created_at timestamp default now()
+);
+
 -- Chunk 7: Notifications & Logs
 create table if not exists notifications (
   id uuid primary key default gen_random_uuid(),
