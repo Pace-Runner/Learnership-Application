@@ -305,4 +305,5 @@ describe('Applicant listing detail acceptance tests', () => {
     expect(screen.getByText(/last name/i)).toBeTruthy()
     expect(screen.getByText('CV', { selector: 'li' })).toBeTruthy()
   })
+
 })

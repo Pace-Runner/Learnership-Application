@@ -334,4 +334,12 @@ describe('Provider profile acceptance tests', () => {
     expect(mockState.updatedProfilePayload.logo_url).toBe('data:image/png;base64,preview-data')
   })
 
+  test('10. A missing provider session shows a sign-in error', async () => {
+    mockState.authEmail = ''
+
+    renderProfilePage()
+
+    expect(await screen.findAllByText('You must be signed in as a Provider to edit your profile.')).toHaveLength(2)
+  })
+
 })

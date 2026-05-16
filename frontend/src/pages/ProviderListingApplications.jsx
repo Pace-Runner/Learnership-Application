@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
@@ -446,7 +447,19 @@ export default function ProviderListingApplications() {
               <p><strong>Application received:</strong> {selectedApplicant.appliedAt || 'Unknown'}</p>
               <p><strong>Current status:</strong> {getApplicationStatusLabel(selectedApplicant.status)}</p>
               {selectedApplicant.cvLink ? (
-                <p><a href={selectedApplicant.cvLink} target="_blank" rel="noopener noreferrer">Open CV</a></p>
+                <div style={{ marginTop: '0.5rem' }}>
+                  {/\\.pdf$/i.test(selectedApplicant.cvLink) ? (
+                    <div style={{ border: '1px solid rgba(172,208,255,0.15)', borderRadius: 8, overflow: 'hidden' }}>
+                      <iframe
+                        title="Applicant CV"
+                        src={selectedApplicant.cvLink}
+                        style={{ width: '100%', height: 420, border: 'none' }}
+                      />
+                    </div>
+                  ) : (
+                    <p><a href={selectedApplicant.cvLink} target="_blank" rel="noopener noreferrer">Open CV</a></p>
+                  )}
+                </div>
               ) : (
                 <p>No CV uploaded</p>
               )}

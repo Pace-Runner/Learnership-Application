@@ -57,6 +57,66 @@ function validateProfile(values) {
   return nextErrors
 }
 
+function SkeletonFormFields() {
+  return (
+    <>
+      <div className="profile-form-group logo-upload-group">
+        <label>
+          <span>Company logo (optional)</span>
+        </label>
+        <div className="logo-upload-container">
+          <div className="skeleton-loader skeleton-preview-logo" />
+          <div className="skeleton-loader skeleton-input" style={{ height: '2.25rem' }} />
+        </div>
+      </div>
+
+      <div className="profile-form-group">
+        <div className="profile-field">
+          <span>Company / organisation name *</span>
+          <div className="skeleton-loader skeleton-input" />
+        </div>
+      </div>
+
+      <div className="profile-form-group">
+        <div className="profile-field">
+          <span>Phone number *</span>
+          <div className="skeleton-loader skeleton-input" />
+        </div>
+      </div>
+
+      <div className="profile-form-group description-group">
+        <div className="profile-field">
+          <span>About your organisation *</span>
+          <div className="skeleton-loader skeleton-textarea" />
+        </div>
+      </div>
+    </>
+  )
+}
+
+function SkeletonPreviewContent() {
+  return (
+    <>
+      <div className="skeleton-loader skeleton-preview-logo" />
+      
+      <div className="skeleton-preview-field">
+        <div className="skeleton-loader skeleton-preview-field-label" />
+        <div className="skeleton-loader skeleton-preview-field-value" />
+      </div>
+
+      <div className="skeleton-preview-field">
+        <div className="skeleton-loader skeleton-preview-field-label" />
+        <div className="skeleton-loader skeleton-preview-field-value" />
+      </div>
+
+      <div className="skeleton-preview-field">
+        <div className="skeleton-loader skeleton-preview-field-label" />
+        <div className="skeleton-loader skeleton-preview-field-value" />
+      </div>
+    </>
+  )
+}
+
 function createSavedProfileSnapshot(profileValues) {
   return {
     organisation_name: profileValues.organisation_name.trim(),
@@ -248,21 +308,37 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
     // Upload logo if a new file was selected
     if (profileForm.logo_file) {
       const logoFileName = `${resolvedUserId}-${Date.now()}-${profileForm.logo_file.name}`
-      const { error: uploadError } = await supabase.storage
-        .from('provider_logos')
-        .upload(logoFileName, profileForm.logo_file, { upsert: true })
+      
+      // Create a timeout promise (30 seconds)
+      const uploadTimeout = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Logo upload took too long. Saving profile without logo.'))
+        }, 30000)
+      })
 
-      if (uploadError) {
-        // Logo upload failed but continue saving profile
-        console.warn('Logo upload failed:', uploadError)
-        persistedLogoUrl = logoPreview || persistedLogoUrl
-      } else {
+      try {
+        // Race between upload and timeout
+        const uploadResult = await Promise.race([
+          supabase.storage
+            .from('provider_logos')
+            .upload(logoFileName, profileForm.logo_file, { upsert: true }),
+          uploadTimeout,
+        ])
+
+        if (uploadResult?.error) {
+          throw uploadResult.error
+        }
+
         const { data: publicUrlData } = supabase.storage
           .from('provider_logos')
           .getPublicUrl(logoFileName)
         const logoPublicUrl = publicUrlData.publicUrl
         setLogoUrl(logoPublicUrl)
         persistedLogoUrl = logoPublicUrl
+      } catch (uploadError) {
+        // Logo upload failed but continue saving profile
+        console.warn('Logo upload failed:', uploadError)
+        persistedLogoUrl = logoPreview || persistedLogoUrl
       }
     }
 
@@ -337,91 +413,96 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
             <h2>Build your profile</h2>
             <p className="profile-form-intro">Add your company details so applicants know who they're working with.</p>
 
-            {isLoading ? <p className="user-panel-copy">Loading your profile...</p> : null}
             {loadError ? <p className="user-panel-copy error">{loadError}</p> : null}
 
-            <form onSubmit={handleSubmit} className="profile-form-layout" noValidate>
-              <div className="profile-form-group logo-upload-group">
-                <label htmlFor="provider-logo">
-                  <span>Company logo (optional)</span>
-                </label>
-                <div className="logo-upload-container">
-                  {(logoPreview || logoUrl) && (
-                    <div className="logo-preview">
-                      <img src={logoPreview || logoUrl} alt="Company logo preview" />
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    id="provider-logo"
-                    accept="image/*"
-                    onChange={handleLogoChange}
-                    className="profile-file-input"
-                  />
+            {isLoading ? (
+              <form className="profile-form-layout" noValidate>
+                <SkeletonFormFields />
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="profile-form-layout" noValidate>
+                <div className="profile-form-group logo-upload-group">
+                  <label htmlFor="provider-logo">
+                    <span>Company logo (optional)</span>
+                  </label>
+                  <div className="logo-upload-container">
+                    {(logoPreview || logoUrl) && (
+                      <div className="logo-preview">
+                        <img src={logoPreview || logoUrl} alt="Company logo preview" />
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      id="provider-logo"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      className="profile-file-input"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="profile-form-group">
-                <label className={`profile-field ${fieldErrors.organisation_name ? 'profile-field-invalid' : ''}`} htmlFor="provider-organisation-name">
-                  <span>Company / organisation name *</span>
-                  <input
-                    className="profile-input"
-                    id="provider-organisation-name"
-                    name="organisation_name"
-                    value={profileForm.organisation_name}
-                    onChange={handleChange}
-                    placeholder="e.g. Skills Hub Africa"
-                    aria-invalid={Boolean(fieldErrors.organisation_name)}
-                  />
-                  {fieldErrors.organisation_name ? (
-                    <p className="profile-field-error">{fieldErrors.organisation_name}</p>
-                  ) : null}
-                </label>
-              </div>
+                <div className="profile-form-group">
+                  <label className={`profile-field ${fieldErrors.organisation_name ? 'profile-field-invalid' : ''}`} htmlFor="provider-organisation-name">
+                    <span>Company / organisation name *</span>
+                    <input
+                      className="profile-input"
+                      id="provider-organisation-name"
+                      name="organisation_name"
+                      value={profileForm.organisation_name}
+                      onChange={handleChange}
+                      placeholder="e.g. Skills Hub Africa"
+                      aria-invalid={Boolean(fieldErrors.organisation_name)}
+                    />
+                    {fieldErrors.organisation_name ? (
+                      <p className="profile-field-error">{fieldErrors.organisation_name}</p>
+                    ) : null}
+                  </label>
+                </div>
 
-              <div className="profile-form-group">
-                <label className={`profile-field ${fieldErrors.phone ? 'profile-field-invalid' : ''}`} htmlFor="provider-phone">
-                  <span>Phone number *</span>
-                  <input
-                    className="profile-input"
-                    id="provider-phone"
-                    name="phone"
-                    inputMode="tel"
-                    maxLength={20}
-                    placeholder="e.g. +27 21 555 1000"
-                    value={profileForm.phone}
-                    onChange={handleChange}
-                    aria-invalid={Boolean(fieldErrors.phone)}
-                  />
-                  {fieldErrors.phone ? <p className="profile-field-error">{fieldErrors.phone}</p> : null}
-                </label>
-              </div>
+                <div className="profile-form-group">
+                  <label className={`profile-field ${fieldErrors.phone ? 'profile-field-invalid' : ''}`} htmlFor="provider-phone">
+                    <span>Phone number *</span>
+                    <input
+                      className="profile-input"
+                      id="provider-phone"
+                      name="phone"
+                      inputMode="tel"
+                      maxLength={20}
+                      placeholder="e.g. +27 21 555 1000"
+                      value={profileForm.phone}
+                      onChange={handleChange}
+                      aria-invalid={Boolean(fieldErrors.phone)}
+                    />
+                    {fieldErrors.phone ? <p className="profile-field-error">{fieldErrors.phone}</p> : null}
+                  </label>
+                </div>
 
-              <div className="profile-form-group description-group">
-                <label className={`profile-field ${fieldErrors.description ? 'profile-field-invalid' : ''}`} htmlFor="provider-description">
-                  <span>About your organisation *</span>
-                  <textarea
-                    className="profile-input profile-textarea"
-                    id="provider-description"
-                    name="description"
-                    placeholder="Describe your organisation, what you offer learners, and what they can expect from the experience."
-                    value={profileForm.description}
-                    onChange={handleChange}
-                    aria-invalid={Boolean(fieldErrors.description)}
-                  />
-                  {fieldErrors.description ? (
-                    <p className="profile-field-error">{fieldErrors.description}</p>
-                  ) : null}
-                </label>
-              </div>
+                <div className="profile-form-group description-group">
+                  <label className={`profile-field ${fieldErrors.description ? 'profile-field-invalid' : ''}`} htmlFor="provider-description">
+                    <span>About your organisation *</span>
+                    <textarea
+                      className="profile-input profile-textarea"
+                      id="provider-description"
+                      name="description"
+                      placeholder="Describe your organisation, what you offer learners, and what they can expect from the experience."
+                      value={profileForm.description}
+                      onChange={handleChange}
+                      aria-invalid={Boolean(fieldErrors.description)}
+                    />
+                    {fieldErrors.description ? (
+                      <p className="profile-field-error">{fieldErrors.description}</p>
+                    ) : null}
+                  </label>
+                </div>
 
-              <div className="profile-form-actions">
-                <button type="submit" className="user-action-btn provider-submit-btn" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save profile'}
-                </button>
-                {saveMessage ? <p className="profile-save-message">{saveMessage}</p> : null}
-              </div>
-            </form>
+                <div className="profile-form-actions">
+                  <button type="submit" className="user-action-btn provider-submit-btn" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save profile'}
+                  </button>
+                  {saveMessage ? <p className="profile-save-message">{saveMessage}</p> : null}
+                </div>
+              </form>
+            )}
           </article>
 
           <article className="user-panel profile-preview-card">
@@ -429,26 +510,32 @@ export default function ProviderProfile({ onLogout, onProfileSaved }) {
             <p className="profile-form-intro">This is how applicants will see your profile.</p>
 
             <div className="profile-preview-content">
-              {(logoPreview || logoUrl) && (
-                <div className="preview-logo">
-                  <img src={logoPreview || logoUrl} alt="Company logo" />
-                </div>
+              {isLoading ? (
+                <SkeletonPreviewContent />
+              ) : (
+                <>
+                  {(logoPreview || logoUrl) && (
+                    <div className="preview-logo">
+                      <img src={logoPreview || logoUrl} alt="Company logo" />
+                    </div>
+                  )}
+                  
+                  <div className="preview-field">
+                    <p className="preview-label">Organisation</p>
+                    <p className="preview-value">{profileForm.organisation_name || 'Not added yet'}</p>
+                  </div>
+
+                  <div className="preview-field">
+                    <p className="preview-label">Contact</p>
+                    <p className="preview-value">{profileForm.phone || 'Not added yet'}</p>
+                  </div>
+
+                  <div className="preview-field">
+                    <p className="preview-label">About us</p>
+                    <p className="preview-value">{profileForm.description || 'Not added yet'}</p>
+                  </div>
+                </>
               )}
-              
-              <div className="preview-field">
-                <p className="preview-label">Organisation</p>
-                <p className="preview-value">{profileForm.organisation_name || 'Not added yet'}</p>
-              </div>
-
-              <div className="preview-field">
-                <p className="preview-label">Contact</p>
-                <p className="preview-value">{profileForm.phone || 'Not added yet'}</p>
-              </div>
-
-              <div className="preview-field">
-                <p className="preview-label">About us</p>
-                <p className="preview-value">{profileForm.description || 'Not added yet'}</p>
-              </div>
             </div>
           </article>
         </section>

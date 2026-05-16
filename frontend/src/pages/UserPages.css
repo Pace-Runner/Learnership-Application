@@ -1182,6 +1182,62 @@ select.profile-input {
   line-height: 1.4;
 }
 
+/* Loading skeleton styles */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton-loader {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.15),
+    rgba(255, 255, 255, 0.08)
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+  border-radius: 8px;
+  border: 1px solid rgba(160, 203, 255, 0.2);
+}
+
+.skeleton-input {
+  height: 2.5rem;
+  margin: 0.25rem 0;
+}
+
+.skeleton-textarea {
+  height: 12rem;
+  margin: 0.25rem 0;
+}
+
+.skeleton-preview-logo {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.skeleton-preview-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.skeleton-preview-field-label {
+  height: 0.75rem;
+  width: 60%;
+}
+
+.skeleton-preview-field-value {
+  height: 1rem;
+  width: 90%;
+}
+
 @media (max-width: 900px) {
   .user-page {
     padding: 4.6rem 1rem 3.4rem;

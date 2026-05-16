@@ -1,12 +1,12 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { vi, describe, it, expect, afterEach } from 'vitest'
 
 // Mock the supabase client module before importing helpers
 vi.mock('./lib/supabaseClient', () => {
   const sup = {
-    from: (table) => {
+    from: () => {
       return {
-        select: (cols) => ({
-          eq: (field, value) => ({
+        select: () => ({
+          eq: () => ({
             maybeSingle: async () => ({ data: null, error: null }),
           }),
         }),
@@ -68,13 +68,14 @@ describe('app-helpers (branch tests)', () => {
   it('getRoleForEmail returns existing role from users table', async () => {
     // mock supabase to return a user with role
     const { supabase } = await import('./lib/supabaseClient')
-    vi.spyOn(supabase, 'from').mockImplementation((table) => {
-      if (table === 'users') {
+    vi.spyOn(supabase, 'from').mockImplementation((_table) => {
+      if (_table === 'users') {
         return {
           select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { role: 'Provider' }, error: null } ) }) }),
         }
       }
-      return supabase.from(table)
+
+      return supabase.from(_table)
     })
 
     const role = await helpers.getRoleForEmail('user@example.com')
@@ -84,14 +85,14 @@ describe('app-helpers (branch tests)', () => {
   it('getRoleForEmail upserts admin when email is configured and missing', async () => {
     // Return no user record, and stub getConfiguredAdminEmails to include the email
     const { supabase } = await import('./lib/supabaseClient')
-    vi.spyOn(supabase, 'from').mockImplementation((table) => {
-      if (table === 'users') {
+    vi.spyOn(supabase, 'from').mockImplementation((_table) => {
+      if (_table === 'users') {
         return {
           select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
           upsert: (payload) => ({ select: () => ({ single: async () => ({ data: { role: payload.role }, error: null } ) }) }),
         }
       }
-      return supabase.from(table)
+      return supabase.from(_table)
     })
 
     vi.spyOn(helpers, 'getConfiguredAdminEmails').mockReturnValue(['restored@admin.com'])
@@ -116,7 +117,7 @@ describe('app-helpers (branch tests)', () => {
   it('getProviderLandingRouteForEmail returns provider profile when none exists', async () => {
     // Ensure hasSupabaseConfig true and userRow missing
     const { supabase } = await import('./lib/supabaseClient')
-    vi.spyOn(supabase, 'from').mockImplementation((table) => ({
+    vi.spyOn(supabase, 'from').mockImplementation(() => ({
       select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
     }))
 

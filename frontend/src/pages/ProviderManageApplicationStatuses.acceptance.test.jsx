@@ -301,6 +301,10 @@ describe('Provider manage application statuses acceptance tests', () => {
     expect(screen.getByRole('link', { name: 'Download CV' }).getAttribute('href')).toBe(
       'https://example.com/signed-cv.pdf',
     )
+
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+    expect(await screen.findByText('Applicant details')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Open CV' })).toBeTruthy()
   })
 
   test('8. Shows an empty state when the listing has no applications yet', async () => {
