@@ -883,10 +883,10 @@ export default function Dashboard({ onLogout, listings }) {
                           type="button"
                           className={`user-action-btn user-action-btn-inline favourite-toggle-btn${isFavourite ? ' favourite-toggle-btn-active' : ''}`}
                           onClick={() => handleFavouriteToggle(item)}
-                          disabled={isUpdatingFavourite}
+                          disabled={isUpdatingFavourite || isFavourite}
                           aria-pressed={isFavourite}
                           aria-label={isFavourite
-                            ? `Remove ${item.title} from favourites`
+                            ? `${item.title} is already saved`
                             : `Save ${item.title} to favourites`}
                         >
                           {isUpdatingFavourite ? 'Updating...' : isFavourite ? 'Saved' : 'Save'}

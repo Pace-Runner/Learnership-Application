@@ -516,9 +516,19 @@
 }
 
 .favourite-toggle-btn-active {
+  border-color: rgba(178, 200, 229, 0.28);
+  background: rgba(178, 200, 229, 0.08);
+  color: rgba(224, 236, 251, 0.62);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.favourite-list .favourite-toggle-btn-active {
   border-color: rgba(133, 225, 190, 0.72);
   background: rgba(133, 225, 190, 0.15);
   color: #dfffee;
+  cursor: pointer;
+  opacity: 1;
 }
 
 .application-list-item {

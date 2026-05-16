@@ -203,7 +203,8 @@ describe('Applicant favourite listings acceptance tests', () => {
     await waitFor(() => {
       expect(screen.getByText('1 saved')).toBeTruthy()
     })
-    expect(screen.getByRole('button', { name: 'Remove Listing Test from favourites' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove saved Listing Test' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Listing Test is already saved' }).disabled).toBe(true)
   })
 
   test('loads saved opportunities and removes a favourite listing', async () => {
