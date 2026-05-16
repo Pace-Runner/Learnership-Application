@@ -175,6 +175,16 @@ function normalizeApprovedListing(row) {
   }
 }
 
+function normalizeFavouriteRow(row) {
+  const opportunity = row.opportunities || row.opportunity || {}
+
+  return {
+    favouriteId: row.id,
+    favouriteCreatedAt: row.created_at,
+    ...normalizeApprovedListing(opportunity),
+  }
+}
+
 function filterApprovedListings(listings, searchTerm, selectedType) {
   const normalizedSearchTerm = searchTerm.trim().toLowerCase()
 
@@ -208,6 +218,7 @@ export default function Dashboard({ onLogout, listings }) {
   const [applicantId, setApplicantId] = useState('')
   const [applicantUserId, setApplicantUserId] = useState('')
   const [dbNotifications, setDbNotifications] = useState([])
+  const [dbFavouriteListings, setDbFavouriteListings] = useState([])
   const [showReadNotifications, setShowReadNotifications] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('All')
@@ -217,11 +228,47 @@ export default function Dashboard({ onLogout, listings }) {
   const [isLoadingListings, setIsLoadingListings] = useState(false)
   const [isLoadingApplications, setIsLoadingApplications] = useState(false)
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
+  const [isLoadingFavourites, setIsLoadingFavourites] = useState(false)
   const [applicationError, setApplicationError] = useState('')
   const [notificationError, setNotificationError] = useState('')
+  const [favouriteError, setFavouriteError] = useState('')
+  const [updatingFavouriteId, setUpdatingFavouriteId] = useState('')
   const [isApplyingSearch, setIsApplyingSearch] = useState(false)
   const searchFeedbackTimeoutRef = useRef(null)
   const mountedRef = useRef(false)
+
+  const loadApplicantFavourites = useCallback(async (targetApplicantId) => {
+    if (hasListingsProp || !hasSupabaseConfig || !mountedRef.current || !targetApplicantId) {
+      return
+    }
+
+    setIsLoadingFavourites(true)
+    setFavouriteError('')
+
+    const { data: favouriteRows, error: favouriteRowsError } = await supabase
+      .from('favourites')
+      .select('id,opportunity_id,created_at,opportunities:opportunity_id(id,title,type,description,location,closing_date,stipend,status)')
+      .eq('applicant_id', targetApplicantId)
+      .order('created_at', { ascending: false })
+
+    if (!mountedRef.current) {
+      return
+    }
+
+    if (favouriteRowsError) {
+      setDbFavouriteListings([])
+      setFavouriteError('We could not load your saved opportunities right now.')
+      setIsLoadingFavourites(false)
+      return
+    }
+
+    setDbFavouriteListings(
+      (favouriteRows || [])
+        .map(normalizeFavouriteRow)
+        .filter((listing) => listing.status === 'Approved'),
+    )
+    setIsLoadingFavourites(false)
+  }, [hasListingsProp])
 
   const loadApplicantNotifications = useCallback(async (targetUserId) => {
     if (hasListingsProp || !hasSupabaseConfig || !mountedRef.current || !targetUserId) {
@@ -417,6 +464,8 @@ export default function Dashboard({ onLogout, listings }) {
       return undefined
     }
 
+    loadApplicantFavourites(applicantId)
+
     const applicationsChannel = supabase
       .channel(`applicant-applications-${applicantId}`)
       .on(
@@ -436,7 +485,7 @@ export default function Dashboard({ onLogout, listings }) {
     return () => {
       supabase.removeChannel(applicationsChannel)
     }
-  }, [applicantId, hasListingsProp, loadApplicantApplications])
+  }, [applicantId, hasListingsProp, loadApplicantApplications, loadApplicantFavourites])
 
   useEffect(() => {
     if (hasListingsProp || !hasSupabaseConfig || !applicantUserId) {
@@ -486,6 +535,19 @@ export default function Dashboard({ onLogout, listings }) {
     return filterApprovedListings(dbApprovedListings, submittedSearchTerm, submittedType)
   }, [dbApprovedListings, hasListingsProp, listings, submittedSearchTerm, submittedType])
 
+  const favouriteOpportunityIds = useMemo(
+    () => new Set(dbFavouriteListings.map((listing) => listing.id)),
+    [dbFavouriteListings],
+  )
+
+  const dashboardStats = useMemo(() => (
+    quickStats.map((item) => (
+      !hasListingsProp && item.label === 'Saved opportunities'
+        ? { ...item, value: String(dbFavouriteListings.length).padStart(2, '0') }
+        : item
+    ))
+  ), [dbFavouriteListings.length, hasListingsProp])
+
   const handleSearchSubmit = (event) => {
     event.preventDefault()
     // Store the submitted search separately so typing in the form does not instantly change the visible results.
@@ -503,8 +565,62 @@ export default function Dashboard({ onLogout, listings }) {
     }, 450)
   }
 
+  const handleFavouriteToggle = async (listing) => {
+    if (!listing?.id) {
+      return
+    }
+
+    if (hasListingsProp || !hasSupabaseConfig || !applicantId) {
+      setFavouriteError('Please sign in with an applicant profile before saving listings.')
+      return
+    }
+
+    const isFavourite = favouriteOpportunityIds.has(listing.id)
+    setUpdatingFavouriteId(listing.id)
+    setFavouriteError('')
+
+    if (isFavourite) {
+      const { error: deleteFavouriteError } = await supabase
+        .from('favourites')
+        .delete()
+        .eq('applicant_id', applicantId)
+        .eq('opportunity_id', listing.id)
+
+      setUpdatingFavouriteId('')
+
+      if (deleteFavouriteError) {
+        setFavouriteError('We could not remove that saved opportunity. Please try again.')
+        return
+      }
+
+      setDbFavouriteListings((current) => current.filter((item) => item.id !== listing.id))
+      return
+    }
+
+    const { error: insertFavouriteError } = await supabase
+      .from('favourites')
+      .insert({ applicant_id: applicantId, opportunity_id: listing.id })
+
+    setUpdatingFavouriteId('')
+
+    if (insertFavouriteError) {
+      setFavouriteError('We could not save that opportunity. Please try again.')
+      return
+    }
+
+    setDbFavouriteListings((current) => [
+      {
+        ...listing,
+        favouriteId: `${applicantId}-${listing.id}`,
+        favouriteCreatedAt: new Date().toISOString(),
+      },
+      ...current.filter((item) => item.id !== listing.id),
+    ])
+  }
+
   const hasActiveSearch = Boolean(submittedSearchTerm.trim() || submittedType !== 'All')
   const hasApplications = dbApplications.length > 0
+  const hasFavouriteListings = dbFavouriteListings.length > 0
   const unreadNotifications = dbNotifications.filter((notification) => !notification.read)
   const readNotifications = dbNotifications.filter((notification) => notification.read)
   const visibleNotifications = showReadNotifications ? dbNotifications : unreadNotifications
@@ -530,7 +646,7 @@ export default function Dashboard({ onLogout, listings }) {
       </header>
 
       <section className="user-stat-grid" aria-label="Applicant quick stats">
-        {quickStats.map((item) => (
+        {dashboardStats.map((item) => (
           <article key={item.label} className="user-stat-card">
             <p>{item.label}</p>
             <strong>{item.value}</strong>
@@ -661,6 +777,62 @@ export default function Dashboard({ onLogout, listings }) {
           </article>
         ) : null}
 
+        {!hasListingsProp ? (
+          <article className="user-panel user-panel-alt favourite-listings-panel">
+            <div className="provider-panel-head">
+              <section>
+                <p className="provider-panel-kicker">Applicant shortlist</p>
+                <h2>Saved Opportunities</h2>
+              </section>
+              <span className="status-chip status-chip-soft">
+                {dbFavouriteListings.length === 1
+                  ? '1 saved'
+                  : `${dbFavouriteListings.length} saved`}
+              </span>
+            </div>
+
+            {favouriteError ? <p className="user-panel-copy">{favouriteError}</p> : null}
+
+            {isLoadingFavourites ? (
+              <p className="user-panel-copy">Loading your saved opportunities...</p>
+            ) : hasFavouriteListings ? (
+              <ul className="user-list favourite-list">
+                {dbFavouriteListings.map((item) => (
+                  <li key={`favourite-${item.id}`}>
+                    <span>{item.type}</span>
+                    <strong>{item.title}</strong>
+                    {item.location ? <small className="user-item-meta">{item.location}</small> : null}
+                    <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
+                    {item.closingDate ? (
+                      <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small>
+                    ) : null}
+                    <div className="listing-card-actions">
+                      <Link
+                        to={`/dashboard/listings/${item.id}`}
+                        className="user-action-btn user-action-btn-inline provider-action-link"
+                        aria-label={`View details for saved ${item.title}`}
+                      >
+                        View details
+                      </Link>
+                      <button
+                        type="button"
+                        className="user-action-btn user-action-btn-inline favourite-toggle-btn favourite-toggle-btn-active"
+                        onClick={() => handleFavouriteToggle(item)}
+                        disabled={updatingFavouriteId === item.id}
+                        aria-label={`Remove saved ${item.title}`}
+                      >
+                        {updatingFavouriteId === item.id ? 'Updating...' : 'Remove'}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="user-panel-copy">You have not saved any opportunities yet.</p>
+            )}
+          </article>
+        ) : null}
+
         <article className="user-panel">
           <h2>Current Listings and Internships</h2>
           {searchError ? <p className="user-panel-copy">{searchError}</p> : null}
@@ -677,26 +849,47 @@ export default function Dashboard({ onLogout, listings }) {
             </p>
           ) : (
             <ul className="user-list">
-              {approvedListings.map((item) => (
-                <li key={item.id || item.title}>
-                  <span>{item.type}</span>
-                  <strong>{item.title}</strong>
-                  {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
-                  {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
-                  {item.location ? <small className="user-item-meta">{item.location}</small> : null}
-                  <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
-                  {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
-                  {item.id ? (
-                    <Link
-                      to={`/dashboard/listings/${item.id}`}
-                      className="user-action-btn user-action-btn-inline provider-action-link"
-                      aria-label={`View details for ${item.title}`}
-                    >
-                      View details
-                    </Link>
-                  ) : null}
-                </li>
-              ))}
+              {approvedListings.map((item) => {
+                const isFavourite = item.id ? favouriteOpportunityIds.has(item.id) : false
+                const isUpdatingFavourite = updatingFavouriteId === item.id
+
+                return (
+                  <li key={item.id || item.title}>
+                    <span>{item.type}</span>
+                    <strong>{item.title}</strong>
+                    {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
+                    {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
+                    {item.location ? <small className="user-item-meta">{item.location}</small> : null}
+                    <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
+                    {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
+                    <div className="listing-card-actions">
+                      {item.id ? (
+                        <Link
+                          to={`/dashboard/listings/${item.id}`}
+                          className="user-action-btn user-action-btn-inline provider-action-link"
+                          aria-label={`View details for ${item.title}`}
+                        >
+                          View details
+                        </Link>
+                      ) : null}
+                      {item.id ? (
+                        <button
+                          type="button"
+                          className={`user-action-btn user-action-btn-inline favourite-toggle-btn${isFavourite ? ' favourite-toggle-btn-active' : ''}`}
+                          onClick={() => handleFavouriteToggle(item)}
+                          disabled={isUpdatingFavourite}
+                          aria-pressed={isFavourite}
+                          aria-label={isFavourite
+                            ? `Remove ${item.title} from favourites`
+                            : `Save ${item.title} to favourites`}
+                        >
+                          {isUpdatingFavourite ? 'Updating...' : isFavourite ? 'Saved' : 'Save'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </article>

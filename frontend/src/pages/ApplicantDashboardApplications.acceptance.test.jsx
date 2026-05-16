@@ -61,6 +61,8 @@ const dashboardState = vi.hoisted(() => ({
       created_at: '2026-05-05T08:15:00.000Z',
     },
   ],
+  approvedRows: [],
+  favouriteRows: [],
   channelCallbacks: {},
 }))
 
@@ -68,9 +70,13 @@ const dashboardSpies = vi.hoisted(() => ({
   getSession: vi.fn(),
   userMaybeSingle: vi.fn(),
   profileMaybeSingle: vi.fn(),
+  opportunitiesOrder: vi.fn(),
   applicationsOrder: vi.fn(),
   notificationsOrder: vi.fn(),
   notificationsMarkReadEq: vi.fn(),
+  favouritesOrder: vi.fn(),
+  favouritesInsert: vi.fn(),
+  favouritesDeleteOpportunityEq: vi.fn(),
   removeChannel: vi.fn(),
 }))
 
@@ -85,7 +91,7 @@ vi.mock('../lib/supabaseClient', () => ({
         return {
           select: () => ({
             eq: () => ({
-              order: async () => ({ data: [], error: null }),
+              order: dashboardSpies.opportunitiesOrder,
             }),
           }),
         }
@@ -130,6 +136,22 @@ vi.mock('../lib/supabaseClient', () => ({
           }),
           update: () => ({
             eq: dashboardSpies.notificationsMarkReadEq,
+          }),
+        }
+      }
+
+      if (tableName === 'favourites') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: dashboardSpies.favouritesOrder,
+            }),
+          }),
+          insert: dashboardSpies.favouritesInsert,
+          delete: () => ({
+            eq: () => ({
+              eq: dashboardSpies.favouritesDeleteOpportunityEq,
+            }),
           }),
         }
       }
@@ -223,6 +245,8 @@ beforeEach(() => {
       created_at: '2026-05-05T08:15:00.000Z',
     },
   ]
+  dashboardState.approvedRows = []
+  dashboardState.favouriteRows = []
   dashboardState.channelCallbacks = {}
 
   dashboardSpies.getSession.mockResolvedValue({
@@ -231,6 +255,10 @@ beforeEach(() => {
   })
   dashboardSpies.userMaybeSingle.mockResolvedValue({ data: dashboardState.userRow, error: null })
   dashboardSpies.profileMaybeSingle.mockResolvedValue({ data: dashboardState.profileRow, error: null })
+  dashboardSpies.opportunitiesOrder.mockImplementation(async () => ({
+    data: dashboardState.approvedRows,
+    error: null,
+  }))
   dashboardSpies.applicationsOrder.mockImplementation(async () => ({
     data: dashboardState.applicationRows,
     error: null,
@@ -240,6 +268,12 @@ beforeEach(() => {
     error: null,
   }))
   dashboardSpies.notificationsMarkReadEq.mockResolvedValue({ data: null, error: null })
+  dashboardSpies.favouritesOrder.mockImplementation(async () => ({
+    data: dashboardState.favouriteRows,
+    error: null,
+  }))
+  dashboardSpies.favouritesInsert.mockResolvedValue({ data: null, error: null })
+  dashboardSpies.favouritesDeleteOpportunityEq.mockResolvedValue({ data: null, error: null })
   dashboardSpies.removeChannel.mockResolvedValue({})
 })
 
