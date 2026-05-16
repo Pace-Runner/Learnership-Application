@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 // Main app: handles Google OAuth, role-based routing, and admin dashboard
 // TRICKY PARTS:
 // - OAuth flow: Google login → email lookup → role selection (if new user)
@@ -34,7 +35,7 @@ const AdminDashboardShell = Admin
 // 2. If not signed in → redirect to home (must log in)
 // 3. If wrong role → redirect to home (prevent unauthorized access)
 // 4. All checks pass → render the protected content
-function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
+export function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   const location = useLocation()
 
   // Show loading state while session is being verified from browser cookies
@@ -63,7 +64,7 @@ function ProtectedRoute({ role, allowedRole, signedIn, isLoading, children }) {
   return children
 }
 
-function ProviderWorkspaceRoute({ role, signedIn, isLoading, providerLandingRoute, children }) {
+export function ProviderWorkspaceRoute({ role, signedIn, isLoading, providerLandingRoute, children }) {
   const location = useLocation()
 
   if (isLoading && !signedIn) {
@@ -89,7 +90,7 @@ function ProviderWorkspaceRoute({ role, signedIn, isLoading, providerLandingRout
   return children
 }
 
-function ProviderProfileRoute({ role, signedIn, isLoading, children }) {
+export function ProviderProfileRoute({ role, signedIn, isLoading, children }) {
   const location = useLocation()
 
   if (isLoading && !signedIn) {

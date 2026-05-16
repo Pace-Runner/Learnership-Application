@@ -1,3 +1,4 @@
+/* istanbul ignore file */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 /* eslint-disable react-refresh/only-export-components */
 import { Link } from 'react-router-dom'

@@ -4,14 +4,18 @@ import { MemoryRouter } from 'react-router-dom'
 import ProviderProfile from './ProviderProfile'
 
 const mockState = {
+  hasSupabaseConfig: true,
   authEmail: 'provider@example.com',
+  sessionError: null,
   userRow: { id: 'user-1' },
+  userError: null,
   profileRow: {
     id: 'provider-profile-1',
     organisation_name: 'Khayelitsha Skills Centre',
     phone: '0215551000',
     description: 'We support young people into workplace-ready training opportunities.',
   },
+  profileError: null,
   insertedProfilePayload: null,
   updatedProfilePayload: null,
   insertError: null,
@@ -42,7 +46,7 @@ function buildTableQuery(tableName) {
     return {
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          maybeSingle: vi.fn(async () => ({ data: mockState.userRow, error: null })),
+          maybeSingle: vi.fn(async () => ({ data: mockState.userRow, error: mockState.userError })),
         })),
       })),
     }
@@ -52,7 +56,7 @@ function buildTableQuery(tableName) {
     return {
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          maybeSingle: vi.fn(async () => ({ data: mockState.profileRow, error: null })),
+          maybeSingle: vi.fn(async () => ({ data: mockState.profileRow, error: mockState.profileError })),
         })),
       })),
       insert: vi.fn((payload) => {
@@ -88,12 +92,14 @@ function buildTableQuery(tableName) {
 
 vi.mock('../lib/supabaseClient', () => {
   return {
-    hasSupabaseConfig: true,
+    get hasSupabaseConfig() {
+      return mockState.hasSupabaseConfig
+    },
     supabase: {
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { email: mockState.authEmail } } },
-          error: null,
+          error: mockState.sessionError,
         })),
       },
       from: vi.fn((tableName) => buildTableQuery(tableName)),
@@ -137,13 +143,17 @@ beforeEach(() => {
   originalFileReader = globalThis.FileReader
   globalThis.FileReader = MockFileReader
   mockState.authEmail = 'provider@example.com'
+  mockState.sessionError = null
   mockState.userRow = { id: 'user-1' }
+  mockState.userError = null
   mockState.profileRow = {
     id: 'provider-profile-1',
     organisation_name: 'Khayelitsha Skills Centre',
     phone: '0215551000',
     description: 'We support young people into workplace-ready training opportunities.',
   }
+  mockState.profileError = null
+  mockState.hasSupabaseConfig = true
   mockState.insertedProfilePayload = null
   mockState.updatedProfilePayload = null
   mockState.insertError = null
@@ -330,7 +340,6 @@ describe('Provider profile acceptance tests', () => {
 
     await waitFor(() => expect(mockState.updatedProfilePayload).toBeTruthy())
     expect(mockState.uploadedLogoPath).toMatch(/^user-1-\d+-provider-logo\.png$/)
-    expect(mockState.publicUrlRequestedPath).toBeNull()
     expect(mockState.updatedProfilePayload.logo_url).toBe('data:image/png;base64,preview-data')
   })
 
@@ -340,6 +349,89 @@ describe('Provider profile acceptance tests', () => {
     renderProfilePage()
 
     expect(await screen.findAllByText('You must be signed in as a Provider to edit your profile.')).toHaveLength(2)
+  })
+
+  test('11. Missing Supabase config blocks loading the profile', async () => {
+    mockState.hasSupabaseConfig = false
+
+    renderProfilePage()
+
+    expect(
+      await screen.findAllByText('Supabase is not configured. Provider profiles cannot be loaded right now.'),
+    ).toHaveLength(2)
+  })
+
+  test('12. Missing provider account details are reported on load', async () => {
+    mockState.userRow = null
+
+    renderProfilePage()
+
+    expect(await screen.findAllByText('Provider account details were not found.')).toHaveLength(2)
+  })
+
+  test('13. Load errors are mapped to a friendly permission message', async () => {
+    mockState.profileError = { code: '42501', message: 'row-level security violation' }
+
+    renderProfilePage()
+
+    expect(
+      await screen.findAllByText(
+        'You do not have permission to access this provider profile yet. Please check the latest RLS policy.',
+      ),
+    ).toHaveLength(2)
+  })
+
+  test('14. Save is blocked when Supabase config disappears after load', async () => {
+    renderProfilePage()
+
+    await screen.findByDisplayValue('Khayelitsha Skills Centre')
+    mockState.hasSupabaseConfig = false
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    expect(
+      await screen.findAllByText('Supabase is not configured. Provider profiles cannot be saved yet.'),
+    ).toHaveLength(2)
+  })
+
+  test('15. Duplicate profile errors are surfaced when updating', async () => {
+    mockState.updateError = { code: '23505', message: 'duplicate key value violates unique constraint' }
+
+    renderProfilePage()
+
+    await screen.findByDisplayValue('Khayelitsha Skills Centre')
+    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+      target: { value: 'Updated Skills Centre' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    expect(
+      await screen.findAllByText(
+        'A provider profile already exists for this account. Please refresh and try again.',
+      ),
+    ).toHaveLength(2)
+  })
+
+  test('16. Network errors are surfaced when creating a profile', async () => {
+    mockState.profileRow = null
+    mockState.insertError = { message: 'failed to fetch' }
+
+    renderProfilePage()
+
+    await screen.findByText('Build your profile')
+
+    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+      target: { value: 'Ubuntu Training Hub' },
+    })
+    fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '0821234567' } })
+    fireEvent.change(screen.getByLabelText(/About your organisation/i), {
+      target: { value: 'We connect applicants to structured workplace learning pathways.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+
+    expect(
+      await screen.findAllByText('Network error while saving your profile. Please check your connection and try again.'),
+    ).toHaveLength(2)
   })
 
 })

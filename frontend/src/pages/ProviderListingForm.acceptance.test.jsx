@@ -168,7 +168,35 @@ describe('ProviderListingForm acceptance tests', () => {
     expect(await screen.findByText('Business Administration Certificate (NQF 4)')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('Stipend amount in Rand'), { target: { value: '4500' } })
-      expect(await screen.findByText(/Stipend preview:/i)).toBeTruthy()
+    expect(await screen.findByText(/Stipend preview:/i)).toBeTruthy()
+  })
+
+  test('shows a configuration error when Supabase is missing', async () => {
+    formState.hasSupabaseConfig = false
+
+    const ProviderListingForm = await loadForm()
+
+    render(
+      <MemoryRouter>
+        <ProviderListingForm />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Supabase is not configured for qualification loading.')).toBeTruthy()
+  })
+
+  test('shows a qualification loading error', async () => {
+    formState.qualificationError = new Error('qualification lookup failed')
+
+    const ProviderListingForm = await loadForm()
+
+    render(
+      <MemoryRouter>
+        <ProviderListingForm />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Qualification options could not be loaded.')).toBeTruthy()
   })
 
   test('shows validation errors when required fields are missing', async () => {
@@ -252,6 +280,120 @@ describe('ProviderListingForm acceptance tests', () => {
     const requirementsPayload = formSpies.requirementsInsert.mock.calls[0]?.[0]
     expect(requirementsPayload.opportunity_id).toBe('opportunity-1')
     expect(requirementsPayload.nqf_level_required).toBe(6)
+  })
+
+  test('rejects submission when the provider session is missing', async () => {
+    formState.sessionError = new Error('no session')
+
+    const ProviderListingForm = await loadForm()
+
+    render(
+      <MemoryRouter>
+        <ProviderListingForm />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Business Administration Certificate (NQF 4)')
+
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Junior IT Support Internship' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Hands-on support role' } })
+    fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'Johannesburg' } })
+    fireEvent.change(screen.getByLabelText('Duration'), { target: { value: '12 months' } })
+    fireEvent.change(screen.getByLabelText('Requirements'), { target: { value: 'Grade 12' } })
+    fireEvent.change(screen.getByLabelText('Qualification'), { target: { value: 'qual-2' } })
+    fireEvent.change(screen.getByLabelText('NQF level required'), { target: { value: '6' } })
+    fireEvent.change(screen.getByLabelText('Closing date'), { target: { value: '2099-12-31' } })
+    fireEvent.change(screen.getByLabelText('Stipend amount in Rand'), { target: { value: '4500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit listing' }))
+
+    expect(await screen.findByText('You must be signed in as a Provider to post a listing.')).toBeTruthy()
+    expect(formSpies.opportunityInsert).not.toHaveBeenCalled()
+  })
+
+  test('rejects submission when the provider profile is missing', async () => {
+    formState.providerRow = null
+
+    const ProviderListingForm = await loadForm()
+
+    render(
+      <MemoryRouter>
+        <ProviderListingForm />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Business Administration Certificate (NQF 4)')
+
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Junior IT Support Internship' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Hands-on support role' } })
+    fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'Johannesburg' } })
+    fireEvent.change(screen.getByLabelText('Duration'), { target: { value: '12 months' } })
+    fireEvent.change(screen.getByLabelText('Requirements'), { target: { value: 'Grade 12' } })
+    fireEvent.change(screen.getByLabelText('Qualification'), { target: { value: 'qual-2' } })
+    fireEvent.change(screen.getByLabelText('NQF level required'), { target: { value: '6' } })
+    fireEvent.change(screen.getByLabelText('Closing date'), { target: { value: '2099-12-31' } })
+    fireEvent.change(screen.getByLabelText('Stipend amount in Rand'), { target: { value: '4500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit listing' }))
+
+    expect(await screen.findByText('Complete your provider profile before creating listings.')).toBeTruthy()
+    expect(formSpies.opportunityInsert).not.toHaveBeenCalled()
+  })
+
+  test('removes a created listing when requirement insertion fails', async () => {
+    formState.requirementsError = new Error('requirements insert failed')
+
+    const ProviderListingForm = await loadForm()
+
+    render(
+      <MemoryRouter>
+        <ProviderListingForm />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Business Administration Certificate (NQF 4)')
+
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Junior IT Support Internship' } })
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'Internship' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Hands-on support role' } })
+    fireEvent.change(screen.getByLabelText('Stipend amount in Rand'), { target: { value: '4500' } })
+    fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'Johannesburg' } })
+    fireEvent.change(screen.getByLabelText('Duration'), { target: { value: '12 months' } })
+    fireEvent.change(screen.getByLabelText('Requirements'), { target: { value: 'Grade 12' } })
+    fireEvent.change(screen.getByLabelText('Qualification'), { target: { value: 'qual-2' } })
+    fireEvent.change(screen.getByLabelText('NQF level required'), { target: { value: '6' } })
+    fireEvent.change(screen.getByLabelText('Closing date'), { target: { value: '2099-12-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit listing' }))
+
+    expect(await screen.findByText('Listing requirements could not be saved. Please submit again.')).toBeTruthy()
+    expect(formState.deletedOpportunityId).toBe('opportunity-1')
+  })
+
+  test('shows an error when the opportunity creation fails', async () => {
+    formState.opportunityError = new Error('opportunity insert failed')
+
+    const ProviderListingForm = await loadForm()
+
+    render(
+      <MemoryRouter>
+        <ProviderListingForm />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Business Administration Certificate (NQF 4)')
+
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Junior IT Support Internship' } })
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'Internship' } })
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Hands-on support role' } })
+    fireEvent.change(screen.getByLabelText('Stipend amount in Rand'), { target: { value: '4500' } })
+    fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'Johannesburg' } })
+    fireEvent.change(screen.getByLabelText('Duration'), { target: { value: '12 months' } })
+    fireEvent.change(screen.getByLabelText('Requirements'), { target: { value: 'Grade 12' } })
+    fireEvent.change(screen.getByLabelText('Qualification'), { target: { value: 'qual-2' } })
+    fireEvent.change(screen.getByLabelText('NQF level required'), { target: { value: '6' } })
+    fireEvent.change(screen.getByLabelText('Closing date'), { target: { value: '2099-12-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit listing' }))
+
+    expect(await screen.findByText('Listing could not be created. Please try again.')).toBeTruthy()
+    expect(formSpies.requirementsInsert).not.toHaveBeenCalled()
   })
 
 })
