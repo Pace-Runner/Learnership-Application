@@ -481,24 +481,35 @@
 .favourite-list {
   display: grid;
   gap: 0.7rem;
+  max-height: 17.5rem;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  scrollbar-color: rgba(167, 204, 255, 0.62) rgba(255, 255, 255, 0.06);
 }
 
 .listing-card-actions {
   margin-top: 0.72rem;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 6.25rem));
   gap: 0.52rem;
   align-items: center;
 }
 
 .favourite-toggle-btn {
-  min-width: 5.5rem;
+  min-width: 0;
+  height: 100%;
 }
 
 .favourite-toggle-btn-active {
   border-color: rgba(133, 225, 190, 0.72);
   background: rgba(133, 225, 190, 0.15);
   color: #dfffee;
+}
+
+@media (max-width: 560px) {
+  .listing-card-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .application-list-item {

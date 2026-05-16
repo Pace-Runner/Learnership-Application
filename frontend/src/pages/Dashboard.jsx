@@ -597,13 +597,41 @@ export default function Dashboard({ onLogout, listings }) {
       return
     }
 
-    const { error: insertFavouriteError } = await supabase
+    const { data: existingFavouriteRow, error: existingFavouriteError } = await supabase
+      .from('favourites')
+      .select('id,created_at')
+      .eq('applicant_id', applicantId)
+      .eq('opportunity_id', listing.id)
+      .maybeSingle()
+
+    if (existingFavouriteError) {
+      // Keep the UI useful, but leave the real database error visible for debugging live Supabase policy issues.
+      console.error('Favourite lookup failed:', existingFavouriteError)
+    }
+
+    if (existingFavouriteRow?.id) {
+      setUpdatingFavouriteId('')
+      setDbFavouriteListings((current) => [
+        {
+          ...listing,
+          favouriteId: existingFavouriteRow.id,
+          favouriteCreatedAt: existingFavouriteRow.created_at,
+        },
+        ...current.filter((item) => item.id !== listing.id),
+      ])
+      return
+    }
+
+    const { data: insertedFavouriteRow, error: insertFavouriteError } = await supabase
       .from('favourites')
       .insert({ applicant_id: applicantId, opportunity_id: listing.id })
+      .select('id,created_at')
+      .maybeSingle()
 
     setUpdatingFavouriteId('')
 
     if (insertFavouriteError) {
+      console.error('Favourite save failed:', insertFavouriteError)
       setFavouriteError('We could not save that opportunity. Please try again.')
       return
     }
@@ -611,8 +639,8 @@ export default function Dashboard({ onLogout, listings }) {
     setDbFavouriteListings((current) => [
       {
         ...listing,
-        favouriteId: `${applicantId}-${listing.id}`,
-        favouriteCreatedAt: new Date().toISOString(),
+        favouriteId: insertedFavouriteRow?.id || `${applicantId}-${listing.id}`,
+        favouriteCreatedAt: insertedFavouriteRow?.created_at || new Date().toISOString(),
       },
       ...current.filter((item) => item.id !== listing.id),
     ])
