@@ -6,9 +6,27 @@
   color: #26343b;
 }
 
-/* Force readable text color for all user pages (excludes login .page-one) */
-.user-page * {
-  color: #26343b !important;
+/* Specific light-text rules for dark panels/cards inside user pages */
+.user-page .user-panel,
+.user-page .provider-panel,
+.user-page .provider-profile-summary,
+.user-page .status-chip,
+.user-page .provider-detail,
+.user-page .provider-profile-summary-copy,
+.user-page .provider-panel-head h2,
+.user-page .provider-panel-kicker,
+.user-page .provider-listing-controls,
+.user-page .provider-listing-btn {
+  color: rgba(245, 250, 255, 0.92);
+}
+
+/* Keep headings and labels dark outside of dark panels */
+.user-page h1,
+.user-page h2,
+.user-page h3,
+.user-page p,
+.user-page label {
+  color: #26343b;
 }
 
 .user-page-inner {
