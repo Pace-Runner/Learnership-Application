@@ -38,15 +38,14 @@ describe('App route guards', () => {
     expect(screen.queryByText('secret')).not.toBeInTheDocument()
   })
 
-  test('provider workspace route redirects provider without landing to profile', () => {
+  test('provider workspace route renders for signed-in providers', () => {
     render(
       <MemoryRouter initialEntries={["/provider/work"]}>
         <Routes>
-          <Route path="/provider/profile" element={<div>provider-profile</div>} />
           <Route
             path="/provider/work"
             element={
-              <ProviderWorkspaceRoute role={'Provider'} signedIn={true} isLoading={false} providerLandingRoute={'/provider/profile'}>
+              <ProviderWorkspaceRoute role={'Provider'} signedIn={true} isLoading={false}>
                 <div>workspace</div>
               </ProviderWorkspaceRoute>
             }
@@ -55,7 +54,6 @@ describe('App route guards', () => {
       </MemoryRouter>,
     )
 
-    // providerLandingRoute is not '/provider', so route should redirect to '/provider/profile'
-    expect(screen.getByText('provider-profile')).toBeInTheDocument()
+    expect(screen.getByText('workspace')).toBeInTheDocument()
   })
 })

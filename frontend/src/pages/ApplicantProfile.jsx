@@ -302,11 +302,13 @@ export default function ApplicantProfile({ onLogout }) {
 
         const pub = await supabase.storage.from(bucket).getPublicUrl(path)
         return pub?.data?.publicUrl || ''
-      } catch (_) {
+      } catch (error) {
+        void error
         try {
           const pub = await supabase.storage.from(bucket).getPublicUrl(path)
           if (pub?.data?.publicUrl) return pub.data.publicUrl
-        } catch (_) {
+        } catch (fallbackError) {
+          void fallbackError
           if (bucket.includes('/')) {
             const [rootBucket, ...rest] = bucket.split('/')
             const prefix = rest.join('/')
@@ -314,11 +316,15 @@ export default function ApplicantProfile({ onLogout }) {
             try {
               const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
               if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
-            } catch (_) {}
+            } catch (altSignedError) {
+              void altSignedError
+            }
             try {
               const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
               return altPublic?.data?.publicUrl || ''
-            } catch (_) {}
+            } catch (altPublicError) {
+              void altPublicError
+            }
           }
         }
         return ''

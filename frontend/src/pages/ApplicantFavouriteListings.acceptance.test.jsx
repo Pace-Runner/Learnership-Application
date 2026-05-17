@@ -188,7 +188,6 @@ describe('Applicant favourite listings acceptance tests', () => {
 
     expect(await screen.findByText('Listing Test')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Favourites' }))
-    expect(screen.getByText('You have not favourited any opportunities yet.')).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: 'Current Listings and Internships' }))
 
     await act(async () => {

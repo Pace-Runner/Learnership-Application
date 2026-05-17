@@ -28,6 +28,25 @@ import {
 } from './app-helpers'
 const AdminDashboardShell = Admin
 
+const AUTH_TIMEOUT_MS = 7000
+
+async function withTimeout(promise, timeoutMs, timeoutMessage) {
+  let timeoutId
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error(timeoutMessage))
+    }, timeoutMs)
+  })
+
+  try {
+    return await Promise.race([promise, timeoutPromise])
+  } finally {
+    if (timeoutId) {
+      window.clearTimeout(timeoutId)
+    }
+  }
+}
+
 // ProtectedRoute: Guard component that restricts access to role-specific pages
 // USAGE: <ProtectedRoute role={role} allowedRole="Admin" signedIn={signedIn} isLoading={isLoadingAuth}><Admin /></ProtectedRoute>
 // LOGIC:
@@ -64,7 +83,7 @@ export function ProtectedRoute({ role, allowedRole, signedIn, isLoading, childre
   return children
 }
 
-export function ProviderWorkspaceRoute({ role, signedIn, isLoading, providerLandingRoute, children }) {
+export function ProviderWorkspaceRoute({ role, signedIn, isLoading, children }) {
   const location = useLocation()
 
   if (isLoading && !signedIn) {
@@ -81,10 +100,6 @@ export function ProviderWorkspaceRoute({ role, signedIn, isLoading, providerLand
 
   if (role !== 'Provider') {
     return <Navigate to="/" replace state={{ from: location }} />
-  }
-
-  if (providerLandingRoute !== '/provider') {
-    return <Navigate to="/provider/profile" replace state={{ from: location }} />
   }
 
   return children
@@ -120,6 +135,7 @@ function App() {
   const [authError, setAuthError] = useState('') // Display auth errors to user
   const [pendingEmail, setPendingEmail] = useState('') // New user email waiting for role selection
   const [isSavingRole, setIsSavingRole] = useState(false) // True while inserting user into database
+  const [isSigningIn, setIsSigningIn] = useState(false)
   const [applicantLandingRoute, setApplicantLandingRoute] = useState('/dashboard')
   const [providerLandingRoute, setProviderLandingRoute] = useState('/provider/profile')
   const oauthTimeoutRef = useRef(null)
@@ -164,7 +180,11 @@ function App() {
         return
       }
 
-      const { data, error } = await supabase.auth.getSession()
+      const { data, error } = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_TIMEOUT_MS,
+        'Timed out while restoring your session.',
+      )
 
       if (error) {
         if (isMounted) {
@@ -190,12 +210,24 @@ function App() {
       }
 
       try {
-        const resolvedRole = await getRoleForEmail(existingSession.user.email)
+        const resolvedRole = await withTimeout(
+          getRoleForEmail(existingSession.user.email),
+          AUTH_TIMEOUT_MS,
+          'Timed out while loading your role.',
+        )
         const resolvedLandingRoute =
           resolvedRole === 'Applicant'
-            ? await getApplicantLandingRouteForEmail(existingSession.user.email)
+            ? await withTimeout(
+              getApplicantLandingRouteForEmail(existingSession.user.email),
+              AUTH_TIMEOUT_MS,
+              'Timed out while loading your applicant workspace.',
+            )
             : resolvedRole === 'Provider'
-              ? await getProviderLandingRouteForEmail(existingSession.user.email)
+              ? await withTimeout(
+                getProviderLandingRouteForEmail(existingSession.user.email),
+                AUTH_TIMEOUT_MS,
+                'Timed out while loading your provider workspace.',
+              )
             : getLandingRoute(resolvedRole)
         if (isMounted) {
           setSignedIn(true)
@@ -211,6 +243,7 @@ function App() {
           setRole(null)
           setApplicantLandingRoute('/dashboard')
           setProviderLandingRoute('/provider/profile')
+          setIsSigningIn(false)
           setAuthError('Signed in, but role lookup failed. Check your users table and policies.')
         }
       } finally {
@@ -241,6 +274,7 @@ function App() {
         setRole(null)
         setPendingEmail('')
         setIsSavingRole(false)
+        setIsSigningIn(false)
         setApplicantLandingRoute('/dashboard')
         setProviderLandingRoute('/provider/profile')
         setIsLoadingAuth(false)
@@ -248,12 +282,24 @@ function App() {
       }
 
       try {
-        const resolvedRole = await getRoleForEmail(session.user.email)
+        const resolvedRole = await withTimeout(
+          getRoleForEmail(session.user.email),
+          AUTH_TIMEOUT_MS,
+          'Timed out while loading your role.',
+        )
         const resolvedLandingRoute =
           resolvedRole === 'Applicant'
-            ? await getApplicantLandingRouteForEmail(session.user.email)
+            ? await withTimeout(
+              getApplicantLandingRouteForEmail(session.user.email),
+              AUTH_TIMEOUT_MS,
+              'Timed out while loading your applicant workspace.',
+            )
             : resolvedRole === 'Provider'
-              ? await getProviderLandingRouteForEmail(session.user.email)
+              ? await withTimeout(
+                getProviderLandingRouteForEmail(session.user.email),
+                AUTH_TIMEOUT_MS,
+                'Timed out while loading your provider workspace.',
+              )
             : getLandingRoute(resolvedRole)
         if (!isMounted) {
           return
@@ -262,6 +308,7 @@ function App() {
         setSignedIn(true)
         setRole(resolvedRole)
         setPendingEmail(resolvedRole ? '' : session.user.email)
+        setIsSigningIn(false)
         setApplicantLandingRoute(resolvedLandingRoute)
         setProviderLandingRoute(resolvedRole === 'Provider' ? resolvedLandingRoute : '/provider/profile')
         setAuthError('')
@@ -273,6 +320,7 @@ function App() {
         setRole(null)
         setApplicantLandingRoute('/dashboard')
         setProviderLandingRoute('/provider/profile')
+        setIsSigningIn(false)
         setAuthError('OAuth succeeded, but role lookup failed. Please verify Supabase table policies.')
       } finally {
         if (isMounted) {
@@ -310,6 +358,7 @@ function App() {
   // Clear session and reset all state when logging out
   const handleLogout = async () => {
     clearOAuthTimeout()
+    setIsSigningIn(false)
 
     if (hasSupabaseConfig) {
       await supabase.auth.signOut() // Clear session cookie
@@ -419,24 +468,30 @@ function App() {
       return
     }
 
-    setIsLoadingAuth(true)
+    setIsSigningIn(true)
 
     clearOAuthTimeout()
     oauthTimeoutRef.current = window.setTimeout(() => {
-      setIsLoadingAuth(false)
+      setIsSigningIn(false)
       setAuthError('Google sign-in timed out. Please try again.')
     }, 12000)
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: oauthRedirectTo,
-      },
-    })
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: oauthRedirectTo,
+        },
+      })
 
-    if (error) {
+      if (error) {
+        clearOAuthTimeout()
+        setIsSigningIn(false)
+        setAuthError('Google sign-in failed. Verify Supabase redirect URLs include your local host and VITE_AUTH_REDIRECT_URL value.')
+      }
+    } catch {
       clearOAuthTimeout()
-      setIsLoadingAuth(false)
+      setIsSigningIn(false)
       setAuthError('Google sign-in failed. Verify Supabase redirect URLs include your local host and VITE_AUTH_REDIRECT_URL value.')
     }
   }
@@ -491,19 +546,12 @@ return (
         <header className={`global-topbar ${isScrolled ? 'is-scrolled' : ''}`}>
           <div className="topbar-main">
             <div className="topbar-brand">SA LEARNERSHIP FOUNDRY</div>
-            <nav className="topbar-nav">
-              <a href="#">Why Portal</a>
-              <a href="#">Pathways</a>
-              <a href="#">Team</a>
-              <a href="#">Insights</a>
-              <a href="#">Contact</a>
-            </nav>
           </div>
 
           <div className="topbar-auth">
             {signedIn && role ? <span className="role-display">{role}</span> : null}
             <button className="google-auth" onClick={signedIn ? handleLogout : handleGoogleContinue}>
-              {isLoadingAuth ? 'Authenticating...' : signedIn ? 'Logout' : 'Log In with Google'}
+              {isSigningIn ? 'Authenticating...' : signedIn ? 'Logout' : 'Log In with Google'}
             </button>
           </div>
         </header>
@@ -673,7 +721,7 @@ return (
   } />
 
 <Route path="/provider" element={
-  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
+  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth}>
     <Provider onLogout={handleLogout} />
   </ProviderWorkspaceRoute>
 } />
@@ -688,19 +736,19 @@ return (
 } />
 
 <Route path="/provider/listings/new" element={
-  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
+  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth}>
     <ProviderListingForm />
   </ProviderWorkspaceRoute>
 } />
 
 <Route path="/provider/listings/:listingId/edit" element={
-  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
+  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth}>
     <ProviderListingEdit />
   </ProviderWorkspaceRoute>
 } />
 
 <Route path="/provider/listings/:listingId/applications" element={
-  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth} providerLandingRoute={providerLandingRoute}>
+  <ProviderWorkspaceRoute role={role} signedIn={signedIn} isLoading={isLoadingAuth}>
     <ProviderListingApplications />
   </ProviderWorkspaceRoute>
 } />

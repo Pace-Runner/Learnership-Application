@@ -29,7 +29,7 @@ describe('Provider tests', () => {
     const googleAuthButtons = container.querySelectorAll('.google-auth')
     expect(googleAuthButtons.length).toBeGreaterThan(0)
     const buttonText = container.querySelector('.google-auth')?.textContent
-    expect(buttonText).toMatch(/Log In with Google|Authenticating/i)
+    expect(buttonText).toMatch(/Log In with Google/i)
   })
 
   test('Provider role assignment is wired in OAuth callback flow', () => {
@@ -47,13 +47,13 @@ describe('Provider tests', () => {
     expect(appSource).toContain("setProviderLandingRoute('/provider/profile')")
   })
 
-  test('Provider route is protected by provider workspace gate', () => {
+  test('Provider route is mounted directly for providers', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toContain('<Route path="/provider"')
     expect(appSource).toContain('ProviderWorkspaceRoute')
     expect(appSource).toContain('ProviderProfileRoute')
-    expect(appSource).toContain("providerLandingRoute={providerLandingRoute}")
+    expect(appSource).not.toContain("if (providerLandingRoute !== '/provider')")
   })
 })
 
@@ -132,12 +132,12 @@ describe('Role based tests', () => {
     expect(appSource).toContain('role !== allowedRole')
   })
 
-  test('Provider workspace gate blocks access until profile is complete', () => {
+  test('Provider workspace route renders the dashboard directly', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
     expect(appSource).toContain('function ProviderWorkspaceRoute')
-    expect(appSource).toContain("if (providerLandingRoute !== '/provider')")
-    expect(appSource).toContain("return <Navigate to=\"/provider/profile\" replace state={{ from: location }} />")
+    expect(appSource).not.toContain("if (providerLandingRoute !== '/provider')")
+    expect(appSource).toContain('<Route path="/provider"')
   })
 
   test('Provider profile route stays open for editing', () => {
@@ -145,7 +145,7 @@ describe('Role based tests', () => {
 
     expect(appSource).toContain('function ProviderProfileRoute')
     expect(appSource).toContain("if (role !== 'Provider')")
-    expect(appSource).not.toContain("providerLandingRoute === '/provider'")
+    expect(appSource).not.toContain("if (providerLandingRoute !== '/provider')")
   })
 
   test('Redirect logic implemented for unauthorized access', () => {
@@ -248,16 +248,19 @@ describe('General home and auth tests', () => {
     expect(scrollAnimateElements.length).toBeGreaterThan(0)
   })
 
-  test('Home page topbar links are visible', () => {
+  test('Home page topbar shows only the brand', () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
       </MemoryRouter>
     )
 
-    expect(screen.getByText('Why Portal')).toBeTruthy()
-    expect(screen.getByText('Pathways')).toBeTruthy()
-    expect(screen.getByText('Team')).toBeTruthy()
+    expect(screen.getByText('SA LEARNERSHIP FOUNDRY')).toBeTruthy()
+    expect(screen.queryByText('Why Portal')).toBeNull()
+    expect(screen.queryByText('Pathways')).toBeNull()
+    expect(screen.queryByText('Team')).toBeNull()
+    expect(screen.queryByText('Insights')).toBeNull()
+    expect(screen.queryByText('Contact')).toBeNull()
   })
 
   test('Environment variables for Supabase are configured', () => {

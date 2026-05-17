@@ -104,13 +104,12 @@ describe('app-helpers (branch tests)', () => {
   })
 
   it('getApplicantLandingRouteForEmail falls back when no supabase config or user', async () => {
-    // Case: hasSupabaseConfig = false
-    // Re-mock module to simulate missing supabase config
-    vi.unmock('./lib/supabaseClient')
-    vi.mock('./lib/supabaseClient', () => ({ hasSupabaseConfig: false, supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }) }) } }), { virtual: true })
+    const { supabase } = await import('./lib/supabaseClient')
+    vi.spyOn(supabase, 'from').mockImplementation(() => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+    }))
 
-    const mod = await import('./app-helpers')
-    const route = await mod.getApplicantLandingRouteForEmail('any@x.com')
+    const route = await helpers.getApplicantLandingRouteForEmail('any@x.com')
     expect(route).toBe('/profile')
   })
 
@@ -123,5 +122,77 @@ describe('app-helpers (branch tests)', () => {
 
     const route = await helpers.getProviderLandingRouteForEmail('noone@example.com')
     expect(route).toBe('/provider/profile')
+  })
+
+  it('getApplicantLandingRouteForEmail returns dashboard for a complete profile', async () => {
+    const { supabase } = await import('./lib/supabaseClient')
+    vi.spyOn(supabase, 'from').mockImplementation((table) => {
+      if (table === 'users') {
+        return {
+          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'user-1' }, error: null }) }) }),
+        }
+      }
+
+      if (table === 'applicant_profiles') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: {
+                  id: 'profile-1',
+                  first_name: 'A',
+                  last_name: 'B',
+                  phone: '123',
+                  location: 'Cape Town',
+                  date_of_birth: '1990-01-01',
+                  id_number: '9001010000088',
+                  cv_url: 'https://example.com/cv.pdf',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+
+      return supabase.from(table)
+    })
+
+    const route = await helpers.getApplicantLandingRouteForEmail('applicant@example.com')
+    expect(route).toBe('/dashboard')
+  })
+
+  it('getProviderLandingRouteForEmail returns provider workspace for a complete profile', async () => {
+    const { supabase } = await import('./lib/supabaseClient')
+    vi.spyOn(supabase, 'from').mockImplementation((table) => {
+      if (table === 'users') {
+        return {
+          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'user-2' }, error: null }) }) }),
+        }
+      }
+
+      if (table === 'provider_profiles') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: {
+                  id: 'provider-1',
+                  organisation_name: 'Org',
+                  phone: '1234567890',
+                  description: 'Training partner',
+                },
+                error: null,
+              }),
+            }),
+          }),
+        }
+      }
+
+      return supabase.from(table)
+    })
+
+    const route = await helpers.getProviderLandingRouteForEmail('provider@example.com')
+    expect(route).toBe('/provider')
   })
 })
