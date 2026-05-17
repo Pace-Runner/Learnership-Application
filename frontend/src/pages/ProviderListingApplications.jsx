@@ -210,14 +210,14 @@ export default function ProviderListingApplications() {
               // fallback to public url on same bucket
               const pub = await supabase.storage.from(bucket).getPublicUrl(path)
               return pub?.data?.publicUrl || ''
-            } catch (error) {
-              void error
+            } catch (err) {
               // If createSignedUrl threw, try public URL and bucket-split fallback
+              console.debug('resolveLink createSignedUrl error', err)
               try {
                 const pub = await supabase.storage.from(bucket).getPublicUrl(path)
                 if (pub?.data?.publicUrl) return pub.data.publicUrl
-              } catch (fallbackError) {
-                void fallbackError
+              } catch (err2) {
+                console.debug('resolveLink getPublicUrl error', err2)
                 // try splitting bucket if it contains '/'
                 if (bucket.includes('/')) {
                   const [rootBucket, ...rest] = bucket.split('/')
@@ -226,14 +226,14 @@ export default function ProviderListingApplications() {
                   try {
                     const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
                     if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
-                  } catch (altSignedError) {
-                    void altSignedError
+                  } catch (err3) {
+                    console.debug('resolveLink altSigned error', err3)
                   }
                   try {
                     const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
                     return altPublic?.data?.publicUrl || ''
-                  } catch (altPublicError) {
-                    void altPublicError
+                  } catch (err4) {
+                    console.debug('resolveLink altPublic error', err4)
                   }
                 }
               }

@@ -302,13 +302,13 @@ export default function ApplicantProfile({ onLogout }) {
 
         const pub = await supabase.storage.from(bucket).getPublicUrl(path)
         return pub?.data?.publicUrl || ''
-      } catch (error) {
-        void error
+      } catch (err) {
+        debugLog('resolveLink createSignedUrl error', err)
         try {
           const pub = await supabase.storage.from(bucket).getPublicUrl(path)
           if (pub?.data?.publicUrl) return pub.data.publicUrl
-        } catch (fallbackError) {
-          void fallbackError
+        } catch (err2) {
+          debugLog('resolveLink getPublicUrl error', err2)
           if (bucket.includes('/')) {
             const [rootBucket, ...rest] = bucket.split('/')
             const prefix = rest.join('/')
@@ -316,14 +316,14 @@ export default function ApplicantProfile({ onLogout }) {
             try {
               const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
               if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
-            } catch (altSignedError) {
-              void altSignedError
+            } catch (err3) {
+              debugLog('resolveLink altSigned error', err3)
             }
             try {
               const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
               return altPublic?.data?.publicUrl || ''
-            } catch (altPublicError) {
-              void altPublicError
+            } catch (err4) {
+              debugLog('resolveLink altPublic error', err4)
             }
           }
         }
