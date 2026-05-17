@@ -7,13 +7,13 @@ CREATE OR REPLACE FUNCTION public.upsert_applicant_skills(
   p_applicant_id uuid,
   p_skill_tag_ids uuid[]
 )
-RETURNS TABLE(inserted_count integer, deleted_count integer)
+RETURNS TABLE(inserted_count bigint, deleted_count bigint)
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  del_count int := 0;
-  ins_count int := 0;
+  del_count bigint := 0;
+  ins_count bigint := 0;
 BEGIN
   -- Delete any links that are NOT in the desired list
   IF p_skill_tag_ids IS NULL OR array_length(p_skill_tag_ids,1) = 0 THEN
