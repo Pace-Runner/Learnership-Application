@@ -3,12 +3,12 @@
 .user-page {
   min-height: 100svh;
   padding: 6rem 2rem 2rem;
-  color: #151a23;
+  color: #26343b;
 }
 
 /* Force readable text color for all user pages (excludes login .page-one) */
 .user-page * {
-  color: #151a23 !important;
+  color: #26343b !important;
 }
 
 .user-page-inner {
@@ -30,16 +30,16 @@
 
 .applicant-theme {
   background:
-    radial-gradient(circle at 8% 12%, rgba(114, 173, 255, 0.06), rgba(248, 249, 250, 0) 34%),
-    radial-gradient(circle at 88% 16%, rgba(73, 188, 191, 0.04), rgba(248, 249, 250, 0) 36%),
-    #f8f9fa;
+    radial-gradient(circle at 8% 12%, rgba(114, 173, 255, 0.04), rgba(251, 247, 239, 0) 34%),
+    radial-gradient(circle at 88% 16%, rgba(73, 188, 191, 0.03), rgba(251, 247, 239, 0) 36%),
+    #fbf7ef;
 }
 
 .provider-theme {
   background:
-    radial-gradient(circle at 12% 10%, rgba(255, 157, 93, 0.06), rgba(248, 249, 250, 0) 32%),
-    radial-gradient(circle at 86% 14%, rgba(104, 150, 255, 0.04), rgba(248, 249, 250, 0) 34%),
-    #f8f9fa;
+    radial-gradient(circle at 12% 10%, rgba(255, 157, 93, 0.04), rgba(251, 247, 239, 0) 32%),
+    radial-gradient(circle at 86% 14%, rgba(104, 150, 255, 0.03), rgba(251, 247, 239, 0) 34%),
+    #fbf7ef;
 }
 
 .provider-shell {

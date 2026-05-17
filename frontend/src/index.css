@@ -18,8 +18,8 @@ body,
 body {
   margin: 0;
   font-family: var(--body-font);
-  color: #151a23;
-  background: #f8f9fa; /* off-white for all pages by default */
+  color: #26343b; /* softer slate text */
+  background: #fbf7ef; /* warm cream background */
   font-size: 16px;
   line-height: 1.45;
   text-rendering: optimizeLegibility;

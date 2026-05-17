@@ -2,7 +2,7 @@
 
 .foundry-clone {
   width: 100%;
-  color: #151a23;
+  color: #26343b; /* slate tone for headings/text */
 }
 
 .scroll-animate {
@@ -31,8 +31,8 @@
   display: grid;
   gap: 0.45rem;
   padding: 0.76rem 1rem 0.55rem;
-  background: rgba(248, 249, 250, 0.9);
-  border-bottom: 1px solid rgba(20, 26, 32, 0.06);
+  background: rgba(255,255,255,0.86);
+  border-bottom: 1px solid rgba(38, 52, 59, 0.06);
   backdrop-filter: blur(10px);
   transition: padding 260ms ease, background 260ms ease, box-shadow 260ms ease, gap 260ms ease, border-color 260ms ease;
 }
@@ -68,7 +68,7 @@
   font-size: 0.86rem;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #151a23;
+  color: #26343b;
   white-space: nowrap;
 }
 
@@ -86,7 +86,7 @@
   font-size: 0.64rem;
   letter-spacing: 0.11em;
   text-decoration: none;
-  color: rgba(20, 26, 32, 0.86);
+  color: rgba(38, 52, 59, 0.86);
 }
 
 .topbar-auth {
@@ -96,8 +96,8 @@
   margin: 0 auto;
   padding: 0.3rem;
   border-radius: 999px;
-  border: 1px solid rgba(20, 26, 32, 0.06);
-  background: rgba(255,255,255,0.8);
+  border: 1px solid rgba(38, 52, 59, 0.06);
+  background: rgba(255,255,255,0.92);
   backdrop-filter: blur(10px);
   transition: transform 260ms ease, background 260ms ease, box-shadow 260ms ease;
 }
