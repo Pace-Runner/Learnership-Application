@@ -990,59 +990,27 @@ export default function ApplicantProfile({ onLogout }) {
         setSelectedSkillTagIds(finalSelectedSkillTagIds)
       }
 
-      // Persist skills through the RPC when available, but keep the old insert path as a fallback.
+      // Persist skills using direct delete/insert (RLS-compliant, user-authorized path)
+      // RPC with SECURITY DEFINER cannot bypass RLS, so always use direct authenticated operations
       try {
         const skillIdsArray = Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []
-        let rpcSuccess = false
 
-        if (typeof supabase.rpc === 'function') {
-          debugLog('Calling RPC upsert_applicant_skills', resolvedProfileId, skillIdsArray)
-          const { data: rpcData, error: rpcError } = await supabase.rpc('upsert_applicant_skills', {
-            p_applicant_id: resolvedProfileId,
-            p_skill_tag_ids: skillIdsArray,
-          })
+        debugLog('Persisting skills for applicant:', resolvedProfileId, 'Count:', skillIdsArray.length)
 
-          if (!rpcError) {
-            debugLog('upsert_applicant_skills result:', rpcData)
-            rpcSuccess = true
-          } else {
-            console.warn('upsert_applicant_skills RPC failed, falling back to direct inserts:', rpcError)
-          }
-        }
-
-        // Only use fallback if RPC wasn't available or failed
-        if (!rpcSuccess) {
-          const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
-          if (deleteSkillsError) {
-            console.error('Skills delete error:', deleteSkillsError)
-          }
-
-          if (skillIdsArray.length > 0) {
-            const { error: skillsError } = await supabase.from('applicant_skills').insert(
-              skillIdsArray.map((skillTagId) => ({
-                applicant_id: resolvedProfileId,
-                skill_tag_id: skillTagId,
-              })),
-            )
-
-            if (skillsError) {
-              console.error('Skills insert error:', skillsError)
-              setUploadMessage(
-                `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsError, 'Unknown error')}`,
-              )
-              setIsSavingProfile(false)
-              return
-            }
-          }
-        }
-      } catch (errRpc) {
-        console.error('Unexpected RPC error when saving skills:', errRpc)
+        // Step 1: Delete existing skills for this applicant
         const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
         if (deleteSkillsError) {
           console.error('Skills delete error:', deleteSkillsError)
+          setUploadMessage(
+            `Profile saved, but could not clear previous skills: ${getFriendlySupabaseError(deleteSkillsError, 'Unknown error')}`,
+          )
+          setIsSavingProfile(false)
+          return
         }
 
-        const skillIdsArray = Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []
+        debugLog('Cleared existing skills')
+
+        // Step 2: Insert new skills if any were selected
         if (skillIdsArray.length > 0) {
           const { error: skillsError } = await supabase.from('applicant_skills').insert(
             skillIdsArray.map((skillTagId) => ({
@@ -1053,11 +1021,22 @@ export default function ApplicantProfile({ onLogout }) {
 
           if (skillsError) {
             console.error('Skills insert error:', skillsError)
-            setUploadMessage(getFriendlySupabaseError(skillsError, 'Unexpected error while saving skills.'))
+            setUploadMessage(
+              `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsError, 'Unknown error')}`,
+            )
             setIsSavingProfile(false)
             return
           }
+
+          debugLog('Inserted', skillIdsArray.length, 'skills')
+        } else {
+          debugLog('No skills selected, all skills cleared')
         }
+      } catch (errSkills) {
+        console.error('Unexpected error when saving skills:', errSkills)
+        setUploadMessage('Profile saved, but skills update failed. Please try again.')
+        setIsSavingProfile(false)
+        return
       }
 
       debugLog('Profile saved with ID:', resolvedProfileId)
