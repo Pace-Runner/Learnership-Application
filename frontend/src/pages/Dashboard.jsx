@@ -38,7 +38,7 @@ function formatShortDate(value) {
 // Quick statistics shown at top of dashboard
 const quickStats = [
   { label: 'Available listings', value: '18' },
-  { label: 'Saved opportunities', value: '12' },
+  { label: 'Favourited opportunities', value: '12' },
   { label: 'Documents uploaded', value: '04' },
 ]
 
@@ -257,7 +257,7 @@ export default function Dashboard({ onLogout, listings }) {
 
     if (favouriteRowsError) {
       setDbFavouriteListings([])
-      setFavouriteError('We could not load your saved opportunities right now.')
+      setFavouriteError('We could not load your favourited opportunities right now.')
       setIsLoadingFavourites(false)
       return
     }
@@ -542,7 +542,7 @@ export default function Dashboard({ onLogout, listings }) {
 
   const dashboardStats = useMemo(() => (
     quickStats.map((item) => (
-      !hasListingsProp && item.label === 'Saved opportunities'
+      !hasListingsProp && item.label === 'Favourited opportunities'
         ? { ...item, value: String(dbFavouriteListings.length).padStart(2, '0') }
         : item
     ))
@@ -571,7 +571,7 @@ export default function Dashboard({ onLogout, listings }) {
     }
 
     if (hasListingsProp || !hasSupabaseConfig || !applicantId) {
-      setFavouriteError('Please sign in with an applicant profile before saving listings.')
+      setFavouriteError('Please sign in with an applicant profile before favouriting listings.')
       return
     }
 
@@ -589,7 +589,7 @@ export default function Dashboard({ onLogout, listings }) {
       setUpdatingFavouriteId('')
 
       if (deleteFavouriteError) {
-        setFavouriteError('We could not remove that saved opportunity. Please try again.')
+        setFavouriteError('We could not remove that favourited opportunity. Please try again.')
         return
       }
 
@@ -609,7 +609,7 @@ export default function Dashboard({ onLogout, listings }) {
 
       if (!isDuplicateFavourite) {
         console.error('Favourite save failed:', insertFavouriteError)
-        setFavouriteError('We could not save that opportunity. Please try again.')
+        setFavouriteError('We could not favourite that opportunity. Please try again.')
         return
       }
     }
@@ -788,19 +788,19 @@ export default function Dashboard({ onLogout, listings }) {
             <div className="provider-panel-head">
               <section>
                 <p className="provider-panel-kicker">Applicant shortlist</p>
-                <h2>Saved Opportunities</h2>
+                <h2>Favourited Opportunities</h2>
               </section>
               <span className="status-chip status-chip-soft">
                 {dbFavouriteListings.length === 1
-                  ? '1 saved'
-                  : `${dbFavouriteListings.length} saved`}
+                  ? '1 favourited'
+                  : `${dbFavouriteListings.length} favourited`}
               </span>
             </div>
 
             {favouriteError ? <p className="user-panel-copy">{favouriteError}</p> : null}
 
             {isLoadingFavourites ? (
-              <p className="user-panel-copy">Loading your saved opportunities...</p>
+              <p className="user-panel-copy">Loading your favourited opportunities...</p>
             ) : hasFavouriteListings ? (
               <ul className="user-list favourite-list">
                 {dbFavouriteListings.map((item) => (
@@ -816,7 +816,7 @@ export default function Dashboard({ onLogout, listings }) {
                       <Link
                         to={`/dashboard/listings/${item.id}`}
                         className="user-action-btn user-action-btn-inline provider-action-link"
-                        aria-label={`View details for saved ${item.title}`}
+                        aria-label={`View details for favourited ${item.title}`}
                       >
                         View details
                       </Link>
@@ -825,7 +825,7 @@ export default function Dashboard({ onLogout, listings }) {
                         className="user-action-btn user-action-btn-inline favourite-toggle-btn favourite-toggle-btn-active"
                         onClick={() => handleFavouriteToggle(item)}
                         disabled={updatingFavouriteId === item.id}
-                        aria-label={`Remove saved ${item.title}`}
+                        aria-label={`Remove favourited ${item.title}`}
                       >
                         {updatingFavouriteId === item.id ? 'Updating...' : 'Remove'}
                       </button>
@@ -834,7 +834,7 @@ export default function Dashboard({ onLogout, listings }) {
                 ))}
               </ul>
             ) : (
-              <p className="user-panel-copy">You have not saved any opportunities yet.</p>
+              <p className="user-panel-copy">You have not favourited any opportunities yet.</p>
             )}
           </article>
         ) : null}
@@ -886,10 +886,10 @@ export default function Dashboard({ onLogout, listings }) {
                           disabled={isUpdatingFavourite || isFavourite}
                           aria-pressed={isFavourite}
                           aria-label={isFavourite
-                            ? `${item.title} is already saved`
-                            : `Save ${item.title} to favourites`}
+                            ? `${item.title} is already favourited`
+                            : `Favorite ${item.title}`}
                         >
-                          {isUpdatingFavourite ? 'Updating...' : isFavourite ? 'Saved' : 'Save'}
+                          {isUpdatingFavourite ? 'Updating...' : isFavourite ? 'Favorited' : 'Favorite'}
                         </button>
                       ) : null}
                     </div>
