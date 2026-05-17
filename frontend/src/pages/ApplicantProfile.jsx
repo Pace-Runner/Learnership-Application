@@ -905,18 +905,9 @@ export default function ApplicantProfile({ onLogout }) {
         setProfileId(insertedProfile.id)
       }
 
-      // Replace child records to keep education/skills aligned with current form state.
-      const [deleteEdu, deleteSkills] = await Promise.all([
-        supabase.from('applicant_education').delete().eq('applicant_id', resolvedProfileId),
-        supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId),
-      ])
-
-      if (deleteEdu.error) {
-        console.error('Education delete error:', deleteEdu.error)
-      }
-      if (deleteSkills.error) {
-        console.error('Skills delete error:', deleteSkills.error)
-      }
+      // Replace child records to keep education aligned with current form state.
+      const { error: deleteEduError } = await supabase.from('applicant_education').delete().eq('applicant_id', resolvedProfileId)
+      if (deleteEduError) console.error('Education delete error:', deleteEduError)
 
       const educationPayload = educationRows
         .filter((row) => row.institution || row.qualification_id || row.nqf_level || row.year_completed)
@@ -999,22 +990,28 @@ export default function ApplicantProfile({ onLogout }) {
         setSelectedSkillTagIds(finalSelectedSkillTagIds)
       }
 
-      if ((finalSelectedSkillTagIds || []).length > 0) {
-        const skillsPayload = finalSelectedSkillTagIds.map((skillTagId) => ({
-          applicant_id: resolvedProfileId,
-          skill_tag_id: skillTagId,
-        }))
+      // Persist skills atomically via a secure DB function to avoid partial state when client-side inserts fail.
+      try {
+        const skillIdsArray = Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []
+        debugLog('Calling RPC upsert_applicant_skills', resolvedProfileId, skillIdsArray)
+        const { data: rpcData, error: rpcError } = await supabase.rpc('upsert_applicant_skills', {
+          p_applicant_id: resolvedProfileId,
+          p_skill_tag_ids: skillIdsArray,
+        })
 
-        debugLog('Saving skills:', skillsPayload)
-        const { error: skillsError } = await supabase.from('applicant_skills').insert(skillsPayload)
-        if (skillsError) {
-          console.error('Skills insert error:', skillsError)
-          setUploadMessage(
-            `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsError, 'Unknown error')}`,
-          )
+        if (rpcError) {
+          console.error('upsert_applicant_skills RPC error:', rpcError)
+          setUploadMessage(`Profile saved, but skills update failed: ${getFriendlySupabaseError(rpcError, 'Unknown error')}`)
           setIsSavingProfile(false)
           return
         }
+
+        debugLog('upsert_applicant_skills result:', rpcData)
+      } catch (errRpc) {
+        console.error('Unexpected RPC error when saving skills:', errRpc)
+        setUploadMessage(getFriendlySupabaseError(errRpc, 'Unexpected error while saving skills.'))
+        setIsSavingProfile(false)
+        return
       }
 
       debugLog('Profile saved with ID:', resolvedProfileId)
