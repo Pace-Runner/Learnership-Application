@@ -192,12 +192,13 @@ export function filterApprovedListings(listings, searchTerm, selectedType) {
   const normalizedSearchTerm = searchTerm.trim().toLowerCase()
 
   return listings.filter((listing) => {
-    // Ensure listing has required fields to avoid incomplete records
-    if (!listing?.id || !listing?.title) {
+    // All listings must have at least a title
+    if (!listing?.title) {
       return false
     }
 
     // Applicants should never see pending or removed opportunities in the search results.
+    // (Built-in listings have no status field, so they pass this check)
     if (listing?.status && listing.status !== 'Approved') {
       return false
     }
@@ -881,7 +882,7 @@ export default function Dashboard({ onLogout, listings }) {
                 {dbApplications.map((application) => (
                   <li key={application.id} className="application-list-item">
                     <div className="application-list-row">
-                      <strong>{application.title}</strong>
+                      <strong>{application.listingTitle}</strong>
                       <span className={getApplicationStatusClass(application.status)}>{application.status}</span>
                     </div>
                     <small className="user-item-meta">{application.type}</small>

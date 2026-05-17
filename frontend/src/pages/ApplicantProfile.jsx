@@ -1011,7 +1011,7 @@ export default function ApplicantProfile({ onLogout }) {
         }
 
         // Only use fallback if RPC wasn't available or failed
-        if (!rpcSuccess && (typeof supabase.rpc !== 'function' || finalSelectedSkillTagIds.length > 0)) {
+        if (!rpcSuccess) {
           const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
           if (deleteSkillsError) {
             console.error('Skills delete error:', deleteSkillsError)
