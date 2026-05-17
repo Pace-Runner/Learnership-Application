@@ -142,6 +142,14 @@ create policy "skill_tags_read"
   to authenticated
   using (true);
 
+-- Allow authenticated users to insert new skill tags (needed for suggested/custom skills)
+drop policy if exists "skill_tags_insert_authenticated" on skill_tags;
+create policy "skill_tags_insert_authenticated"
+  on skill_tags
+  for insert
+  to authenticated
+  with check (true);
+
 -- Enable RLS on notifications
 alter table notifications enable row level security;
 

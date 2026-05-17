@@ -934,8 +934,67 @@ export default function ApplicantProfile({ onLogout }) {
         }
       }
 
-      if (selectedSkillTagIds.length > 0) {
-        const skillsPayload = selectedSkillTagIds.map((skillTagId) => ({
+      // Ensure any recommended/suggested skill tags that don't exist in the DB are created first.
+      let finalSelectedSkillTagIds = selectedSkillTagIds
+      const missingSkillIds = (selectedSkillTagIds || []).filter((id) => !skillTagOptions.some((s) => s.id === id))
+      if (missingSkillIds.length > 0) {
+        const insertNames = missingSkillIds.map((id) => {
+          const suggestion = recommendedSkillTags.find((s) => s.id === id)
+          return suggestion ? suggestion.name : id.replace(/-/g, ' ')
+        })
+
+        // Find any existing tags by name to avoid unique-constraint errors.
+        const { data: existingTags = [] } = await supabase
+          .from('skill_tags')
+          .select('id,name')
+          .in('name', insertNames)
+
+        const existingNames = (existingTags || []).map((t) => t.name)
+        const namesToInsert = insertNames.filter((n) => !existingNames.includes(n))
+
+        let insertedTags = []
+        if (namesToInsert.length > 0) {
+          const insertPayload = namesToInsert.map((name) => ({ name }))
+          const { data: _inserted, error: tagInsertError } = await supabase
+            .from('skill_tags')
+            .insert(insertPayload)
+            .select('id,name')
+
+          if (tagInsertError) {
+            console.error('Skill tags insert error:', tagInsertError)
+            setUploadMessage(
+              `Profile saved, but automatic skill tag creation failed: ${getFriendlySupabaseError(
+                tagInsertError,
+                'Unknown error',
+              )}`,
+            )
+            setIsSavingProfile(false)
+            return
+          }
+
+          insertedTags = _inserted || []
+        }
+
+        const nameToId = {}
+        ;(existingTags || []).forEach((t) => {
+          nameToId[t.name] = t.id
+        })
+        ;(insertedTags || []).forEach((t) => {
+          nameToId[t.name] = t.id
+        })
+
+        finalSelectedSkillTagIds = selectedSkillTagIds.map((id) => {
+          const existing = skillTagOptions.find((s) => s.id === id)
+          if (existing) return id
+          const name = (recommendedSkillTags.find((s) => s.id === id) || {}).name || id.replace(/-/g, ' ')
+          return nameToId[name] || id
+        })
+
+        setSelectedSkillTagIds(finalSelectedSkillTagIds)
+      }
+
+      if ((finalSelectedSkillTagIds || []).length > 0) {
+        const skillsPayload = finalSelectedSkillTagIds.map((skillTagId) => ({
           applicant_id: resolvedProfileId,
           skill_tag_id: skillTagId,
         }))
