@@ -184,26 +184,59 @@ export default function ProviderListingApplications() {
           }
 
           const authUserId = item.applicant?.user_id || ''
-          const normalizedPath = cv.includes('/') ? cv : authUserId ? `${authUserId}/${cv}` : cv
+          let normalizedPath = cv.includes('/') ? cv : authUserId ? `${authUserId}/${cv}` : cv
 
-          try {
-            const { data } = await supabase.storage.from(DOCS_BUCKET).createSignedUrl(normalizedPath, 60 * 10)
-
-            if (data?.signedUrl) {
-              return { ...item, cvLink: data.signedUrl }
-            }
-
-            // If signed URL wasn't returned, try public URL as a fallback
-            const { data: publicData } = await supabase.storage.from(DOCS_BUCKET).getPublicUrl(normalizedPath)
-            return { ...item, cvLink: publicData?.publicUrl || '' }
-          } catch {
+          // Helper to resolve signed or public URL, with bucket fallback if bucket contains a folder
+          const resolveLink = async (bucket, path) => {
+            // try signed URL first
             try {
-              const { data: publicData } = await supabase.storage.from(DOCS_BUCKET).getPublicUrl(normalizedPath)
-              return { ...item, cvLink: publicData?.publicUrl || '' }
-            } catch {
-              return { ...item, cvLink: '' }
+              const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 10)
+              if (signed?.data?.signedUrl) return signed.data.signedUrl
+
+              // if error indicates bucket not found, attempt to split bucket into root + prefix
+              if (signed?.error && ((signed.error.message || '').toLowerCase().includes('bucket not found') || signed.error.status === 404)) {
+                if (bucket.includes('/')) {
+                  const [rootBucket, ...rest] = bucket.split('/')
+                  const prefix = rest.join('/')
+                  const altPath = prefix ? `${prefix}/${path}` : path
+                  const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
+                  if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
+
+                  const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
+                  return altPublic?.data?.publicUrl || ''
+                }
+              }
+
+              // fallback to public url on same bucket
+              const pub = await supabase.storage.from(bucket).getPublicUrl(path)
+              return pub?.data?.publicUrl || ''
+            } catch (e) {
+              // If createSignedUrl threw, try public URL and bucket-split fallback
+              try {
+                const pub = await supabase.storage.from(bucket).getPublicUrl(path)
+                if (pub?.data?.publicUrl) return pub.data.publicUrl
+              } catch (_) {
+                // try splitting bucket if it contains '/'
+                if (bucket.includes('/')) {
+                  const [rootBucket, ...rest] = bucket.split('/')
+                  const prefix = rest.join('/')
+                  const altPath = prefix ? `${prefix}/${path}` : path
+                  try {
+                    const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
+                    if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
+                  } catch (_) {}
+                  try {
+                    const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
+                    return altPublic?.data?.publicUrl || ''
+                  } catch (_) {}
+                }
+              }
+              return ''
             }
           }
+
+          const cvLink = await resolveLink(DOCS_BUCKET, normalizedPath)
+          return { ...item, cvLink: cvLink || '' }
         }),
       )
 

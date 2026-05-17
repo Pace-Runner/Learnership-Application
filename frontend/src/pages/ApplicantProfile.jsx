@@ -280,16 +280,53 @@ export default function ApplicantProfile({ onLogout }) {
       return
     }
 
-    // Supports both old values (filename only) and new values (full storage path).
     const normalizedPath = storedCvValue.includes('/') ? storedCvValue : `${authUserId}/${storedCvValue}`
-    const { data, error } = await supabase.storage.from(DOCS_BUCKET).createSignedUrl(normalizedPath, 60 * 10)
 
-    if (error || !data?.signedUrl) {
-      setCvLinkUrl('')
-      return
+    const resolveLink = async (bucket, path) => {
+      try {
+        const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 10)
+        if (signed?.data?.signedUrl) return signed.data.signedUrl
+
+        if (signed?.error && ((signed.error.message || '').toLowerCase().includes('bucket not found') || signed.error.status === 404)) {
+          if (bucket.includes('/')) {
+            const [rootBucket, ...rest] = bucket.split('/')
+            const prefix = rest.join('/')
+            const altPath = prefix ? `${prefix}/${path}` : path
+            const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
+            if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
+
+            const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
+            return altPublic?.data?.publicUrl || ''
+          }
+        }
+
+        const pub = await supabase.storage.from(bucket).getPublicUrl(path)
+        return pub?.data?.publicUrl || ''
+      } catch (e) {
+        try {
+          const pub = await supabase.storage.from(bucket).getPublicUrl(path)
+          if (pub?.data?.publicUrl) return pub.data.publicUrl
+        } catch (_) {
+          if (bucket.includes('/')) {
+            const [rootBucket, ...rest] = bucket.split('/')
+            const prefix = rest.join('/')
+            const altPath = prefix ? `${prefix}/${path}` : path
+            try {
+              const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
+              if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
+            } catch (_) {}
+            try {
+              const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
+              return altPublic?.data?.publicUrl || ''
+            } catch (_) {}
+          }
+        }
+        return ''
+      }
     }
 
-    setCvLinkUrl(data.signedUrl)
+    const link = await resolveLink(DOCS_BUCKET, normalizedPath)
+    setCvLinkUrl(link || '')
   }, [])
 
   const fetchStorageFiles = useCallback(async (authUserId) => {
