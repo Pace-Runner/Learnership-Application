@@ -224,6 +224,7 @@ export default function Dashboard({ onLogout, listings }) {
   const [selectedType, setSelectedType] = useState('All')
   const [submittedSearchTerm, setSubmittedSearchTerm] = useState('')
   const [submittedType, setSubmittedType] = useState('All')
+  const [activeApplicantTab, setActiveApplicantTab] = useState('listings')
   const [searchError, setSearchError] = useState('')
   const [isLoadingListings, setIsLoadingListings] = useState(false)
   const [isLoadingApplications, setIsLoadingApplications] = useState(false)
@@ -660,30 +661,6 @@ export default function Dashboard({ onLogout, listings }) {
         ))}
       </section>
 
-      <section className="listing-search-panel" aria-label="Listing search">
-        <form className="listing-search-form" onSubmit={handleSearchSubmit}>
-          <label htmlFor="listing-search" className="sr-only">Search listings</label>
-          <input
-            id="listing-search"
-            type="search"
-            placeholder="Search by title, location, or sector"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-          />
-          <label htmlFor="listing-filter" className="sr-only">Filter listing type</label>
-          <select
-            id="listing-filter"
-            value={selectedType}
-            onChange={(event) => setSelectedType(event.target.value)}
-          >
-            {listingFilters.map((filter) => (
-              <option key={filter} value={filter}>{filter}</option>
-            ))}
-          </select>
-          <button type="submit" className="user-action-btn search-btn">Search</button>
-        </form>
-      </section>
-
       <section className="user-content-grid">
         {!hasListingsProp ? (
           <article className="user-panel user-panel-alt notification-panel">
@@ -702,7 +679,7 @@ export default function Dashboard({ onLogout, listings }) {
             ) : notificationError ? (
               <p className="user-panel-copy">{notificationError}</p>
             ) : hasVisibleNotifications ? (
-              <ul className="user-list notification-list">
+              <ul className="user-list notification-list notification-scroll-list">
                 {visibleNotifications.map((notification) => (
                   <li key={notification.id} className="notification-list-item">
                     <div className="application-list-row">
@@ -744,8 +721,141 @@ export default function Dashboard({ onLogout, listings }) {
           </article>
         ) : null}
 
-        {!hasListingsProp ? (
-          <article className="user-panel user-panel-alt my-applications-panel">
+        <article className="user-panel applicant-tab-shell">
+          <div className="applicant-tab-list" role="tablist" aria-label="Applicant dashboard sections">
+            <button
+              type="button"
+              role="tab"
+              id="applicant-tab-listings"
+              aria-selected={activeApplicantTab === 'listings'}
+              aria-controls="applicant-panel-listings"
+              className={`applicant-tab-btn${activeApplicantTab === 'listings' ? ' applicant-tab-btn-active' : ''}`}
+              onClick={() => setActiveApplicantTab('listings')}
+            >
+              Current Listings and Internships
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="applicant-tab-applications"
+              aria-selected={activeApplicantTab === 'applications'}
+              aria-controls="applicant-panel-applications"
+              className={`applicant-tab-btn${activeApplicantTab === 'applications' ? ' applicant-tab-btn-active' : ''}`}
+              onClick={() => setActiveApplicantTab('applications')}
+            >
+              My Applications
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="applicant-tab-favourites"
+              aria-selected={activeApplicantTab === 'favourites'}
+              aria-controls="applicant-panel-favourites"
+              className={`applicant-tab-btn${activeApplicantTab === 'favourites' ? ' applicant-tab-btn-active' : ''}`}
+              onClick={() => setActiveApplicantTab('favourites')}
+            >
+              Favourites
+            </button>
+          </div>
+
+          <section
+            id="applicant-panel-listings"
+            role="tabpanel"
+            aria-labelledby="applicant-tab-listings"
+            hidden={activeApplicantTab !== 'listings'}
+            className="applicant-tab-panel"
+          >
+            <h2>Current Listings and Internships</h2>
+            <section className="listing-search-panel listing-search-panel-embedded" aria-label="Listing search">
+              <form className="listing-search-form" onSubmit={handleSearchSubmit}>
+                <label htmlFor="listing-search" className="sr-only">Search listings</label>
+                <input
+                  id="listing-search"
+                  type="search"
+                  placeholder="Search by title, location, or sector"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+                <label htmlFor="listing-filter" className="sr-only">Filter listing type</label>
+                <select
+                  id="listing-filter"
+                  value={selectedType}
+                  onChange={(event) => setSelectedType(event.target.value)}
+                >
+                  {listingFilters.map((filter) => (
+                    <option key={filter} value={filter}>{filter}</option>
+                  ))}
+                </select>
+                <button type="submit" className="user-action-btn search-btn">Search</button>
+              </form>
+            </section>
+
+            {searchError ? <p className="user-panel-copy">{searchError}</p> : null}
+            {/* Keep the panel explicit about whether it is loading, applying a search, empty, or ready to show results. */}
+            {isLoadingListings ? (
+              <p className="user-panel-copy">Loading approved listings...</p>
+            ) : isApplyingSearch ? (
+              <p className="user-panel-copy">Searching approved listings...</p>
+            ) : approvedListings.length === 0 ? (
+              <p className="user-panel-copy">
+                {hasActiveSearch
+                  ? 'No approved listings matched your search.'
+                  : 'No approved listings available yet.'}
+              </p>
+            ) : (
+              <ul className="user-list applicant-scroll-list listing-results-list">
+                {approvedListings.map((item) => {
+                  const isFavourite = item.id ? favouriteOpportunityIds.has(item.id) : false
+                  const isUpdatingFavourite = updatingFavouriteId === item.id
+
+                  return (
+                    <li key={item.id || item.title}>
+                      <span>{item.type}</span>
+                      <strong>{item.title}</strong>
+                      {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
+                      {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
+                      {item.location ? <small className="user-item-meta">{item.location}</small> : null}
+                      <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
+                      {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
+                      <div className="listing-card-actions">
+                        {item.id ? (
+                          <Link
+                            to={`/dashboard/listings/${item.id}`}
+                            className="user-action-btn user-action-btn-inline provider-action-link"
+                            aria-label={`View details for ${item.title}`}
+                          >
+                            View details
+                          </Link>
+                        ) : null}
+                        {item.id ? (
+                          <button
+                            type="button"
+                            className={`user-action-btn user-action-btn-inline favourite-toggle-btn${isFavourite ? ' favourite-toggle-btn-active' : ''}`}
+                            onClick={() => handleFavouriteToggle(item)}
+                            disabled={isUpdatingFavourite || isFavourite}
+                            aria-pressed={isFavourite}
+                            aria-label={isFavourite
+                              ? `${item.title} is already favourited`
+                              : `Favorite ${item.title}`}
+                          >
+                            {isUpdatingFavourite ? 'Updating...' : isFavourite ? 'Favorited' : 'Favorite'}
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section
+            id="applicant-panel-applications"
+            role="tabpanel"
+            aria-labelledby="applicant-tab-applications"
+            hidden={activeApplicantTab !== 'applications'}
+            className="applicant-tab-panel my-applications-panel"
+          >
             <div className="provider-panel-head">
               <section>
                 <p className="provider-panel-kicker">Applicant status tracker</p>
@@ -759,7 +869,7 @@ export default function Dashboard({ onLogout, listings }) {
             ) : applicationError ? (
               <p className="user-panel-copy">{applicationError}</p>
             ) : hasApplications ? (
-              <ul className="user-list application-list">
+              <ul className="user-list application-list applicant-scroll-list application-scroll-list">
                 {dbApplications.map((application) => (
                   <li key={application.id} className="application-list-item">
                     <div className="application-list-row">
@@ -780,11 +890,15 @@ export default function Dashboard({ onLogout, listings }) {
             ) : (
               <p className="user-panel-copy">You have not submitted any applications yet.</p>
             )}
-          </article>
-        ) : null}
+          </section>
 
-        {!hasListingsProp ? (
-          <article className="user-panel user-panel-alt favourite-listings-panel">
+          <section
+            id="applicant-panel-favourites"
+            role="tabpanel"
+            aria-labelledby="applicant-tab-favourites"
+            hidden={activeApplicantTab !== 'favourites'}
+            className="applicant-tab-panel favourite-listings-panel"
+          >
             <div className="provider-panel-head">
               <section>
                 <p className="provider-panel-kicker">Applicant shortlist</p>
@@ -802,7 +916,7 @@ export default function Dashboard({ onLogout, listings }) {
             {isLoadingFavourites ? (
               <p className="user-panel-copy">Loading your favourited opportunities...</p>
             ) : hasFavouriteListings ? (
-              <ul className="user-list favourite-list">
+              <ul className="user-list applicant-scroll-list favourite-list">
                 {dbFavouriteListings.map((item) => (
                   <li key={`favourite-${item.id}`}>
                     <span>{item.type}</span>
@@ -836,68 +950,7 @@ export default function Dashboard({ onLogout, listings }) {
             ) : (
               <p className="user-panel-copy">You have not favourited any opportunities yet.</p>
             )}
-          </article>
-        ) : null}
-
-        <article className="user-panel">
-          <h2>Current Listings and Internships</h2>
-          {searchError ? <p className="user-panel-copy">{searchError}</p> : null}
-          {/* Keep the panel explicit about whether it is loading, applying a search, empty, or ready to show results. */}
-          {isLoadingListings ? (
-            <p className="user-panel-copy">Loading approved listings...</p>
-          ) : isApplyingSearch ? (
-            <p className="user-panel-copy">Searching approved listings...</p>
-          ) : approvedListings.length === 0 ? (
-            <p className="user-panel-copy">
-              {hasActiveSearch
-                ? 'No approved listings matched your search.'
-                : 'No approved listings available yet.'}
-            </p>
-          ) : (
-            <ul className="user-list">
-              {approvedListings.map((item) => {
-                const isFavourite = item.id ? favouriteOpportunityIds.has(item.id) : false
-                const isUpdatingFavourite = updatingFavouriteId === item.id
-
-                return (
-                  <li key={item.id || item.title}>
-                    <span>{item.type}</span>
-                    <strong>{item.title}</strong>
-                    {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
-                    {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
-                    {item.location ? <small className="user-item-meta">{item.location}</small> : null}
-                    <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
-                    {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
-                    <div className="listing-card-actions">
-                      {item.id ? (
-                        <Link
-                          to={`/dashboard/listings/${item.id}`}
-                          className="user-action-btn user-action-btn-inline provider-action-link"
-                          aria-label={`View details for ${item.title}`}
-                        >
-                          View details
-                        </Link>
-                      ) : null}
-                      {item.id ? (
-                        <button
-                          type="button"
-                          className={`user-action-btn user-action-btn-inline favourite-toggle-btn${isFavourite ? ' favourite-toggle-btn-active' : ''}`}
-                          onClick={() => handleFavouriteToggle(item)}
-                          disabled={isUpdatingFavourite || isFavourite}
-                          aria-pressed={isFavourite}
-                          aria-label={isFavourite
-                            ? `${item.title} is already favourited`
-                            : `Favorite ${item.title}`}
-                        >
-                          {isUpdatingFavourite ? 'Updating...' : isFavourite ? 'Favorited' : 'Favorite'}
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+          </section>
         </article>
       </section>
       </section>

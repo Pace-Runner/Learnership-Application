@@ -166,7 +166,7 @@ describe('Applicant search listings', () => {
 
     await submitSearch({ term: 'electrical' })
 
-    expect(screen.getByText('Current Listings and Internships')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Current Listings and Internships' })).toBeTruthy()
     expect(screen.getByText('Electrical Apprentice Intake A')).toBeTruthy()
     expect(screen.queryByText('Customer Support Internship Cohort A')).toBeNull()
   })

@@ -293,7 +293,9 @@ describe('Applicant dashboard application tracking acceptance tests', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText('My Applications')).toBeTruthy()
+    fireEvent.click(await screen.findByRole('tab', { name: 'My Applications' }))
+
+    expect(screen.getByRole('heading', { name: 'My Applications' })).toBeTruthy()
     expect(screen.getByText('Business Administration NQF 4')).toBeTruthy()
     expect(screen.getByText('Junior IT Support Internship')).toBeTruthy()
     expect(screen.getByText('Electrical Trade Apprenticeship')).toBeTruthy()
