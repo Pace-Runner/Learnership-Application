@@ -987,6 +987,17 @@ export default function ApplicantProfile({ onLogout }) {
           return nameToId[name] || id
         })
 
+        const resolvedTags = [...(existingTags || []), ...(insertedTags || [])].filter((skillTag) => skillTag?.id && skillTag?.name)
+        if (resolvedTags.length > 0) {
+          setSkillTagOptions((current) => {
+            const mergedById = new Map(current.map((skillTag) => [skillTag.id, skillTag]))
+            resolvedTags.forEach((skillTag) => {
+              mergedById.set(skillTag.id, skillTag)
+            })
+            return Array.from(mergedById.values()).sort((left, right) => left.name.localeCompare(right.name))
+          })
+        }
+
         setSelectedSkillTagIds(finalSelectedSkillTagIds)
       }
 
@@ -1042,7 +1053,7 @@ export default function ApplicantProfile({ onLogout }) {
       debugLog('Profile saved with ID:', resolvedProfileId)
       debugLog('Saved profile:', profilePayload)
       debugLog('Saved education entries:', educationPayload.length)
-      debugLog('Saved skills:', selectedSkillTagIds.length)
+      debugLog('Saved skills:', finalSelectedSkillTagIds.length)
 
       setIsSavingProfile(false)
       setShowSavedConfirmation(true)
@@ -1056,6 +1067,7 @@ export default function ApplicantProfile({ onLogout }) {
       // Reload data to verify persistence
       debugLog('Reloading profile data to verify persistence')
       await fetchFiles(userId, databaseUserId)
+      setSelectedSkillTagIds(finalSelectedSkillTagIds)
     } catch (err) {
       console.error('Unexpected save error:', err)
       setUploadMessage(getFriendlySupabaseError(err, 'Unexpected error while saving profile. Please try again.'))
