@@ -238,15 +238,15 @@ describe('Admin moderation queue TDD tests', () => {
     supabase.from.mockImplementation((table) => {
       const chain = {
         filters: {},
-        updateValues: null,
+        deleteRequested: false,
         select() {
           return chain
         },
         eq(field, value) {
-          if (chain.updateValues && table === 'opportunities' && field === 'id') {
-            const match = listingsState.find((item) => item.id === value)
-            if (match) {
-              match.status = chain.updateValues.status
+          if (chain.deleteRequested && table === 'opportunities' && field === 'id') {
+            const index = listingsState.findIndex((item) => item.id === value)
+            if (index !== -1) {
+              listingsState.splice(index, 1)
             }
             return { error: null }
           }
@@ -261,8 +261,11 @@ describe('Admin moderation queue TDD tests', () => {
         order() {
           return chain
         },
-        update(values) {
-          chain.updateValues = values
+        delete() {
+          chain.deleteRequested = true
+          return chain
+        },
+        update() {
           return chain
         },
         insert(payload) {

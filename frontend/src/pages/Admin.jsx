@@ -587,6 +587,20 @@ export default function Admin({
     return error
   }
 
+  const persistListingDeletion = async (listingId) => {
+    if (!hasSupabaseConfig) {
+      return
+    }
+
+    await supabase.from('opportunity_requirements').delete().eq('opportunity_id', listingId)
+    await supabase.from('opportunity_skills').delete().eq('opportunity_id', listingId)
+    await supabase.from('applications').delete().eq('opportunity_id', listingId)
+    await supabase.from('favourites').delete().eq('opportunity_id', listingId)
+
+    const { error } = await supabase.from('opportunities').delete().eq('id', listingId)
+    return error
+  }
+
   const persistAdminAction = async (payload) => {
     if (!hasSupabaseConfig) {
       return
@@ -614,15 +628,15 @@ export default function Admin({
     setErrorMessage('')
 
     try {
-      const updateError = await persistListingStatus(listingId, 'Deleted')
+      const deleteError = await persistListingDeletion(listingId)
 
-      if (updateError) {
+      if (deleteError) {
         setErrorMessage('Failed to remove listing')
         return
       }
 
       // Log the deletion action
-      const deleteError = await persistAdminAction({
+      const actionError = await persistAdminAction({
         admin_id: effectiveAdminId,
         action_type: 'deleted',
         target_type: 'listing',
@@ -631,7 +645,7 @@ export default function Admin({
         listing_type: listingToDelete.type,
       })
 
-      if (deleteError) {
+      if (actionError) {
         setErrorMessage('Failed to log deletion action')
         return
       }
