@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
-const DOCS_BUCKET = 'applicants/documents'
+const DOCS_BUCKET = 'applicant-documents'
 const APPLICATION_STATUS_OPTIONS = [
   { value: 'Pending', label: 'Pending' },
   { value: 'Shortlisted', label: 'Reviewed' },
@@ -210,7 +210,7 @@ export default function ProviderListingApplications() {
               // fallback to public url on same bucket
               const pub = await supabase.storage.from(bucket).getPublicUrl(path)
               return pub?.data?.publicUrl || ''
-            } catch (e) {
+            } catch (_) {
               // If createSignedUrl threw, try public URL and bucket-split fallback
               try {
                 const pub = await supabase.storage.from(bucket).getPublicUrl(path)

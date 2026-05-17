@@ -6,7 +6,7 @@ import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
 const PROFILE_BUCKET = 'profile-images'
-const DOCS_BUCKET = 'applicants/documents'
+const DOCS_BUCKET = 'applicant-documents'
 const MAX_CV_SIZE_BYTES = 5 * 1024 * 1024
 const CV_TYPE_ALLOWLIST = [
   'application/pdf',
@@ -302,7 +302,7 @@ export default function ApplicantProfile({ onLogout }) {
 
         const pub = await supabase.storage.from(bucket).getPublicUrl(path)
         return pub?.data?.publicUrl || ''
-      } catch (e) {
+      } catch (_) {
         try {
           const pub = await supabase.storage.from(bucket).getPublicUrl(path)
           if (pub?.data?.publicUrl) return pub.data.publicUrl

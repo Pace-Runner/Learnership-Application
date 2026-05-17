@@ -180,7 +180,7 @@ vi.mock('../lib/supabaseClient', () => {
           }
         }
 
-        if (bucket === 'applicants/documents') {
+        if (bucket === 'applicant-documents') {
           return {
             list: applicantSpies.docsStorageList,
             createSignedUrl: applicantSpies.docsStorageCreateSignedUrl,
