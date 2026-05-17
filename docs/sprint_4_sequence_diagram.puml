@@ -1,0 +1,149 @@
+@startuml Learnership Portal Complete Sequence Diagram
+!define APPLICANT_COLOR #d8e8ff
+!define PROVIDER_COLOR #d5f4e6
+!define SYSTEM_COLOR #f5f5f5
+!define ADMIN_COLOR #fef3cd
+
+title Learnership Portal - Complete System Workflows
+
+participant "Applicant" as APL APPLICANT_COLOR
+participant "Provider" as PRV PROVIDER_COLOR
+participant "System\n(Supabase)" as SYS SYSTEM_COLOR
+participant "Admin" as ADM ADMIN_COLOR
+
+== APPLICANT FLOW: Browse and Apply ==
+APL -> APL: Sign in to platform
+APL -> SYS: Request available listings
+SYS -> APL: Return approved listings
+APL -> APL: Browse available listings
+APL -> APL: Select a listing
+APL -> SYS: Check profile completeness\n(first_name, last_name, phone,\nlocation, date_of_birth, id_number, cv_url)
+
+alt Profile incomplete
+  SYS -> APL: Missing required fields
+  APL -> SYS: Update profile
+  SYS -> APL: Profile saved
+else Profile complete
+  SYS -> APL: Profile and CV ready ✓
+  APL -> SYS: Click Apply (one-click)
+  SYS -> SYS: Create application record\nstatus = 'Pending'
+  SYS -> APL: Show confirmation message
+end
+
+== APPLICANT FLOW: Track Applications ==
+APL -> SYS: View My Applications dashboard
+SYS -> APL: Display all applications with status
+APL -> APL: See current application status\n(Pending/Approved/Declined)
+
+== APPLICANT FLOW: Notifications ==
+note over SYS
+  When provider updates application status
+end note
+SYS -> SYS: Create notification record
+SYS -> APL: Send in-app notification
+SYS -> SYS: Send email notification via Brevo
+APL -> SYS: Mark notification as read
+SYS -> APL: Notification updated
+
+== APPLICANT FLOW: Favorites ==
+APL -> APL: Browse listings
+APL -> APL: Click favorite icon on listing
+APL -> SYS: Toggle entry in favourites table
+SYS -> SYS: Save/remove from favourites table
+SYS -> APL: Favorite saved/removed
+APL -> APL: View Favorites page
+APL -> SYS: Request favorite listings
+SYS -> APL: Display saved favorite listings
+
+== PROVIDER FLOW: Profile Setup ==
+PRV -> PRV: Sign in to platform
+PRV -> PRV: Go to Profile Setup
+PRV -> PRV: Fill profile form\n(organisation_name, phone, description)
+PRV -> SYS: Submit provider profile
+SYS -> SYS: Validate and save to provider_profiles table
+SYS -> PRV: Profile saved successfully
+
+== PROVIDER FLOW: Logo Upload ==
+PRV -> PRV: Select logo image file
+PRV -> SYS: Upload logo file (PNG, JPG, SVG)
+alt Upload successful
+  SYS -> SYS: Store file in provider_logos bucket
+  SYS -> SYS: Get public URL from bucket
+else Upload fails
+  SYS -> SYS: Use base64 preview as fallback
+end
+SYS -> SYS: Save logo_url to provider_profiles
+SYS -> PRV: Logo uploaded successfully
+PRV -> PRV: Logo displayed on profile & listings
+
+== PROVIDER FLOW: Filter Listings ==
+PRV -> PRV: Open provider dashboard
+PRV -> PRV: Select status filter\n(All/Pending/Approved/Declined)
+PRV -> SYS: Query opportunities with filter
+SYS -> PRV: Return filtered listings
+PRV -> PRV: View filtered listings
+
+== PROVIDER FLOW: View Applications ==
+PRV -> PRV: Select a listing
+PRV -> SYS: Request applications for listing
+SYS -> PRV: Return list of applicants
+PRV -> PRV: Select applicant from list
+
+== PROVIDER FLOW: View Applicant CV ==
+PRV -> SYS: Request CV (generate signed URL)
+SYS -> SYS: Create signed URL to CV file
+SYS -> PRV: Return CV link
+PRV -> PRV: View/Download CV (PDF or DOCX)
+
+== PROVIDER FLOW: Manage Application Status ==
+PRV -> PRV: Review application details
+PRV -> PRV: Click status dropdown
+PRV -> SYS: Update application status\n(Approve/Decline/Remove)
+SYS -> SYS: Update applications table
+SYS -> SYS: Create notification for applicant
+SYS -> PRV: Status updated
+SYS -> APL: Send notification (in-app + email)
+
+== ADMIN FLOW: Listing Moderation ==
+ADM -> ADM: Sign in to admin panel
+ADM -> SYS: Request pending listings
+SYS -> ADM: Return pending listings queue
+ADM -> ADM: Select pending listing
+ADM -> ADM: Review listing details
+
+alt Admin approves
+  ADM -> SYS: Click Approve
+  SYS -> SYS: Update opportunity status = 'Approved'\nCreate admin_actions log record
+  SYS -> ADM: Listing approved
+else Admin rejects
+  ADM -> SYS: Click Delete
+  SYS -> SYS: Mark opportunity as deleted\nCreate admin_actions log record
+  SYS -> ADM: Listing deleted
+end
+
+== ADMIN FLOW: Export Reports ==
+ADM -> ADM: Click export reports
+ADM -> SYS: Request report data
+SYS -> SYS: Generate CSV/PDF from admin_actions
+SYS -> ADM: Download report file
+ADM -> ADM: Save report locally
+
+== ADMIN FLOW: Delete User Account ==
+ADM -> ADM: Open user management panel
+ADM -> ADM: Search for user by name/email
+ADM -> ADM: Select user
+ADM -> ADM: Enter reason for deletion
+ADM -> SYS: Click Delete Account
+SYS -> SYS: Cascade delete:\n- applicant_profiles or provider_profiles\n- applications\n- opportunities\n- notifications\n- auth.users
+SYS -> SYS: Create admin_actions log record\n(account_deleted action)
+SYS -> SYS: Invoke Brevo API\nto send deletion email
+SYS -> SYS: Send email notification:\n"Your account has been deleted"
+SYS -> ADM: User account deleted successfully
+
+== END ==
+note over APL,ADM
+  Complete System Workflows
+  All features integrated
+end note
+
+@enduml

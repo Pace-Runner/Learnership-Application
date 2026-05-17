@@ -1,0 +1,192 @@
+@startuml
+title Learnership Portal - Sprint 4 Complete State Diagram
+
+top to bottom direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam ArrowColor #666666
+skinparam roundcorner 18
+skinparam state {
+  BorderColor #8fa4bf
+  FontColor #222222
+  BackgroundColor #eef4ff
+}
+
+'==== APPLICANT FLOW ====
+[*] --> ApplicantSignedIn
+state "Applicant signed in" as ApplicantSignedIn #d8e8ff
+
+ApplicantSignedIn --> BrowseListings : opens listings
+state "Browse listings" as BrowseListings #d8e8ff
+
+BrowseListings --> ListingDetail : select listing
+state "Listing detail view" as ListingDetail #d8e8ff
+
+ListingDetail --> ProfileCheck : click Apply
+state "Profile check" as ProfileCheck #f7efe0
+
+ProfileCheck --> ProfileIncomplete : missing fields
+state "Profile incomplete" as ProfileIncomplete #f8d7d7
+ProfileIncomplete --> UpdateProfile : go to profile
+state "Update profile" as UpdateProfile #fdf0ca
+UpdateProfile --> ProfileCheck : return & check
+
+ProfileCheck --> ApplicationSubmitted : all fields OK\nclick Apply
+state "One-click apply" as ApplicationSubmitted #dff1d8
+ApplicationSubmitted --> ApplicationPending : application created
+state "Application Pending" as ApplicationPending #fdf0ca
+
+ListingDetail --> FavoriteToggle : click favorite
+state "Toggle favorite" as FavoriteToggle #dff1d8
+
+FavoriteToggle --> FavoritesView : view favorites
+state "Favorites view" as FavoritesView #dff1d8
+
+FavoritesView --> BrowseListings : browse more
+BrowseListings --> FavoritesView : filter by favorites
+
+ApplicantSignedIn --> MyApplications : view My Applications
+state "My Applications view" as MyApplications #d8e8ff
+MyApplications --> ApplicationPending : track pending
+MyApplications --> ApplicationApproved : view approved
+MyApplications --> ApplicationDeclined : view declined
+state "Application Approved" as ApplicationApproved #dff1d8
+state "Application Declined" as ApplicationDeclined #f8d7d7
+
+ApplicationPending --> NotificationReceived : email notification
+ApplicationApproved --> NotificationReceived : email notification
+ApplicationDeclined --> NotificationReceived : email notification
+
+state "View in-app notification" as NotificationReceived #eadcf7
+NotificationReceived --> MyApplications : continue tracking
+MyApplications --> BrowseListings : apply to more
+ApplicantSignedIn --> [*] : logout (Applicant)
+
+'==== PROVIDER FLOW ====
+[*] --> ProviderSignedIn
+state "Provider signed in" as ProviderSignedIn #d8e8ff
+
+ProviderSignedIn --> ProfileSetup : create profile
+state "Provider profile setup" as ProfileSetup #f7efe0
+
+ProfileSetup --> UpdateProfile : edit profile\n (phone, company, description)
+state "Update profile" as UpdateProfile #fdf0ca
+
+UpdateProfile --> LogoUpload : upload logo
+state "Upload company logo" as LogoUpload #dff1d8
+
+LogoUpload --> DashboardLoaded : save and continue
+state "Provider dashboard" as DashboardLoaded #d8e8ff
+
+DashboardLoaded --> ApplyFilter : select filter
+state "Apply status filter" as ApplyFilter #d8e8ff
+ApplyFilter --> ApprovedFilter : select Approved
+ApplyFilter --> PendingFilter : select Pending
+ApplyFilter --> DeclinedFilter : select Declined
+ApplyFilter --> ViewAllListings : clear filter
+
+state "Filter: Approved" as ApprovedFilter #dff1d8
+state "Filter: Pending" as PendingFilter #fdf0ca
+state "Filter: Declined" as DeclinedFilter #f8d7d7
+state "View all listings" as ViewAllListings #d8e8ff
+
+ApprovedFilter --> SelectListing : select listing
+PendingFilter --> SelectListing : select listing
+DeclinedFilter --> SelectListing : select listing
+ViewAllListings --> SelectListing : select listing
+
+state "Select listing" as SelectListing #fdf0ca
+SelectListing --> ViewApplications : view applications
+state "View applications per listing" as ViewApplications #fdf0ca
+
+ViewApplications --> SelectApplication : select applicant
+state "Select application" as SelectApplication #fdf0ca
+
+SelectApplication --> CVView : view applicant CV
+state "CV opened / viewed" as CVView #dff1d8
+CVView --> ReviewApplication : review & manage
+state "Review application details" as ReviewApplication #fdf0ca
+
+ReviewApplication --> ChangeStatus : update status
+state "Manage application status" as ChangeStatus #fdf0ca
+
+ChangeStatus --> StatusUpdated : status changed
+state "Status updated" as StatusUpdated #eadcf7
+StatusUpdated --> NotificationSent : email notification sent
+state "Applicant notified" as NotificationSent #eadcf7
+
+NotificationSent --> ViewApplications : continue managing
+CVView --> ViewApplications : close CV
+ViewApplications --> SelectListing : select another listing
+SelectListing --> ViewApplications : view applications
+SelectListing --> DashboardLoaded : back to dashboard
+DashboardLoaded --> ApplyFilter : apply different filter
+
+ProviderSignedIn --> [*] : logout (Provider)
+
+'==== ADMIN FLOW ====
+[*] --> AdminSignedIn
+state "Admin signed in" as AdminSignedIn #d8e8ff
+
+AdminSignedIn --> AdminChoice : select task
+state "Admin options" as AdminChoice #d8e8ff
+
+AdminChoice --> ModerationQueue : view moderation queue
+AdminChoice --> UserManagement : view user management
+
+state "Moderation queue" as ModerationQueue #d8e8ff
+ModerationQueue --> SelectPendingListing : select pending listing
+state "Select pending listing" as SelectPendingListing #fdf0ca
+
+SelectPendingListing --> ReviewListing : review listing details
+state "Review listing details" as ReviewListing #fdf0ca
+
+ReviewListing --> ApproveListingDecision : decide action
+state "Approve or Delete?" as ApproveListingDecision #f7efe0
+
+ApproveListingDecision --> ApproveListing : click Approve
+ApproveListingDecision --> DeleteListing : click Delete
+
+state "Listing Approved" as ApproveListing #dff1d8
+state "Listing Deleted" as DeleteListing #f8d7d7
+
+ApproveListing --> AdminActionLogged1 : action recorded
+DeleteListing --> AdminActionLogged1 : action recorded
+
+state "Admin action logged" as AdminActionLogged1 #eadcf7
+AdminActionLogged1 --> ModerationQueue : continue moderating
+AdminActionLogged1 --> ExportReports : export reports
+state "Generate & export reports" as ExportReports #fdf0ca
+
+ExportReports --> ReportDownloaded : download CSV/PDF
+state "Report downloaded" as ReportDownloaded #dff1d8
+
+ReportDownloaded --> ModerationQueue : continue
+ModerationQueue --> AdminChoice : back to menu
+
+state "User management panel" as UserManagement #d8e8ff
+UserManagement --> SearchUser : search for user
+state "Search user directory" as SearchUser #fdf0ca
+
+SearchUser --> SelectUser : select user
+state "Select user" as SelectUser #fdf0ca
+
+SelectUser --> ConfirmDelete : enter delete reason
+state "Confirm delete with reason" as ConfirmDelete #f7efe0
+
+ConfirmDelete --> DeleteAccount : click Delete
+state "Delete user account" as DeleteAccount #f8d7d7
+
+DeleteAccount --> EmailSent : send deletion email
+state "Email notification sent" as EmailSent #fdf0ca
+
+EmailSent --> AdminActionLogged2 : action logged
+state "Admin action logged (delete)" as AdminActionLogged2 #eadcf7
+
+AdminActionLogged2 --> UserManagement : continue managing
+UserManagement --> AdminChoice : back to menu
+
+AdminChoice --> [*] : logout (Admin)
+
+@enduml

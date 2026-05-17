@@ -993,6 +993,8 @@ export default function ApplicantProfile({ onLogout }) {
       // Persist skills through the RPC when available, but keep the old insert path as a fallback.
       try {
         const skillIdsArray = Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []
+        let rpcSuccess = false
+
         if (typeof supabase.rpc === 'function') {
           debugLog('Calling RPC upsert_applicant_skills', resolvedProfileId, skillIdsArray)
           const { data: rpcData, error: rpcError } = await supabase.rpc('upsert_applicant_skills', {
@@ -1002,12 +1004,14 @@ export default function ApplicantProfile({ onLogout }) {
 
           if (!rpcError) {
             debugLog('upsert_applicant_skills result:', rpcData)
+            rpcSuccess = true
           } else {
-            console.warn('upsert_applicant_skills RPC unavailable, falling back to direct inserts:', rpcError)
+            console.warn('upsert_applicant_skills RPC failed, falling back to direct inserts:', rpcError)
           }
         }
 
-        if (typeof supabase.rpc !== 'function' || finalSelectedSkillTagIds.length > 0) {
+        // Only use fallback if RPC wasn't available or failed
+        if (!rpcSuccess && (typeof supabase.rpc !== 'function' || finalSelectedSkillTagIds.length > 0)) {
           const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
           if (deleteSkillsError) {
             console.error('Skills delete error:', deleteSkillsError)
