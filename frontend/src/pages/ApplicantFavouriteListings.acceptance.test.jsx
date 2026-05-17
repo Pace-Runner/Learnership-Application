@@ -187,7 +187,9 @@ describe('Applicant favourite listings acceptance tests', () => {
     renderDashboard()
 
     expect(await screen.findByText('Listing Test')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Favourites' }))
     expect(screen.getByText('You have not favourited any opportunities yet.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Current Listings and Internships' }))
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Favorite Listing Test' }))
@@ -203,8 +205,9 @@ describe('Applicant favourite listings acceptance tests', () => {
     await waitFor(() => {
       expect(screen.getByText('1 favourited')).toBeTruthy()
     })
-    expect(screen.getByRole('button', { name: 'Remove favourited Listing Test' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Listing Test is already favourited' }).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('tab', { name: 'Favourites' }))
+    expect(screen.getByRole('button', { name: 'Remove favourited Listing Test' })).toBeTruthy()
   })
 
   test('loads favourited opportunities and removes a favourite listing', async () => {
@@ -220,6 +223,7 @@ describe('Applicant favourite listings acceptance tests', () => {
     renderDashboard()
 
     expect(await screen.findByText('1 favourited')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Favourites' }))
     expect(screen.getByRole('button', { name: 'Remove favourited Listing Test' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove favourited Listing Test' }))

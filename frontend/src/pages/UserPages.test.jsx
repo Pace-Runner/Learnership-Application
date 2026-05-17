@@ -198,7 +198,7 @@ describe('Applicant tests', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getByText('Current Listings and Internships')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Current Listings and Internships' })).toBeTruthy()
     expect(screen.getByPlaceholderText('Search by title, location, or sector')).toBeTruthy()
     expect(screen.getByLabelText('Filter listing type')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Search' })).toBeTruthy()

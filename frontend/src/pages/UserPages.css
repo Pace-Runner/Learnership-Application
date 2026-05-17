@@ -408,6 +408,72 @@
   gap: 0.8rem;
 }
 
+.applicant-tab-shell {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.applicant-tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(176, 209, 255, 0.22);
+}
+
+.applicant-tab-btn {
+  border: 1px solid rgba(192, 219, 255, 0.7);
+  border-radius: 999px;
+  background: rgba(244, 249, 255, 0.94);
+  color: #17365f;
+  padding: 0.62rem 1rem;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.applicant-tab-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(5, 15, 32, 0.2);
+}
+
+.applicant-tab-btn-active {
+  border-color: rgba(123, 196, 246, 0.95);
+  background: #7ec5f2;
+  color: #0a2545;
+}
+
+.applicant-tab-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.applicant-tab-panel[hidden] {
+  display: none;
+}
+
+.applicant-scroll-list,
+.notification-scroll-list {
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  scrollbar-color: rgba(167, 204, 255, 0.62) rgba(255, 255, 255, 0.06);
+}
+
+.applicant-scroll-list {
+  max-height: 35rem;
+}
+
+.notification-scroll-list {
+  max-height: 17rem;
+}
+
+.application-scroll-list {
+  max-height: 26rem;
+}
+
 .applicant-detail-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -481,10 +547,6 @@
 .favourite-list {
   display: grid;
   gap: 0.7rem;
-  max-height: 17.5rem;
-  overflow-y: auto;
-  padding-right: 0.25rem;
-  scrollbar-color: rgba(167, 204, 255, 0.62) rgba(255, 255, 255, 0.06);
 }
 
 .listing-card-actions {
@@ -567,6 +629,10 @@
 
 .listing-search-panel {
   margin-top: 1rem;
+}
+
+.listing-search-panel-embedded {
+  margin-top: 0;
 }
 
 .listing-search-form {
