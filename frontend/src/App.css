@@ -31,8 +31,8 @@
   display: grid;
   gap: 0.45rem;
   padding: 0.76rem 1rem 0.55rem;
-  background: rgba(255, 255, 255, 0.95);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(7, 18, 38, 0.8);
+  border-bottom: 1px solid rgba(166, 199, 249, 0.14);
   backdrop-filter: blur(10px);
   transition: padding 260ms ease, background 260ms ease, box-shadow 260ms ease, gap 260ms ease, border-color 260ms ease;
 }
@@ -110,8 +110,8 @@
 
 .page-one {
   min-height: 100svh;
-  background: #f8f9fa;
-  color: #151a23;
+  background: #071022;
+  color: #eef5ff;
   padding: 1.6rem 2rem 1.4rem;
   position: relative;
   overflow: hidden;

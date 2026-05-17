@@ -1000,12 +1000,9 @@ export default function ApplicantProfile({ onLogout }) {
         // Step 1: Delete existing skills for this applicant
         const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
         if (deleteSkillsError) {
-          console.error('Skills delete error - Full details:', deleteSkillsError)
-          console.error('Error message:', deleteSkillsError.message)
-          console.error('Error details:', deleteSkillsError.details)
-          console.error('Error hint:', deleteSkillsError.hint)
+          console.error('Skills delete error:', deleteSkillsError)
           setUploadMessage(
-            `Profile saved, but could not clear previous skills: ${deleteSkillsError.message || 'Unknown error'}`,
+            `Profile saved, but could not clear previous skills: ${getFriendlySupabaseError(deleteSkillsError, 'Unknown error')}`,
           )
           setIsSavingProfile(false)
           return
@@ -1023,12 +1020,9 @@ export default function ApplicantProfile({ onLogout }) {
           )
 
           if (skillsError) {
-            console.error('Skills insert error - Full details:', skillsError)
-            console.error('Error message:', skillsError.message)
-            console.error('Error details:', skillsError.details)
-            console.error('Error hint:', skillsError.hint)
+            console.error('Skills insert error:', skillsError)
             setUploadMessage(
-              `Profile saved, but selected skills failed: ${skillsError.message || 'Unknown error'}`,
+              `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsError, 'Unknown error')}`,
             )
             setIsSavingProfile(false)
             return
