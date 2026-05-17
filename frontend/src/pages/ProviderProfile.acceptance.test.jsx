@@ -223,7 +223,7 @@ describe('Provider profile acceptance tests', () => {
     renderProfilePage()
 
     expect(await screen.findByText('Build your profile')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Save profile' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Save profile' })).toBeTruthy()
     expect(screen.getByText('Profile preview')).toBeTruthy()
   })
 
@@ -232,9 +232,10 @@ describe('Provider profile acceptance tests', () => {
     renderProfilePage()
 
     await screen.findByText('Build your profile')
+    const saveProfileButton = await screen.findByRole('button', { name: 'Save profile' })
 
     // Try to submit with empty fields
-    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+    fireEvent.click(saveProfileButton)
 
     // Should see validation error messages
     await waitFor(() => {
@@ -249,8 +250,9 @@ describe('Provider profile acceptance tests', () => {
     renderProfilePage()
 
     await screen.findByText('Build your profile')
+    const companyField = await screen.findByLabelText(/Company \/ organisation name/i)
 
-    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+    fireEvent.change(companyField, {
       target: { value: 'Test Org' },
     })
     fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: 'invalid' } })
@@ -286,9 +288,10 @@ describe('Provider profile acceptance tests', () => {
     renderProfilePage()
 
     await screen.findByText('Build your profile')
+    const saveProfileButton = await screen.findByRole('button', { name: 'Save profile' })
 
     // Submit with empty fields to trigger validation
-    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+    fireEvent.click(saveProfileButton)
 
     await waitFor(() => {
       expect(screen.getByText(/Company \/ organisation name is required/i)).toBeTruthy()
