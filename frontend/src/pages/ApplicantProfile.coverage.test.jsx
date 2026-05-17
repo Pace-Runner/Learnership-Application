@@ -59,7 +59,7 @@ const applicantSpies = vi.hoisted(() => ({
   skillsDeleteEq: vi.fn(),
   skillsInsert: vi.fn(),
   skillTagsInsert: vi.fn(),
-  skillTagsInsertSingle: vi.fn(),
+  skillTagsInsertSelect: vi.fn(),
   profileStorageList: vi.fn(),
   profileStorageCreateSignedUrl: vi.fn(),
   profileStorageUpload: vi.fn(),
@@ -101,13 +101,20 @@ vi.mock('../lib/supabaseClient', () => {
               }
               return { data: applicantState.skillTags, error: applicantState.skillTagsError }
             },
+            in: async (_column, names) => ({
+              data: applicantState.skillTags.filter((skillTag) => names.includes(skillTag.name)),
+              error: null,
+            }),
           }),
           insert: applicantSpies.skillTagsInsert.mockImplementation((payload) => ({
-            select: () => ({
-              single: applicantSpies.skillTagsInsertSingle.mockImplementation(async () => ({
-                data: { id: 'skill-new', ...payload },
+            select: applicantSpies.skillTagsInsertSelect.mockImplementation(async () => {
+              const rows = Array.isArray(payload) ? payload : [payload]
+              const createdTags = rows.map((row, index) => ({ id: `skill-new-${index + 1}`, ...row }))
+              applicantState.skillTags = [...applicantState.skillTags, ...createdTags]
+              return {
+                data: createdTags,
                 error: null,
-              })),
+              }
             }),
           })),
         }
@@ -249,7 +256,7 @@ beforeEach(() => {
   })
   applicantSpies.profileSelectMaybeSingle.mockResolvedValue({ data: applicantState.profile, error: null })
   applicantSpies.educationOrder.mockResolvedValue({ data: applicantState.education, error: null })
-  applicantSpies.skillsEq.mockResolvedValue({ data: applicantState.skills, error: null })
+  applicantSpies.skillsEq.mockImplementation(async () => ({ data: applicantState.skills, error: null }))
   applicantSpies.profileStorageList.mockResolvedValue({ data: applicantState.profileFiles, error: null })
   applicantSpies.profileStorageCreateSignedUrl.mockResolvedValue({
     data: { signedUrl: applicantState.profileSignedUrl },
@@ -273,7 +280,10 @@ beforeEach(() => {
   applicantSpies.educationDeleteEq.mockResolvedValue({ error: null })
   applicantSpies.educationInsert.mockResolvedValue({ error: null })
   applicantSpies.skillsDeleteEq.mockResolvedValue({ error: null })
-  applicantSpies.skillsInsert.mockResolvedValue({ error: null })
+  applicantSpies.skillsInsert.mockImplementation(async (payload) => {
+    applicantState.skills = (payload || []).map((row) => ({ skill_tag_id: row.skill_tag_id }))
+    return { error: null }
+  })
   applicantSpies.windowOpen.mockImplementation(() => null)
   window.open = applicantSpies.windowOpen
 })
@@ -499,6 +509,28 @@ describe('ApplicantProfile coverage', () => {
     const selectedIds = payload.map((row) => row.skill_tag_id)
     expect(selectedIds).toContain('skill-1')
     expect(selectedIds).toContain('skill-2')
+  })
+
+  test('keeps newly created suggested skills selected after saving', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+    fireEvent.click(screen.getByRole('button', { name: 'View all skills' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Project Management' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save full profile' }))
+
+    await waitFor(() => expect(applicantSpies.skillTagsInsertSelect).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove Project Management' })).toBeTruthy())
+
+    const payload = applicantSpies.skillsInsert.mock.calls.at(-1)?.[0] || []
+    const selectedIds = payload.map((row) => row.skill_tag_id)
+    expect(selectedIds).toContain('skill-new-1')
   })
 
   test('edits an existing profile and re-saves updated values', async () => {
