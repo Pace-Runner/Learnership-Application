@@ -187,10 +187,10 @@ describe('Applicant favourite listings acceptance tests', () => {
     renderDashboard()
 
     expect(await screen.findByText('Listing Test')).toBeTruthy()
-    expect(screen.getByText('You have not saved any opportunities yet.')).toBeTruthy()
+    expect(screen.getByText('You have not favourited any opportunities yet.')).toBeTruthy()
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Save Listing Test to favourites' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Favorite Listing Test' }))
     })
 
     await waitFor(() => {
@@ -201,13 +201,13 @@ describe('Applicant favourite listings acceptance tests', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('1 saved')).toBeTruthy()
+      expect(screen.getByText('1 favourited')).toBeTruthy()
     })
-    expect(screen.getByRole('button', { name: 'Remove saved Listing Test' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Listing Test is already saved' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Remove favourited Listing Test' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Listing Test is already favourited' }).disabled).toBe(true)
   })
 
-  test('loads saved opportunities and removes a favourite listing', async () => {
+  test('loads favourited opportunities and removes a favourite listing', async () => {
     favouriteState.favouriteRows = [
       {
         id: 'favourite-1',
@@ -219,15 +219,15 @@ describe('Applicant favourite listings acceptance tests', () => {
 
     renderDashboard()
 
-    expect(await screen.findByText('1 saved')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Remove saved Listing Test' })).toBeTruthy()
+    expect(await screen.findByText('1 favourited')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove favourited Listing Test' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove saved Listing Test' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove favourited Listing Test' }))
 
     await waitFor(() => {
       expect(favouriteSpies.favouritesDeleteOpportunityEq).toHaveBeenCalledWith('opportunity_id', 'listing-1')
     })
 
-    expect(screen.getByText('You have not saved any opportunities yet.')).toBeTruthy()
+    expect(screen.getByText('You have not favourited any opportunities yet.')).toBeTruthy()
   })
 })

@@ -186,7 +186,7 @@ describe('Applicant tests', () => {
     )
 
     expect(screen.getByText('Available listings')).toBeTruthy()
-    expect(screen.getByText('Saved opportunities')).toBeTruthy()
+    expect(screen.getByText('Favourited opportunities')).toBeTruthy()
     expect(screen.getByText('Documents uploaded')).toBeTruthy()
   })
 
