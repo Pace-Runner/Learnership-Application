@@ -995,21 +995,15 @@ export default function ApplicantProfile({ onLogout }) {
       try {
         const skillIdsArray = Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []
 
-        console.log('=== SKILLS SAVE START ===')
-        console.log('Applicant ID:', resolvedProfileId)
-        console.log('Selected skill IDs:', skillIdsArray)
         debugLog('Persisting skills for applicant:', resolvedProfileId, 'Count:', skillIdsArray.length)
 
         // Step 1: Delete existing skills for this applicant
-        console.log('Attempting to DELETE skills...')
         const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
-        
         if (deleteSkillsError) {
-          console.error('❌ SKILLS DELETE FAILED - Full details:', deleteSkillsError)
-          console.error('  Message:', deleteSkillsError.message)
-          console.error('  Code:', deleteSkillsError.code)
-          console.error('  Details:', deleteSkillsError.details)
-          console.error('  Hint:', deleteSkillsError.hint)
+          console.error('Skills delete error - Full details:', deleteSkillsError)
+          console.error('Error message:', deleteSkillsError.message)
+          console.error('Error details:', deleteSkillsError.details)
+          console.error('Error hint:', deleteSkillsError.hint)
           setUploadMessage(
             `Profile saved, but could not clear previous skills: ${deleteSkillsError.message || 'Unknown error'}`,
           )
@@ -1017,12 +1011,10 @@ export default function ApplicantProfile({ onLogout }) {
           return
         }
 
-        console.log('✅ DELETE successful')
         debugLog('Cleared existing skills')
 
         // Step 2: Insert new skills if any were selected
         if (skillIdsArray.length > 0) {
-          console.log('Attempting to INSERT skills:', skillIdsArray)
           const { error: skillsError } = await supabase.from('applicant_skills').insert(
             skillIdsArray.map((skillTagId) => ({
               applicant_id: resolvedProfileId,
@@ -1031,11 +1023,10 @@ export default function ApplicantProfile({ onLogout }) {
           )
 
           if (skillsError) {
-            console.error('❌ SKILLS INSERT FAILED - Full details:', skillsError)
-            console.error('  Message:', skillsError.message)
-            console.error('  Code:', skillsError.code)
-            console.error('  Details:', skillsError.details)
-            console.error('  Hint:', skillsError.hint)
+            console.error('Skills insert error - Full details:', skillsError)
+            console.error('Error message:', skillsError.message)
+            console.error('Error details:', skillsError.details)
+            console.error('Error hint:', skillsError.hint)
             setUploadMessage(
               `Profile saved, but selected skills failed: ${skillsError.message || 'Unknown error'}`,
             )
@@ -1043,16 +1034,12 @@ export default function ApplicantProfile({ onLogout }) {
             return
           }
 
-          console.log('✅ INSERT successful for', skillIdsArray.length, 'skills')
           debugLog('Inserted', skillIdsArray.length, 'skills')
         } else {
-          console.log('✅ No skills to insert (all cleared)')
           debugLog('No skills selected, all skills cleared')
         }
-        
-        console.log('=== SKILLS SAVE COMPLETE (SUCCESS) ===')
       } catch (errSkills) {
-        console.error('❌ UNEXPECTED ERROR:', errSkills)
+        console.error('Unexpected error when saving skills:', errSkills)
         setUploadMessage('Profile saved, but skills update failed. Please try again.')
         setIsSavingProfile(false)
         return
