@@ -10,7 +10,7 @@ import {
   normalizeApplicationRow,
   normalizeApprovedListing,
   filterApprovedListings,
-} from './pages/Dashboard'
+} from './pages/dashboard-helpers'
 
 describe('Dashboard Helpers', () => {
   describe('formatRandAmount', () => {
