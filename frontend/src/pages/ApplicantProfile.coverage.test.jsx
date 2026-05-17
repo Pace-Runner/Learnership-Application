@@ -511,7 +511,7 @@ describe('ApplicantProfile coverage', () => {
     expect(selectedIds).toContain('skill-2')
   })
 
-  test('keeps newly created suggested skills selected after saving', async () => {
+  test('converts suggested skills to persisted skill tags before saving', async () => {
     const ApplicantProfile = await loadApplicantProfile()
 
     render(
@@ -526,11 +526,12 @@ describe('ApplicantProfile coverage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save full profile' }))
 
     await waitFor(() => expect(applicantSpies.skillTagsInsertSelect).toHaveBeenCalled())
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove Project Management' })).toBeTruthy())
+    await waitFor(() => expect(applicantSpies.skillsInsert).toHaveBeenCalled())
 
     const payload = applicantSpies.skillsInsert.mock.calls.at(-1)?.[0] || []
     const selectedIds = payload.map((row) => row.skill_tag_id)
     expect(selectedIds).toContain('skill-new-1')
+    expect(selectedIds).not.toContain('project-management')
   })
 
   test('edits an existing profile and re-saves updated values', async () => {
