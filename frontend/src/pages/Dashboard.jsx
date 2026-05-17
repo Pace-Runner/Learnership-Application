@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
-function formatRandAmount(value) {
+export function formatRandAmount(value) {
   const parsed = Number(value)
 
   if (!Number.isFinite(parsed)) {
@@ -17,7 +17,7 @@ function formatRandAmount(value) {
   return `R${parsed.toLocaleString('en-ZA', { maximumFractionDigits: 2 })}`
 }
 
-function formatShortDate(value) {
+export function formatShortDate(value) {
   if (!value) {
     return 'Not specified'
   }
@@ -69,33 +69,33 @@ const applicationStatusLabels = {
   Rejected: 'Rejected',
 }
 
-function getApplicationStatusLabel(status) {
-  return applicationStatusLabels[status] || status || 'Pending'
+export function getApplicationStatusLabel(status) {
+  return applicationStatusLabels[status] || 'Pending'
 }
 
-function getApplicationStatusClass(status) {
+export function getApplicationStatusClass(status) {
   if (status === 'Pending' || status === 'Received') {
     return 'status-chip status-chip-pending'
   }
 
-  if (status === 'Reviewed') {
+  if (status === 'Reviewed' || status === 'Shortlisted') {
     return 'status-chip status-chip-reviewed'
   }
 
-  if (status === 'Accepted') {
-    return 'status-chip status-chip-accepted'
+  if (status === 'Accepted' || status === 'Offered') {
+    return 'status-chip status-chip-approved'
   }
 
   if (status === 'Rejected') {
-    return 'status-chip status-chip-rejected'
+    return 'status-chip status-chip-removed'
   }
 
-  return 'status-chip status-chip-soft'
+  return 'status-chip status-chip-pending'
 }
 
-function formatApplicationDate(value) {
+export function formatApplicationDate(value) {
   if (!value) {
-    return 'Date unavailable'
+    return 'Not specified'
   }
 
   const parsedDate = new Date(value)
@@ -111,9 +111,9 @@ function formatApplicationDate(value) {
   })
 }
 
-function formatNotificationDate(value) {
+export function formatNotificationDate(value) {
   if (!value) {
-    return 'Just now'
+    return 'Not specified'
   }
 
   const parsedDate = new Date(value)
@@ -122,16 +122,14 @@ function formatNotificationDate(value) {
     return value
   }
 
-  return parsedDate.toLocaleString('en-ZA', {
+  return parsedDate.toLocaleDateString('en-ZA', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   })
 }
 
-function getNotificationTypeLabel(type) {
+export function getNotificationTypeLabel(type) {
   if (type === 'status_update') {
     return 'Application update'
   }
@@ -147,21 +145,25 @@ function getNotificationTypeLabel(type) {
   return 'Notification'
 }
 
-function normalizeApplicationRow(row) {
+export function normalizeApplicationRow(row) {
   const opportunity = row.opportunities || row.opportunity || {}
+  const applicantProfile = row.applicant_profiles || row.applicants || row.applicant || {}
 
   return {
     id: row.id,
-    title: opportunity.title || 'Untitled opportunity',
+    listingTitle: opportunity.title || 'Untitled opportunity',
     type: opportunity.type || 'Not specified',
     location: opportunity.location || 'Not specified',
     closingDate: opportunity.closing_date || '',
     appliedAt: row.applied_at || row.updated_at || '',
     status: getApplicationStatusLabel(row.status),
+    applicantName: applicantProfile.first_name ? `${applicantProfile.first_name} ${applicantProfile.last_name || ''}`.trim() : 'Unknown',
   }
 }
 
-function normalizeApprovedListing(row) {
+export function normalizeApprovedListing(row) {
+  const providerProfile = row.provider_profiles || {}
+
   return {
     id: row.id,
     title: row.title || 'Untitled opportunity',
@@ -172,6 +174,7 @@ function normalizeApprovedListing(row) {
     stipend: row.stipend,
     closingDate: row.closingDate || row.closing_date || 'Not specified',
     status: row.status || 'Approved',
+    provider: providerProfile.organisation_name || row.provider_name || row.provider || 'Not specified',
   }
 }
 
@@ -185,10 +188,15 @@ function normalizeFavouriteRow(row) {
   }
 }
 
-function filterApprovedListings(listings, searchTerm, selectedType) {
+export function filterApprovedListings(listings, searchTerm, selectedType) {
   const normalizedSearchTerm = searchTerm.trim().toLowerCase()
 
   return listings.filter((listing) => {
+    // Ensure listing has required fields to avoid incomplete records
+    if (!listing?.id || !listing?.title) {
+      return false
+    }
+
     // Applicants should never see pending or removed opportunities in the search results.
     if (listing?.status && listing.status !== 'Approved') {
       return false
