@@ -188,9 +188,21 @@ export default function ProviderListingApplications() {
 
           try {
             const { data } = await supabase.storage.from(DOCS_BUCKET).createSignedUrl(normalizedPath, 60 * 10)
-            return { ...item, cvLink: data?.signedUrl || '' }
+
+            if (data?.signedUrl) {
+              return { ...item, cvLink: data.signedUrl }
+            }
+
+            // If signed URL wasn't returned, try public URL as a fallback
+            const { data: publicData } = await supabase.storage.from(DOCS_BUCKET).getPublicUrl(normalizedPath)
+            return { ...item, cvLink: publicData?.publicUrl || '' }
           } catch {
-            return { ...item, cvLink: '' }
+            try {
+              const { data: publicData } = await supabase.storage.from(DOCS_BUCKET).getPublicUrl(normalizedPath)
+              return { ...item, cvLink: publicData?.publicUrl || '' }
+            } catch {
+              return { ...item, cvLink: '' }
+            }
           }
         }),
       )
