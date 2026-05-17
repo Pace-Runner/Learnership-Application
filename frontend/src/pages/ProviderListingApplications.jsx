@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
-const DOCS_BUCKET = 'applicant-documents'
+const DOCS_BUCKET = 'applicants/documents'
 const APPLICATION_STATUS_OPTIONS = [
   { value: 'Pending', label: 'Pending' },
   { value: 'Shortlisted', label: 'Reviewed' },

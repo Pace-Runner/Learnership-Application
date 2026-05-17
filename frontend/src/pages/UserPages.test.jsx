@@ -76,7 +76,7 @@ vi.mock('../lib/supabaseClient', () => {
               list: mockSupabaseSpies.profileStorageList,
             }
           }
-          if (bucket === 'applicant-documents') {
+          if (bucket === 'applicants/documents') {
             return {
               list: mockSupabaseSpies.docsStorageList,
             }

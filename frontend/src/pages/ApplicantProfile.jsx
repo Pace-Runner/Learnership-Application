@@ -6,7 +6,7 @@ import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
 const PROFILE_BUCKET = 'profile-images'
-const DOCS_BUCKET = 'applicant-documents'
+const DOCS_BUCKET = 'applicants/documents'
 const MAX_CV_SIZE_BYTES = 5 * 1024 * 1024
 const CV_TYPE_ALLOWLIST = [
   'application/pdf',
