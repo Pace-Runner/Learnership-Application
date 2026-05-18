@@ -320,19 +320,19 @@ export default function Provider({ onLogout }) {
               <span className="status-chip status-chip-soft">Status updates</span>
             </header>
 
-            <div className="provider-status-filter-row" role="tablist" aria-label="Filter listings by status">
-              {providerStatusFilters.map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={selectedStatusFilter === filter.value}
-                  className={`user-action-btn provider-status-filter-btn${selectedStatusFilter === filter.value ? ' provider-status-filter-btn-active' : ''}`}
-                  onClick={() => setSelectedStatusFilter(filter.value)}
-                >
-                  {filter.label}
-                </button>
-              ))}
+            <div className="provider-status-filter-row">
+              <select
+                className="profile-input provider-status-filter-select"
+                aria-label="Filter listings by status"
+                value={selectedStatusFilter}
+                onChange={(event) => setSelectedStatusFilter(event.target.value)}
+              >
+                {providerStatusFilters.map((filter) => (
+                  <option key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {isLoadingListings ? <p className="user-panel-copy">Loading your listings...</p> : null}

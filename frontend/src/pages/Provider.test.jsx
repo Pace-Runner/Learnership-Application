@@ -171,6 +171,27 @@ describe('Provider dashboard acceptance tests', () => {
     expect(screen.getByText('Approved listings')).toBeTruthy()
   })
 
+  test('shows a dropdown filter with the same status options', async () => {
+    const Provider = await loadProvider()
+
+    render(
+      <MemoryRouter>
+        <Provider onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Business Administration NQF 4')
+
+    const filterSelect = screen.getByLabelText('Filter listings by status')
+    expect(filterSelect).toBeTruthy()
+    expect(Array.from(filterSelect.querySelectorAll('option')).map((option) => option.textContent)).toEqual([
+      'All',
+      'Pending',
+      'Approved',
+      'Declined',
+    ])
+  })
+
   test('shows Profile, New Listing, and Logout buttons in header', async () => {
     const Provider = await loadProvider()
 

@@ -67,20 +67,12 @@
 
 .provider-status-filter-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  justify-content: flex-end;
+  margin-top: 0.85rem;
 }
 
-.provider-status-filter-btn {
-  width: auto;
-  min-width: 0;
-  padding-inline: 0.85rem;
-}
-
-.provider-status-filter-btn-active {
-  border-color: rgba(255, 210, 168, 0.82);
-  background: rgba(255, 186, 120, 0.16);
-  color: #fff7ef;
+.provider-status-filter-select {
+  width: min(240px, 100%);
 }
 
 .provider-panel-head h2,
@@ -577,6 +569,54 @@
   text-align: center;
 }
 
+.listing-card-row {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.listing-card-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.listing-provider-avatar {
+  width: 4.5rem;
+  height: 4.5rem;
+  flex: 0 0 4.5rem;
+  border-radius: 14px;
+  border: 1px solid rgba(160, 203, 255, 0.42);
+  background: linear-gradient(180deg, rgba(33, 63, 106, 0.92), rgba(15, 32, 58, 0.96));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.listing-provider-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.listing-provider-avatar span {
+  color: #f4f9ff;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+}
+
+.listing-card-provider {
+  display: block;
+  margin-top: 0.28rem;
+  color: rgba(198, 220, 247, 0.78);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .favourite-toggle-btn-active {
   border-color: rgba(178, 200, 229, 0.28);
   background: rgba(178, 200, 229, 0.08);
@@ -656,7 +696,7 @@
 }
 
 .listing-search-form select option {
-  background: #12233f;
+  background: #18365c;
   color: #f3f8ff;
 }
 
@@ -789,6 +829,18 @@
   color: #eff7ff;
   padding: 0.62rem 0.72rem;
   font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.provider-listing-form select option {
+  background: #18365c;
+  color: #f3f8ff;
+}
+
+.provider-listing-form select option:checked,
+.provider-listing-form select option:hover,
+.provider-listing-form select option:focus {
+  background: #245086;
+  color: #ffffff;
 }
 
 .provider-listing-form textarea {

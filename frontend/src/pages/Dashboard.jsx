@@ -258,7 +258,7 @@ export default function Dashboard({ onLogout, listings }) {
       // Pull the approved opportunities once, then let the dashboard handle the search/filtering client-side.
       const { data, error } = await supabase
         .from('opportunities')
-        .select('id,title,type,description,location,closing_date,stipend,status')
+        .select('id,title,type,description,location,closing_date,stipend,status,provider_profiles:provider_id(organisation_name,logo_url)')
         .eq('status', 'Approved')
         .order('created_at', { ascending: false })
 
@@ -645,38 +645,49 @@ export default function Dashboard({ onLogout, listings }) {
                   const isUpdatingFavourite = updatingFavouriteId === item.id
 
                   return (
-                    <li key={item.id || item.title}>
-                      <span>{item.type}</span>
-                      <strong>{item.title}</strong>
-                      {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
-                      {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
-                      {item.location ? <small className="user-item-meta">{item.location}</small> : null}
-                      <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
-                      {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
-                      <div className="listing-card-actions">
-                        {item.id ? (
-                          <Link
-                            to={`/dashboard/listings/${item.id}`}
-                            className="user-action-btn user-action-btn-inline provider-action-link"
-                            aria-label={`View details for ${item.title}`}
-                          >
-                            View details
-                          </Link>
-                        ) : null}
-                        {item.id ? (
-                          <button
-                            type="button"
-                            className={`user-action-btn user-action-btn-inline favourite-toggle-btn${isFavourite ? ' favourite-toggle-btn-active' : ''}`}
-                            onClick={() => handleFavouriteToggle(item)}
-                            disabled={isUpdatingFavourite || isFavourite}
-                            aria-pressed={isFavourite}
-                            aria-label={isFavourite
-                              ? `${item.title} is already favourited`
-                              : `Favorite ${item.title}`}
-                          >
-                            {isUpdatingFavourite ? 'Updating...' : isFavourite ? 'Favorited' : 'Favorite'}
-                          </button>
-                        ) : null}
+                    <li key={item.id || item.title} className="listing-card-row">
+                      <div className="listing-provider-avatar" aria-label={`Provider profile picture for ${item.provider}`}>
+                        {item.providerAvatarUrl ? (
+                          <img src={item.providerAvatarUrl} alt={`${item.provider} profile`} />
+                        ) : (
+                          <span>{item.providerAvatarInitials}</span>
+                        )}
+                      </div>
+
+                      <div className="listing-card-content">
+                        <span>{item.type}</span>
+                        <strong>{item.title}</strong>
+                        <small className="listing-card-provider">{item.provider}</small>
+                        {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
+                        {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
+                        {item.location ? <small className="user-item-meta">{item.location}</small> : null}
+                        <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
+                        {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
+                        <div className="listing-card-actions">
+                          {item.id ? (
+                            <Link
+                              to={`/dashboard/listings/${item.id}`}
+                              className="user-action-btn user-action-btn-inline provider-action-link"
+                              aria-label={`View details for ${item.title}`}
+                            >
+                              View details
+                            </Link>
+                          ) : null}
+                          {item.id ? (
+                            <button
+                              type="button"
+                              className={`user-action-btn user-action-btn-inline favourite-toggle-btn${isFavourite ? ' favourite-toggle-btn-active' : ''}`}
+                              onClick={() => handleFavouriteToggle(item)}
+                              disabled={isUpdatingFavourite || isFavourite}
+                              aria-pressed={isFavourite}
+                              aria-label={isFavourite
+                                ? `${item.title} is already favourited`
+                                : `Favorite ${item.title}`}
+                            >
+                              {isUpdatingFavourite ? 'Updating...' : isFavourite ? 'Favorited' : 'Favorite'}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </li>
                   )

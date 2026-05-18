@@ -45,6 +45,7 @@ describe('Dashboard coverage tests', () => {
     expect(screen.getByText('18')).toBeTruthy()
     expect(screen.getByText('12')).toBeTruthy()
     expect(screen.getByText('04')).toBeTruthy()
+    expect(screen.getAllByLabelText(/Provider profile picture for/i)).toHaveLength(2)
   })
 
   test('searching for a missing listing shows the no-results state', async () => {

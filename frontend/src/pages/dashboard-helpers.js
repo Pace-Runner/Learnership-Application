@@ -130,7 +130,15 @@ export function normalizeApplicationRow(row) {
 }
 
 export function normalizeApprovedListing(row) {
-  const providerProfile = row.provider_profiles || {}
+  const providerProfile = row.provider_profiles || row.provider_profile || {}
+  const providerName = providerProfile.organisation_name || row.provider_name || row.provider || 'Not specified'
+  const providerAvatarUrl = providerProfile.logo_url || row.provider_logo_url || ''
+  const providerAvatarInitials = providerName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join('') || 'PR'
 
   return {
     id: row.id,
@@ -142,7 +150,9 @@ export function normalizeApprovedListing(row) {
     stipend: row.stipend,
     closingDate: row.closingDate || row.closing_date || 'Not specified',
     status: row.status || 'Approved',
-    provider: providerProfile.organisation_name || row.provider_name || row.provider || 'Not specified',
+    provider: providerName,
+    providerAvatarUrl,
+    providerAvatarInitials,
   }
 }
 
