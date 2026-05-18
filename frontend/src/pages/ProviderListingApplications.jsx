@@ -221,7 +221,7 @@ export default function ProviderListingApplications() {
 
       const { data: applicationRows, error: applicationError } = await supabase
         .from('applications')
-        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url,profile_image_url)')
+        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url)')
         .eq('opportunity_id', listingId)
         .order('applied_at', { ascending: false })
 
@@ -420,22 +420,19 @@ export default function ProviderListingApplications() {
       console.debug('documents list error', docsListResult.error)
     }
 
-    // Prefer a stored public URL on the applicant profile (saved at upload time)
-    let profileImageUrl = applicant?.profile_image_url || ''
-    if (!profileImageUrl) {
-      const profileFiles = (profileImageListResult?.data || []).filter((file) => file?.name && !file.name.endsWith('/'))
-      const firstProfileFile = profileFiles[0]
-      if (firstProfileFile?.name) {
-        profileImageUrl = await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${firstProfileFile.name}`)
-      } else {
-        // Fallback: try common profile filenames when list() returns empty (RLS may prevent listing).
-        const commonProfileNames = ['profile.jpg', 'profile.jpeg', 'profile.png', 'profile.webp']
-        for (const name of commonProfileNames) {
-          const candidate = await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${name}`)
-          if (candidate) {
-            profileImageUrl = candidate
-            break
-          }
+    const profileFiles = (profileImageListResult?.data || []).filter((file) => file?.name && !file.name.endsWith('/'))
+    const firstProfileFile = profileFiles[0]
+    let profileImageUrl = ''
+    if (firstProfileFile?.name) {
+      profileImageUrl = await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${firstProfileFile.name}`)
+    } else {
+      // Fallback: try common profile filenames when list() returns empty (RLS may prevent listing).
+      const commonProfileNames = ['profile.jpg', 'profile.jpeg', 'profile.png', 'profile.webp']
+      for (const name of commonProfileNames) {
+        const candidate = await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${name}`)
+        if (candidate) {
+          profileImageUrl = candidate
+          break
         }
       }
     }
