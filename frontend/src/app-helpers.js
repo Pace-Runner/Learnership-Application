@@ -80,7 +80,7 @@ export async function getRoleForEmail(email) {
 
 export async function getApplicantLandingRouteForEmail(email) {
   if (!hasSupabaseConfig || !email) {
-    return '/profile'
+    return '/dashboard'
   }
 
   const { data: userRow } = await supabase
@@ -93,13 +93,7 @@ export async function getApplicantLandingRouteForEmail(email) {
     return '/profile'
   }
 
-  const { data: profileRow } = await supabase
-    .from('applicant_profiles')
-    .select('id,first_name,last_name,phone,location,date_of_birth,id_number,cv_url')
-    .eq('user_id', userRow.id)
-    .maybeSingle()
-
-  return isApplicantProfileComplete(profileRow) ? '/dashboard' : '/profile'
+  return '/dashboard'
 }
 
 export async function getProviderLandingRouteForEmail(email) {
