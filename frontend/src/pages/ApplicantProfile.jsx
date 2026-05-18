@@ -1607,22 +1607,11 @@ export default function ApplicantProfile({ onLogout }) {
                 className="user-action-btn user-action-btn-inline"
                 onClick={() => {
                   if (!ensureUploadReady()) return
-                  cvInputRef.current?.click()
-                }}
-              >
-                Upload CV
-              </button>
-            </li>
-            <li>
-              <button
-                type="button"
-                className="user-action-btn user-action-btn-inline"
-                onClick={() => {
-                  if (!ensureUploadReady()) return
+                  // Use the generic documents input - any uploaded file is treated as a document
                   docsInputRef.current?.click()
                 }}
               >
-                Upload new document
+                Upload document
               </button>
             </li>
           </menu>

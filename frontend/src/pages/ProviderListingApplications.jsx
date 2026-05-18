@@ -445,9 +445,7 @@ export default function ProviderListingApplications() {
       })),
     )
 
-    const cvFileEntry = documentEntries.find((doc) => /-cv-/i.test(doc.name)) || null
-    const otherDocuments = documentEntries.filter((doc) => !/-cv-/i.test(doc.name))
-
+    // Keep all uploaded documents available to the provider view. Treat the first document as a fallback cvLink.
     return {
       ...application,
       applicant: {
@@ -456,9 +454,8 @@ export default function ProviderListingApplications() {
         education,
         profileImageUrl,
         documentEntries,
-        otherDocuments,
       },
-      cvLink: cvFileEntry?.url || application.cvLink || '',
+      cvLink: application.cvLink || (documentEntries[0]?.url || ''),
     }
   }
 
@@ -676,28 +673,31 @@ export default function ProviderListingApplications() {
 
               <article className="applicant-detail-card applicant-detail-card-wide">
                 <h5>Documents</h5>
-                {selectedApplicant.cvLink ? (
-                  <p><a href={selectedApplicant.cvLink} target="_blank" rel="noopener noreferrer">Open CV</a></p>
-                ) : (
-                  <p className="user-item-meta">No CV uploaded.</p>
-                )}
-                {selectedApplicant.applicant?.otherDocuments?.length ? (
-                  <ul className="applicant-doc-list">
-                    {selectedApplicant.applicant.otherDocuments.map((doc) => (
-                      <li key={doc.name}>
-                        {doc.url ? (
-                          <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                            {doc.label}
-                          </a>
-                        ) : (
-                          <span>{doc.label}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="user-item-meta">No additional documents uploaded.</p>
-                )}
+                {(() => {
+                  const existing = selectedApplicant.applicant?.documentEntries || []
+                  const docs = [...existing]
+                  if (selectedApplicant.cvLink && !docs.find((d) => d.url === selectedApplicant.cvLink)) {
+                    docs.unshift({ name: 'cv-fallback', label: 'CV', url: selectedApplicant.cvLink })
+                  }
+
+                  return docs.length ? (
+                    <ul className="applicant-doc-list">
+                      {docs.map((doc) => (
+                        <li key={doc.name}>
+                          {doc.url ? (
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                              { /cv/i.test(doc.name) ? 'Open CV' : `Open ${doc.label}` }
+                            </a>
+                          ) : (
+                            <span>{doc.label}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="user-item-meta">No documents uploaded.</p>
+                  )
+                })()}
               </article>
             </section>
 

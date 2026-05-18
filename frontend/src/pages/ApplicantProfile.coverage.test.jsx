@@ -585,7 +585,7 @@ describe('ApplicantProfile coverage', () => {
     )
 
     await screen.findByText('Profile and documents')
-    fireEvent.click(screen.getByRole('button', { name: 'Upload CV' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Upload document' }))
 
     expect(screen.getByText('Please sign in first. Uploads are only available for authenticated users.')).toBeTruthy()
     expect(applicantSpies.docsStorageUpload).not.toHaveBeenCalled()
