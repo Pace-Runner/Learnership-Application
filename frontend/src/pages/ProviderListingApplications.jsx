@@ -411,6 +411,15 @@ export default function ProviderListingApplications() {
         : Promise.resolve({ data: [] }),
     ])
 
+    // Log any storage list errors to aid debugging when files are not returned.
+    if (profileImageListResult?.error) {
+      console.debug('profile image list error', profileImageListResult.error)
+    }
+
+    if (docsListResult?.error) {
+      console.debug('documents list error', docsListResult.error)
+    }
+
     const profileFiles = (profileImageListResult?.data || []).filter((file) => file?.name && !file.name.endsWith('/'))
     const firstProfileFile = profileFiles[0]
     const profileImageUrl = firstProfileFile?.name

@@ -882,7 +882,8 @@
 
 .listing-card-row,
 .provider-list > li,
-.favourite-list > li {
+.favourite-list > li,
+.application-list-item {
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -895,7 +896,8 @@
 
 .listing-card-row::before,
 .provider-list > li::before,
-.favourite-list > li::before {
+.favourite-list > li::before,
+.application-list-item::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -907,7 +909,8 @@
 
 .listing-card-row::after,
 .provider-list > li::after,
-.favourite-list > li::after {
+.favourite-list > li::after,
+.application-list-item::after {
   content: '';
   position: absolute;
   inset: -1px;
@@ -926,7 +929,8 @@
 
 .listing-card-row:hover,
 .provider-list > li:hover,
-.favourite-list > li:hover {
+.favourite-list > li:hover,
+.application-list-item:hover {
   transform: translateY(-4px) scale(1.01);
   box-shadow:
     0 0 0 1px rgba(125, 193, 255, 0.42),
@@ -939,13 +943,15 @@
 .favourite-list > li:hover::before,
 .listing-card-row:hover::after,
 .provider-list > li:hover::after,
-.favourite-list > li:hover::after {
+.favourite-list > li:hover::after,
+.application-list-item:hover::before,
+.application-list-item:hover::after {
   opacity: 1;
 }
-
 .listing-card-row:hover .listing-card-content,
 .provider-list > li:hover > * ,
-.favourite-list > li:hover > * {
+.favourite-list > li:hover > * ,
+.application-list-item:hover > * {
   position: relative;
   z-index: 1;
 }
