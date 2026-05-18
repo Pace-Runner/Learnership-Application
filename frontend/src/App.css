@@ -776,18 +776,18 @@
 
 .admin-tab-list button,
 .admin-download-btn {
-  padding: 0.64rem 0.9rem;
+  padding: 0.55rem 0.8rem;
 }
 
 .admin-download-btn {
-  min-width: 12.5rem;
+  min-width: 10.5rem;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.8rem;
-  border: 2px solid rgb(91, 91, 240);
+  gap: 0.65rem;
+  border: 2px solid #1f4f86;
   border-radius: 50px;
-  padding: 5px;
+  padding: 4px;
   background: transparent;
   position: relative;
   overflow: hidden;
@@ -821,10 +821,10 @@
 }
 
 .admin-download-btn-circle {
-  height: 45px;
-  width: 45px;
+  height: 38px;
+  width: 38px;
   border-radius: 50%;
-  background-color: rgb(91, 91, 240);
+  background-color: #214f7f;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -832,7 +832,7 @@
   position: relative;
   box-shadow: 0 0 0 0 rgb(255, 255, 255);
   overflow: hidden;
-  flex: 0 0 45px;
+  flex: 0 0 38px;
 }
 
 .admin-download-btn-circle::before {
@@ -840,7 +840,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  background-color: #3333a8;
+  background-color: #0f2e56;
   width: 100%;
   height: 0;
   transition: all 0.4s ease;
@@ -848,13 +848,13 @@
 
 .admin-download-btn-icon {
   color: #fff;
-  width: 30px;
+  width: 24px;
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   transition: all 0.4s ease;
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
@@ -873,11 +873,131 @@
 }
 
 .admin-download-btn-title {
-  font-size: 17px;
+  font-size: 0.92rem;
   color: #fff;
   transition: all 0.4s ease;
   text-align: center;
   padding-right: 0.75rem;
+}
+
+.listing-card-row,
+.provider-list > li,
+.favourite-list > li {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    background 220ms ease;
+}
+
+.listing-card-row::before,
+.provider-list > li::before,
+.favourite-list > li::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(163deg, rgba(38, 108, 190, 0.12) 0%, rgba(15, 43, 82, 0.92) 100%);
+  opacity: 0;
+  transition: opacity 220ms ease;
+  z-index: -1;
+}
+
+.listing-card-row::after,
+.provider-list > li::after,
+.favourite-list > li::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(112, 175, 255, 0.45), rgba(112, 175, 255, 0) 42%),
+    linear-gradient(163deg, rgba(112, 175, 255, 0.14), rgba(56, 87, 132, 0));
+  box-shadow:
+    0 0 0 1px rgba(118, 183, 255, 0.35) inset,
+    0 0 26px rgba(61, 120, 198, 0.42),
+    0 0 48px rgba(15, 43, 82, 0.28);
+}
+
+.listing-card-row:hover,
+.provider-list > li:hover,
+.favourite-list > li:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow:
+    0 0 0 1px rgba(125, 193, 255, 0.42),
+    0 12px 34px rgba(7, 20, 43, 0.5),
+    0 0 26px rgba(64, 118, 193, 0.36);
+}
+
+.listing-card-row:hover::before,
+.provider-list > li:hover::before,
+.favourite-list > li:hover::before,
+.listing-card-row:hover::after,
+.provider-list > li:hover::after,
+.favourite-list > li:hover::after {
+  opacity: 1;
+}
+
+.listing-card-row:hover .listing-card-content,
+.provider-list > li:hover > * ,
+.favourite-list > li:hover > * {
+  position: relative;
+  z-index: 1;
+}
+
+.provider-list > li,
+.favourite-list > li {
+  border-radius: 14px;
+}
+
+.provider-list > li {
+  border: 1px solid rgba(170, 205, 255, 0.18);
+  background: rgba(8, 23, 49, 0.54);
+  padding: 0.9rem 0.95rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.provider-list > li:hover {
+  border-color: rgba(143, 198, 255, 0.5);
+}
+
+.favourite-list > li {
+  border: 1px solid rgba(170, 205, 255, 0.18);
+  background: rgba(8, 23, 49, 0.54);
+  padding: 0.9rem 0.95rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.favourite-list > li:hover {
+  border-color: rgba(143, 198, 255, 0.5);
+}
+
+.listing-card-row {
+  border: 1px solid rgba(170, 205, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(8, 23, 49, 0.54);
+  padding: 0.9rem 0.95rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.95rem;
+}
+
+.listing-card-row:hover {
+  border-color: rgba(143, 198, 255, 0.5);
+}
+
+.listing-card-content,
+.listing-provider-avatar,
+.listing-card-actions {
+  position: relative;
+  z-index: 1;
 }
 
 .admin-download-btn:hover::before {
@@ -1501,6 +1621,11 @@
   .admin-tab-list,
   .admin-download-btn {
     width: 100%;
+  }
+
+  .admin-download-btn {
+    min-width: 0;
+    justify-content: center;
   }
 
   .admin-list-item {

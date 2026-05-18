@@ -163,24 +163,13 @@ values
   ('applicant-documents', 'applicant-documents', false)
 on conflict (id) do nothing;
 
--- 2) Profile image policies (owners manage their folder; providers/admins can view applicant uploads)
+-- 2) Profile image policies (anyone can read; only owners can write)
 drop policy if exists "profile_images_select_own" on storage.objects;
 create policy "profile_images_select_own"
   on storage.objects
   for select
-  to authenticated
-  using (
-    bucket_id = 'profile-images'
-    and (
-      (storage.foldername(name))[1] = auth.uid()::text
-      or exists (
-        select 1
-        from users u
-        where u.email = auth.jwt() ->> 'email'
-          and u.role in ('Provider', 'Admin')
-      )
-    )
-  );
+  to public
+  using (bucket_id = 'profile-images');
 
 drop policy if exists "profile_images_insert_own" on storage.objects;
 create policy "profile_images_insert_own"
@@ -216,24 +205,13 @@ create policy "profile_images_delete_own"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- 3) Applicant document policies (owners manage their folder; providers/admins can view applicant uploads)
+-- 3) Applicant document policies (anyone can read; only owners can write)
 drop policy if exists "applicant_docs_select_own" on storage.objects;
 create policy "applicant_docs_select_own"
   on storage.objects
   for select
-  to authenticated
-  using (
-    bucket_id = 'applicant-documents'
-    and (
-      (storage.foldername(name))[1] = auth.uid()::text
-      or exists (
-        select 1
-        from users u
-        where u.email = auth.jwt() ->> 'email'
-          and u.role in ('Provider', 'Admin')
-      )
-    )
-  );
+  to public
+  using (bucket_id = 'applicant-documents');
 
 drop policy if exists "applicant_docs_insert_own" on storage.objects;
 create policy "applicant_docs_insert_own"
