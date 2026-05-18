@@ -987,104 +987,79 @@ export default function ApplicantProfile({ onLogout }) {
           return nameToId[name] || id
         })
 
-        const resolvedTags = [...(existingTags || []), ...(insertedTags || [])].filter((skillTag) => skillTag?.id && skillTag?.name)
-        if (resolvedTags.length > 0) {
-          setSkillTagOptions((current) => {
-            const mergedById = new Map(current.map((skillTag) => [skillTag.id, skillTag]))
-            resolvedTags.forEach((skillTag) => {
-              mergedById.set(skillTag.id, skillTag)
-            })
-            return Array.from(mergedById.values()).sort((left, right) => left.name.localeCompare(right.name))
-          })
-        }
-
         setSelectedSkillTagIds(finalSelectedSkillTagIds)
       }
 
-      // Persist skills through the database helper when available so production RLS
-      // cannot silently block applicant_skills writes.
+      // Persist skills through the RPC when available, but keep the old insert path as a fallback.
       try {
-        const skillIdsArray = Array.from(new Set(Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []))
+        const skillIdsArray = Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []
+        if (typeof supabase.rpc === 'function') {
+          debugLog('Calling RPC upsert_applicant_skills', resolvedProfileId, skillIdsArray)
+          const { data: rpcData, error: rpcError } = await supabase.rpc('upsert_applicant_skills', {
+            p_applicant_id: resolvedProfileId,
+            p_skill_tag_ids: skillIdsArray,
+          })
 
-        debugLog('Persisting skills for applicant:', resolvedProfileId, 'Count:', skillIdsArray.length)
+          if (!rpcError) {
+            debugLog('upsert_applicant_skills result:', rpcData)
+          } else {
+            console.warn('upsert_applicant_skills RPC unavailable, falling back to direct inserts:', rpcError)
+          }
+        }
 
-        const saveSkillsDirectly = async () => {
+        if (typeof supabase.rpc !== 'function' || finalSelectedSkillTagIds.length > 0) {
           const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
           if (deleteSkillsError) {
-            return deleteSkillsError
+            console.error('Skills delete error:', deleteSkillsError)
           }
 
-          if (skillIdsArray.length === 0) {
-            return null
-          }
+          if (skillIdsArray.length > 0) {
+            const { error: skillsError } = await supabase.from('applicant_skills').insert(
+              skillIdsArray.map((skillTagId) => ({
+                applicant_id: resolvedProfileId,
+                skill_tag_id: skillTagId,
+              })),
+            )
 
+            if (skillsError) {
+              console.error('Skills insert error:', skillsError)
+              setUploadMessage(
+                `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsError, 'Unknown error')}`,
+              )
+              setIsSavingProfile(false)
+              return
+            }
+          }
+        }
+      } catch (errRpc) {
+        console.error('Unexpected RPC error when saving skills:', errRpc)
+        const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
+        if (deleteSkillsError) {
+          console.error('Skills delete error:', deleteSkillsError)
+        }
+
+        const skillIdsArray = Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []
+        if (skillIdsArray.length > 0) {
           const { error: skillsError } = await supabase.from('applicant_skills').insert(
             skillIdsArray.map((skillTagId) => ({
               applicant_id: resolvedProfileId,
               skill_tag_id: skillTagId,
             })),
           )
-          return skillsError || null
-        }
 
-        let skillsSaveError = null
-        if (typeof supabase.rpc === 'function') {
-          const { error: rpcError } = await supabase.rpc('upsert_applicant_skills', {
-            p_applicant_id: resolvedProfileId,
-            p_skill_tag_ids: skillIdsArray,
-          })
-
-          if (rpcError) {
-            console.warn('Skills RPC failed, falling back to direct save:', rpcError)
-            skillsSaveError = await saveSkillsDirectly()
-          }
-        } else {
-          skillsSaveError = await saveSkillsDirectly()
-        }
-
-        if (skillsSaveError) {
-          console.error('Skills save error:', skillsSaveError)
-          setUploadMessage(
-            `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsSaveError, 'Unknown error')}`,
-          )
-          setIsSavingProfile(false)
-          return
-        }
-
-        if (skillIdsArray.length > 0) {
-          const { data: savedSkills, error: verifySkillsError } = await supabase
-            .from('applicant_skills')
-            .select('skill_tag_id')
-            .eq('applicant_id', resolvedProfileId)
-
-          if (verifySkillsError || (savedSkills || []).length === 0) {
-            console.error('Skills verification error:', verifySkillsError)
-            setUploadMessage(
-              `Profile saved, but selected skills could not be verified: ${getFriendlySupabaseError(
-                verifySkillsError,
-                'Please try saving again.',
-              )}`,
-            )
+          if (skillsError) {
+            console.error('Skills insert error:', skillsError)
+            setUploadMessage(getFriendlySupabaseError(skillsError, 'Unexpected error while saving skills.'))
             setIsSavingProfile(false)
             return
           }
-
-          setSelectedSkillTagIds((savedSkills || []).map((row) => row.skill_tag_id).filter(Boolean))
-          debugLog('Saved and verified', savedSkills.length, 'skills')
-        } else {
-          debugLog('No skills selected, all skills cleared')
         }
-      } catch (errSkills) {
-        console.error('Unexpected error when saving skills:', errSkills)
-        setUploadMessage('Profile saved, but skills update failed. Please try again.')
-        setIsSavingProfile(false)
-        return
       }
 
       debugLog('Profile saved with ID:', resolvedProfileId)
       debugLog('Saved profile:', profilePayload)
       debugLog('Saved education entries:', educationPayload.length)
-      debugLog('Saved skills:', finalSelectedSkillTagIds.length)
+      debugLog('Saved skills:', selectedSkillTagIds.length)
 
       setIsSavingProfile(false)
       setShowSavedConfirmation(true)

@@ -1,9 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient'
 import './UserPages.css'
 
+const PROFILE_BUCKET = 'profile-images'
 const DOCS_BUCKET = 'applicant-documents'
 const APPLICATION_STATUS_OPTIONS = [
   { value: 'Pending', label: 'Pending' },
@@ -56,6 +57,74 @@ function formatShortDate(value) {
   })
 }
 
+function formatDocumentLabel(fileName) {
+  if (!fileName) {
+    return 'Document'
+  }
+
+  const withoutTimestamp = fileName.replace(/^\d{8,}-/, '')
+  if (/-cv-/i.test(withoutTimestamp)) {
+    return 'CV'
+  }
+
+  return withoutTimestamp.replace(/^cv-/i, '').replace(/[_-]+/g, ' ').replace(/\.[^.]+$/, '')
+}
+
+function getApplicantInitials(applicant) {
+  const firstInitial = applicant?.first_name?.trim()?.charAt(0) || ''
+  const lastInitial = applicant?.last_name?.trim()?.charAt(0) || ''
+  const value = `${firstInitial}${lastInitial}`.toUpperCase()
+
+  return value || 'AP'
+}
+
+async function resolveStorageLink(bucket, path) {
+  if (!path) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(path)) {
+    return path
+  }
+
+  try {
+    const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 10)
+    if (signed?.data?.signedUrl) {
+      return signed.data.signedUrl
+    }
+
+    if (signed?.error && ((signed.error.message || '').toLowerCase().includes('bucket not found') || signed.error.status === 404)) {
+      if (bucket.includes('/')) {
+        const [rootBucket, ...rest] = bucket.split('/')
+        const prefix = rest.join('/')
+        const altPath = prefix ? `${prefix}/${path}` : path
+        const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
+        if (altSigned?.data?.signedUrl) {
+          return altSigned.data.signedUrl
+        }
+
+        const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
+        return altPublic?.data?.publicUrl || ''
+      }
+    }
+
+    const publicResult = await supabase.storage.from(bucket).getPublicUrl(path)
+    return publicResult?.data?.publicUrl || ''
+  } catch (err) {
+    console.debug('resolveStorageLink createSignedUrl error', err)
+    try {
+      const publicResult = await supabase.storage.from(bucket).getPublicUrl(path)
+      if (publicResult?.data?.publicUrl) {
+        return publicResult.data.publicUrl
+      }
+    } catch (publicError) {
+      console.debug('resolveStorageLink getPublicUrl error', publicError)
+    }
+
+    return ''
+  }
+}
+
 export default function ProviderListingApplications() {
   const { listingId } = useParams()
   const [isLoading, setIsLoading] = useState(true)
@@ -66,7 +135,9 @@ export default function ProviderListingApplications() {
   const [listingMeta, setListingMeta] = useState({})
   const [selectedApplicant, setSelectedApplicant] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isModalLoading, setIsModalLoading] = useState(false)
   const [updatingApplicationId, setUpdatingApplicationId] = useState('')
+  const modalRequestRef = useRef(0)
 
   useEffect(() => {
     let isMounted = true
@@ -150,7 +221,7 @@ export default function ProviderListingApplications() {
 
       const { data: applicationRows, error: applicationError } = await supabase
         .from('applications')
-        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,about_me,cv_url)')
+        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url)')
         .eq('opportunity_id', listingId)
         .order('applied_at', { ascending: false })
 
@@ -185,63 +256,7 @@ export default function ProviderListingApplications() {
 
           const authUserId = item.applicant?.user_id || ''
           let normalizedPath = cv.includes('/') ? cv : authUserId ? `${authUserId}/${cv}` : cv
-
-          // Helper to resolve signed or public URL, with bucket fallback if bucket contains a folder
-          const resolveLink = async (bucket, path) => {
-            // try signed URL first
-            try {
-              const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 10)
-              if (signed?.data?.signedUrl) return signed.data.signedUrl
-
-              // if error indicates bucket not found, attempt to split bucket into root + prefix
-              if (signed?.error && ((signed.error.message || '').toLowerCase().includes('bucket not found') || signed.error.status === 404)) {
-                if (bucket.includes('/')) {
-                  const [rootBucket, ...rest] = bucket.split('/')
-                  const prefix = rest.join('/')
-                  const altPath = prefix ? `${prefix}/${path}` : path
-                  const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
-                  if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
-
-                  const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
-                  return altPublic?.data?.publicUrl || ''
-                }
-              }
-
-              // fallback to public url on same bucket
-              const pub = await supabase.storage.from(bucket).getPublicUrl(path)
-              return pub?.data?.publicUrl || ''
-            } catch (err) {
-              // If createSignedUrl threw, try public URL and bucket-split fallback
-              console.debug('resolveLink createSignedUrl error', err)
-              try {
-                const pub = await supabase.storage.from(bucket).getPublicUrl(path)
-                if (pub?.data?.publicUrl) return pub.data.publicUrl
-              } catch (err2) {
-                console.debug('resolveLink getPublicUrl error', err2)
-                // try splitting bucket if it contains '/'
-                if (bucket.includes('/')) {
-                  const [rootBucket, ...rest] = bucket.split('/')
-                  const prefix = rest.join('/')
-                  const altPath = prefix ? `${prefix}/${path}` : path
-                  try {
-                    const altSigned = await supabase.storage.from(rootBucket).createSignedUrl(altPath, 60 * 10)
-                    if (altSigned?.data?.signedUrl) return altSigned.data.signedUrl
-                  } catch (err3) {
-                    console.debug('resolveLink altSigned error', err3)
-                  }
-                  try {
-                    const altPublic = await supabase.storage.from(rootBucket).getPublicUrl(altPath)
-                    return altPublic?.data?.publicUrl || ''
-                  } catch (err4) {
-                    console.debug('resolveLink altPublic error', err4)
-                  }
-                }
-              }
-              return ''
-            }
-          }
-
-          const cvLink = await resolveLink(DOCS_BUCKET, normalizedPath)
+          const cvLink = await resolveStorageLink(DOCS_BUCKET, normalizedPath)
           return { ...item, cvLink: cvLink || '' }
         }),
       )
@@ -372,14 +387,108 @@ export default function ProviderListingApplications() {
     setStatusMessage(`Updated ${applicantName} to ${statusLabel}.`)
   }
 
-  const openApplicantModal = (application) => {
+  const loadApplicantDetails = async (application) => {
+    const applicant = application.applicant || {}
+    const applicantId = application.applicantId || application.applicant_id || ''
+    const authUserId = applicant.user_id || ''
+
+    const [educationResult, skillLinksResult, profileImageListResult, docsListResult] = await Promise.all([
+      applicantId
+        ? supabase
+            .from('applicant_education')
+            .select('institution,qualification_id,nqf_level,year_completed,qualification:nqf_qualifications(title,saqa_id)')
+            .eq('applicant_id', applicantId)
+            .order('year_completed', { ascending: false })
+        : Promise.resolve({ data: [] }),
+      applicantId
+        ? supabase.from('applicant_skills').select('skill_tag_id,skill_tags:skill_tag_id(id,name)').eq('applicant_id', applicantId)
+        : Promise.resolve({ data: [] }),
+      authUserId
+        ? supabase.storage.from(PROFILE_BUCKET).list(authUserId, { limit: 10 })
+        : Promise.resolve({ data: [] }),
+      authUserId
+        ? supabase.storage.from(DOCS_BUCKET).list(authUserId, { limit: 100 })
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const profileFiles = (profileImageListResult?.data || []).filter((file) => file?.name && !file.name.endsWith('/'))
+    const firstProfileFile = profileFiles[0]
+    const profileImageUrl = firstProfileFile?.name
+      ? await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${firstProfileFile.name}`)
+      : ''
+
+    const education = (educationResult?.data || []).map((row) => ({
+      institution: row.institution || '',
+      qualificationTitle: row.qualification?.title || '',
+      qualificationId: row.qualification_id || '',
+      nqfLevel: row.nqf_level || '',
+      yearCompleted: row.year_completed || '',
+    }))
+
+    const skillRecords = (skillLinksResult?.data || [])
+      .map((row) => row.skill_tags || null)
+      .filter(Boolean)
+    const skillNames = [...new Map(skillRecords.map((skill) => [skill.id, skill.name])).values()]
+
+    const allDocs = (docsListResult?.data || [])
+      .filter((file) => file?.name && !file.name.endsWith('/'))
+      .map((file) => ({
+        name: file.name,
+        label: formatDocumentLabel(file.name),
+        url: '',
+      }))
+
+    const documentEntries = await Promise.all(
+      allDocs.map(async (doc) => ({
+        ...doc,
+        url: await resolveStorageLink(DOCS_BUCKET, `${authUserId}/${doc.name}`),
+      })),
+    )
+
+    const cvFileEntry = documentEntries.find((doc) => /-cv-/i.test(doc.name)) || null
+    const otherDocuments = documentEntries.filter((doc) => !/-cv-/i.test(doc.name))
+
+    return {
+      ...application,
+      applicant: {
+        ...applicant,
+        skills: skillNames,
+        education,
+        profileImageUrl,
+        documentEntries,
+        otherDocuments,
+      },
+      cvLink: cvFileEntry?.url || application.cvLink || '',
+    }
+  }
+
+  const openApplicantModal = async (application) => {
+    const requestId = modalRequestRef.current + 1
+    modalRequestRef.current = requestId
+
     setSelectedApplicant(application)
     setIsModalOpen(true)
+    setIsModalLoading(true)
+
+    try {
+      const enrichedApplicant = await loadApplicantDetails(application)
+      if (modalRequestRef.current === requestId) {
+        setSelectedApplicant(enrichedApplicant)
+      }
+    } catch (loadError) {
+      console.debug('Applicant details enrichment failed', loadError)
+    } finally {
+      if (modalRequestRef.current === requestId) {
+        setIsModalLoading(false)
+      }
+    }
   }
 
   const closeApplicantModal = () => {
+    modalRequestRef.current += 1
     setSelectedApplicant(null)
     setIsModalOpen(false)
+    setIsModalLoading(false)
   }
 
   return (
@@ -426,24 +535,25 @@ export default function ProviderListingApplications() {
                     <strong>
                       {application.applicant?.first_name || 'Applicant'} {application.applicant?.last_name || ''}
                     </strong>
-                    <small className={getApplicationStatusClass(application.status)}>
-                      Current status: {getApplicationStatusLabel(application.status)}
-                    </small>
                     {application.appliedAt ? (
                       <small className="user-item-meta">
                         Applied: {new Date(application.appliedAt).toLocaleDateString()}
                       </small>
                     ) : null}
+                    <small className="user-item-meta">
+                      Location: {application.applicant?.location || 'Not specified'}
+                    </small>
                     <p className="user-item-meta">{application.applicant?.about_me || 'No profile summary provided yet.'}</p>
+                    <small className="user-item-meta">
+                      Current status: {getApplicationStatusLabel(application.status)}
+                    </small>
                     {application.cvLink ? (
-                      <p>
+                      <p className="user-item-meta">
                         <a href={application.cvLink} target="_blank" rel="noopener noreferrer">
                           Download CV
                         </a>
                       </p>
-                    ) : (
-                      <p className="user-item-meta">No CV uploaded</p>
-                    )}
+                    ) : null}
                     <div className="provider-application-status-row">
                       <label htmlFor={`application-status-${application.id}`} className="provider-application-status-label">
                         Application status
@@ -486,59 +596,135 @@ export default function ProviderListingApplications() {
         </section>
       </section>
       {isModalOpen && selectedApplicant ? (
-        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.6)', display: 'grid', placeItems: 'center' }}>
-          <div className="user-panel" style={{ width: 'min(760px, 94%)' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3>Applicant details</h3>
+        <div className="modal-backdrop">
+          <div className="applicant-detail-modal user-panel">
+            <header className="applicant-detail-modal-header">
+              <div>
+                <p className="provider-panel-kicker">Applicant profile</p>
+                <h3>Applicant details</h3>
+              </div>
               <button className="user-link-btn" onClick={closeApplicantModal}>Close</button>
             </header>
-            <div style={{ marginTop: '0.6rem' }}>
-              <p><strong>Name:</strong> {selectedApplicant.applicant?.first_name} {selectedApplicant.applicant?.last_name}</p>
-              <p><strong>Profile summary:</strong> {selectedApplicant.applicant?.about_me || 'No profile summary provided yet.'}</p>
-              <p><strong>Application received:</strong> {selectedApplicant.appliedAt || 'Unknown'}</p>
-              <p><strong>Current status:</strong> {getApplicationStatusLabel(selectedApplicant.status)}</p>
-              {selectedApplicant.cvLink ? (
-                <div style={{ marginTop: '0.5rem' }}>
-                  {/\\.pdf$/i.test(selectedApplicant.cvLink) ? (
-                    <div style={{ border: '1px solid rgba(172,208,255,0.15)', borderRadius: 8, overflow: 'hidden' }}>
-                      <iframe
-                        title="Applicant CV"
-                        src={selectedApplicant.cvLink}
-                        style={{ width: '100%', height: 420, border: 'none' }}
-                      />
-                    </div>
-                  ) : (
-                    <p><a href={selectedApplicant.cvLink} target="_blank" rel="noopener noreferrer">Open CV</a></p>
-                  )}
+
+            {isModalLoading ? (
+              <p className="user-panel-copy">Loading applicant profile details...</p>
+            ) : null}
+
+            <section className="applicant-hero-card">
+              <div className="applicant-profile-photo">
+                {selectedApplicant.applicant?.profileImageUrl ? (
+                  <img src={selectedApplicant.applicant.profileImageUrl} alt="Applicant profile" />
+                ) : (
+                  <span>{getApplicantInitials(selectedApplicant.applicant)}</span>
+                )}
+              </div>
+
+              <div className="applicant-hero-copy">
+                <p className="applicant-hero-label">Name</p>
+                <h4>
+                  {selectedApplicant.applicant?.first_name || 'Applicant'} {selectedApplicant.applicant?.last_name || ''}
+                </h4>
+                <p className="applicant-hero-summary">
+                  {selectedApplicant.applicant?.about_me || 'No profile summary provided yet.'}
+                </p>
+                <div className="applicant-hero-meta">
+                  <span>Application received: {formatShortDate(selectedApplicant.appliedAt)}</span>
                 </div>
-              ) : (
-                <p>No CV uploaded</p>
-              )}
-              <div className="provider-application-status-row" style={{ marginTop: '0.8rem' }}>
-                <label htmlFor={`modal-application-status-${selectedApplicant.id}`} className="provider-application-status-label">
-                  Application status
-                </label>
-                <div className="provider-application-status-controls">
-                  <select
-                    id={`modal-application-status-${selectedApplicant.id}`}
-                    value={selectedApplicant.statusDraft || selectedApplicant.status}
-                    onChange={(event) => handleStatusDraftChange(selectedApplicant.id, event.target.value)}
-                  >
-                    {APPLICATION_STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
+              </div>
+            </section>
+
+            <section className="applicant-detail-grid">
+              <article className="applicant-detail-card">
+                <h5>Contact details</h5>
+                <p><strong>Location:</strong> {selectedApplicant.applicant?.location || 'Not specified'}</p>
+                <p><strong>Phone number:</strong> {selectedApplicant.applicant?.phone || 'Not specified'}</p>
+                <p><strong>Date of birth:</strong> {formatShortDate(selectedApplicant.applicant?.date_of_birth)}</p>
+              </article>
+
+              <article className="applicant-detail-card">
+                <h5>Education</h5>
+                {selectedApplicant.applicant?.education?.length ? (
+                  <ul className="applicant-info-list">
+                    {selectedApplicant.applicant.education.map((educationItem, index) => (
+                      <li key={`${educationItem.institution || 'education'}-${index}`}>
+                        <strong>{educationItem.institution || 'Institution not specified'}</strong>
+                        <span>
+                          {educationItem.qualificationTitle || 'Qualification not specified'}
+                          {educationItem.nqfLevel ? ` · NQF ${educationItem.nqfLevel}` : ''}
+                          {educationItem.yearCompleted ? ` · ${educationItem.yearCompleted}` : ''}
+                        </span>
+                      </li>
                     ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="user-action-btn provider-listing-btn"
-                    disabled={updatingApplicationId === selectedApplicant.id || (selectedApplicant.statusDraft || selectedApplicant.status) === selectedApplicant.status}
-                    onClick={() => handleStatusUpdate(selectedApplicant)}
-                  >
-                    {updatingApplicationId === selectedApplicant.id ? 'Updating...' : 'Update status'}
-                  </button>
-                </div>
+                  </ul>
+                ) : (
+                  <p className="user-item-meta">No education details were found.</p>
+                )}
+              </article>
+
+              <article className="applicant-detail-card applicant-detail-card-wide">
+                <h5>Skills</h5>
+                {selectedApplicant.applicant?.skills?.length ? (
+                  <div className="skill-pill-group skill-pill-group-selected applicant-skill-pill-group">
+                    {selectedApplicant.applicant.skills.map((skill) => (
+                      <span key={skill} className="skill-pill skill-pill-active">{skill}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="user-item-meta">No skills were found for this applicant.</p>
+                )}
+              </article>
+
+              <article className="applicant-detail-card applicant-detail-card-wide">
+                <h5>Documents</h5>
+                {selectedApplicant.cvLink ? (
+                  <p><a href={selectedApplicant.cvLink} target="_blank" rel="noopener noreferrer">Open CV</a></p>
+                ) : (
+                  <p className="user-item-meta">No CV uploaded.</p>
+                )}
+                {selectedApplicant.applicant?.otherDocuments?.length ? (
+                  <ul className="applicant-doc-list">
+                    {selectedApplicant.applicant.otherDocuments.map((doc) => (
+                      <li key={doc.name}>
+                        {doc.url ? (
+                          <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                            {doc.label}
+                          </a>
+                        ) : (
+                          <span>{doc.label}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="user-item-meta">No additional documents uploaded.</p>
+                )}
+              </article>
+            </section>
+
+            <div className="provider-application-status-row applicant-modal-status-row">
+              <label htmlFor={`modal-application-status-${selectedApplicant.id}`} className="provider-application-status-label">
+                Application status
+              </label>
+              <div className="provider-application-status-controls applicant-modal-status-controls">
+                <select
+                  id={`modal-application-status-${selectedApplicant.id}`}
+                  value={selectedApplicant.statusDraft || selectedApplicant.status}
+                  onChange={(event) => handleStatusDraftChange(selectedApplicant.id, event.target.value)}
+                >
+                  {APPLICATION_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="user-action-btn provider-listing-btn"
+                  disabled={updatingApplicationId === selectedApplicant.id || (selectedApplicant.statusDraft || selectedApplicant.status) === selectedApplicant.status}
+                  onClick={() => handleStatusUpdate(selectedApplicant)}
+                >
+                  {updatingApplicationId === selectedApplicant.id ? 'Updating...' : 'Update status'}
+                </button>
               </div>
             </div>
           </div>

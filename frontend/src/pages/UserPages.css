@@ -185,12 +185,244 @@
   color: #f3f8ff;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(2, 6, 23, 0.7);
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.applicant-detail-modal {
+  width: min(980px, 96vw);
+  max-height: min(90vh, 980px);
+  overflow: auto;
+  border: 1px solid rgba(169, 205, 255, 0.24);
+  background: linear-gradient(180deg, rgba(10, 25, 49, 0.96), rgba(7, 18, 38, 0.98));
+  box-shadow: 0 28px 60px rgba(1, 8, 20, 0.44);
+}
+
+.applicant-detail-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.applicant-detail-modal-header h3 {
+  margin: 0.15rem 0 0;
+  font-size: 1.6rem;
+  letter-spacing: 0.03em;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  color: #f6fbff;
+}
+
+.applicant-hero-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(169, 205, 255, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.02));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.applicant-profile-photo {
+  width: 9rem;
+  height: 9rem;
+  border-radius: 22px;
+  border: 1px solid rgba(160, 203, 255, 0.45);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(28, 57, 99, 0.95), rgba(13, 29, 54, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.applicant-profile-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.applicant-profile-photo span {
+  color: #f6fbff;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+  font-size: 2rem;
+  letter-spacing: 0.08em;
+}
+
+.applicant-hero-copy {
+  min-width: 0;
+}
+
+.applicant-hero-label {
+  margin: 0;
+  color: rgba(196, 221, 249, 0.78);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.applicant-hero-copy h4 {
+  margin: 0.2rem 0 0;
+  font-size: 1.55rem;
+  color: #f6fbff;
+}
+
+.applicant-hero-summary {
+  margin: 0.6rem 0 0;
+  color: rgba(223, 234, 250, 0.9);
+  line-height: 1.6;
+}
+
+.applicant-hero-meta {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: rgba(205, 223, 247, 0.85);
+  font-size: 0.85rem;
+}
+
+.applicant-detail-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.applicant-detail-card {
+  border: 1px solid rgba(169, 205, 255, 0.18);
+  border-radius: 16px;
+  padding: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.applicant-detail-card-wide {
+  grid-column: 1 / -1;
+}
+
+.applicant-detail-card h5 {
+  margin: 0 0 0.65rem;
+  color: #f6fbff;
+  font-size: 0.88rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+}
+
+.applicant-detail-card p {
+  margin: 0.35rem 0;
+  color: rgba(223, 234, 250, 0.92);
+}
+
+.applicant-info-list,
+.applicant-doc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.applicant-info-list li,
+.applicant-doc-list li {
+  border-radius: 12px;
+  border: 1px solid rgba(169, 205, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.7rem 0.8rem;
+}
+
+.applicant-info-list strong,
+.applicant-doc-list a,
+.applicant-doc-list span {
+  color: #f6fbff;
+}
+
+.applicant-info-list span {
+  display: block;
+  margin-top: 0.25rem;
+  color: rgba(214, 229, 250, 0.86);
+}
+
+.applicant-skill-pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.applicant-skill-pill-group .skill-pill {
+  cursor: default;
+}
+
+.applicant-modal-status-row {
+  margin-top: 1rem;
+}
+
+.applicant-modal-status-controls {
+  grid-template-columns: minmax(0, 1fr) 180px;
+}
+
+.applicant-modal-status-controls select {
+  border: 1px solid rgba(160, 203, 255, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #eff7ff;
+  padding: 0.62rem 0.72rem;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.applicant-modal-status-controls select option {
+  background: #18365c;
+  color: #f3f8ff;
+}
+
 .provider-delete-btn {
   border-color: rgba(255, 150, 150, 0.5);
 }
 
 .provider-list li {
   position: relative;
+}
+
+.provider-list {
+  max-height: min(78vh, 52rem);
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.provider-list li {
+  scroll-margin-top: 0.75rem;
+}
+
+.provider-list li strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.provider-list li .provider-application-status-row {
+  margin-top: 0.7rem;
+}
+
+.provider-list li .provider-application-status-controls {
+  grid-template-columns: minmax(0, 1fr) 160px auto;
+}
+
+.provider-list li .provider-application-status-controls button:last-child {
+  white-space: nowrap;
+}
+
+.provider-list li .user-item-meta + .user-item-meta {
+  margin-top: 0.28rem;
 }
 
 .status-chip {
@@ -571,20 +803,21 @@
 
 .listing-card-row {
   display: flex;
-  gap: 0.9rem;
+  gap: 1.05rem;
   align-items: flex-start;
 }
 
 .listing-card-content {
   min-width: 0;
   flex: 1;
+  padding-top: 0.1rem;
 }
 
 .listing-provider-avatar {
-  width: 4.5rem;
-  height: 4.5rem;
-  flex: 0 0 4.5rem;
-  border-radius: 14px;
+  width: 8.5rem;
+  height: 8.5rem;
+  flex: 0 0 8.5rem;
+  border-radius: 16px;
   border: 1px solid rgba(160, 203, 255, 0.42);
   background: linear-gradient(180deg, rgba(33, 63, 106, 0.92), rgba(15, 32, 58, 0.96));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
@@ -604,7 +837,7 @@
 .listing-provider-avatar span {
   color: #f4f9ff;
   font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
-  font-size: 1.05rem;
+  font-size: 1.5rem;
   letter-spacing: 0.08em;
 }
 
@@ -1448,6 +1681,20 @@ select.profile-input {
   }
   .provider-panel-head {
     flex-direction: column;
+  }
+
+  .applicant-detail-modal {
+    width: min(96vw, 980px);
+  }
+
+  .applicant-hero-card,
+  .applicant-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .applicant-profile-photo {
+    width: 7.5rem;
+    height: 7.5rem;
   }
 
   .profile-section-header {

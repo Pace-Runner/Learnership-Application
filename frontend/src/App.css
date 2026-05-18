@@ -779,6 +779,130 @@
   padding: 0.64rem 0.9rem;
 }
 
+.admin-download-btn {
+  min-width: 12.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.8rem;
+  border: 2px solid rgb(91, 91, 240);
+  border-radius: 50px;
+  padding: 5px;
+  background: transparent;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.admin-download-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  width: 8px;
+  height: 8px;
+  transition: all 0.4s ease;
+  border-radius: 100%;
+  margin: auto;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.admin-download-btn:hover {
+  transform: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.admin-download-btn-circle {
+  height: 45px;
+  width: 45px;
+  border-radius: 50%;
+  background-color: rgb(91, 91, 240);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.4s ease;
+  position: relative;
+  box-shadow: 0 0 0 0 rgb(255, 255, 255);
+  overflow: hidden;
+  flex: 0 0 45px;
+}
+
+.admin-download-btn-circle::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  background-color: #3333a8;
+  width: 100%;
+  height: 0;
+  transition: all 0.4s ease;
+}
+
+.admin-download-btn-icon {
+  color: #fff;
+  width: 30px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.4s ease;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.admin-download-btn-square {
+  aspect-ratio: 1;
+  width: 15px;
+  border-radius: 2px;
+  background-color: #fff;
+  opacity: 0;
+  visibility: hidden;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.4s ease;
+}
+
+.admin-download-btn-title {
+  font-size: 17px;
+  color: #fff;
+  transition: all 0.4s ease;
+  text-align: center;
+  padding-right: 0.75rem;
+}
+
+.admin-download-btn:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.admin-download-btn:hover .admin-download-btn-circle::before {
+  height: 100%;
+}
+
+.admin-download-btn:hover .admin-download-btn-icon {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.admin-download-btn:hover .admin-download-btn-square {
+  opacity: 1;
+  visibility: visible;
+}
+
+.admin-download-btn:hover .admin-download-btn-title {
+  color: #fff;
+}
+
 .admin-tab-list button.is-active,
 .admin-filter-row button.is-active,
 .admin-action-list button.is-active {

@@ -362,7 +362,9 @@ describe('Provider Post a Listing acceptance tests', () => {
     expect(screen.getByText('Status: Declined')).toBeTruthy()
     expect(mockState.opportunityQueries[0]).toEqual({ providerId: 'provider-1', status: null, statuses: null })
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Approved' }))
+    fireEvent.change(screen.getByLabelText('Filter listings by status'), {
+      target: { value: 'Approved' },
+    })
 
     await waitFor(() => {
       expect(screen.getByText('Approved Listing')).toBeTruthy()
@@ -372,7 +374,9 @@ describe('Provider Post a Listing acceptance tests', () => {
 
     expect(mockState.opportunityQueries.at(-1)).toEqual({ providerId: 'provider-1', status: 'Approved', statuses: null })
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Declined' }))
+    fireEvent.change(screen.getByLabelText('Filter listings by status'), {
+      target: { value: 'Declined' },
+    })
 
     await waitFor(() => {
       expect(screen.getByText('Declined Listing')).toBeTruthy()

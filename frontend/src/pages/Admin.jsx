@@ -1517,7 +1517,11 @@ export default function Admin({
             onClick={handleExportModerationReport}
             aria-label="Download moderation CSV"
           >
-            Download CSV
+            <span className="admin-download-btn-circle" aria-hidden="true">
+              <span className="admin-download-btn-icon">↓</span>
+              <span className="admin-download-btn-square" />
+            </span>
+            <span className="admin-download-btn-title">Download CSV</span>
           </button>
         </section>
 
