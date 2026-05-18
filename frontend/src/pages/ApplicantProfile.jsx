@@ -460,6 +460,12 @@ export default function ApplicantProfile({ onLogout }) {
         }))
 
         await resolveCvLink(authUserId, loadedProfile.cv_url || '')
+
+        // Use stored public profile image URL when available (saved on upload)
+        if (loadedProfile.profile_image_url) {
+          setProfileImageUrl(loadedProfile.profile_image_url)
+          setProfileImageName(loadedProfile.profile_image_url.split('/').pop() || '')
+        }
       } else {
         setProfileForm(defaultProfileForm)
         setCvLinkUrl('')
@@ -1098,9 +1104,38 @@ export default function ApplicantProfile({ onLogout }) {
       return
     }
 
-    setUploadMessage('Profile picture uploaded successfully.')
-    setTimeout(() => setUploadMessage(''), 3000)
-    await fetchStorageFiles(userId)
+    // Get a public URL for the uploaded profile image and persist it to the applicant_profiles table
+    try {
+      const { data: publicData, error: publicError } = supabase.storage.from(PROFILE_BUCKET).getPublicUrl(filePath)
+      const publicUrl = publicData?.publicUrl || ''
+
+      if (publicError) {
+        console.debug('Could not get public URL for profile image', publicError)
+      }
+
+      if (publicUrl) {
+        // Update applicant_profiles with the public URL so providers can render it without listing storage
+        try {
+          await supabase.from('applicant_profiles').update({ profile_image_url: publicUrl }).eq('user_id', userId)
+          setProfileImageUrl(publicUrl)
+          setProfileImageName(`profile.${extension}`)
+        } catch (dbErr) {
+          console.debug('Failed to save profile_image_url to applicant_profiles', dbErr)
+        }
+      } else {
+        // Fallback to signed URL when public URL isn't available
+        const { data: signedData } = await supabase.storage.from(PROFILE_BUCKET).createSignedUrl(filePath, 60 * 60)
+        setProfileImageUrl(signedData?.signedUrl || '')
+        setProfileImageName(`profile.${extension}`)
+      }
+
+      setUploadMessage('Profile picture uploaded successfully.')
+      setTimeout(() => setUploadMessage(''), 3000)
+    } catch (err) {
+      console.error('Unexpected error resolving profile image URL', err)
+      setUploadMessage('Profile picture uploaded, but could not resolve public URL.')
+      setTimeout(() => setUploadMessage(''), 3000)
+    }
   }
 
   const handleDocumentUpload = async (event) => {
