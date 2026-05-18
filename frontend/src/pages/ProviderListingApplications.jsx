@@ -422,9 +422,20 @@ export default function ProviderListingApplications() {
 
     const profileFiles = (profileImageListResult?.data || []).filter((file) => file?.name && !file.name.endsWith('/'))
     const firstProfileFile = profileFiles[0]
-    const profileImageUrl = firstProfileFile?.name
-      ? await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${firstProfileFile.name}`)
-      : ''
+    let profileImageUrl = ''
+    if (firstProfileFile?.name) {
+      profileImageUrl = await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${firstProfileFile.name}`)
+    } else {
+      // Fallback: try common profile filenames when list() returns empty (RLS may prevent listing).
+      const commonProfileNames = ['profile.jpg', 'profile.jpeg', 'profile.png', 'profile.webp']
+      for (const name of commonProfileNames) {
+        const candidate = await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${name}`)
+        if (candidate) {
+          profileImageUrl = candidate
+          break
+        }
+      }
+    }
 
     const education = (educationResult?.data || []).map((row) => ({
       institution: row.institution || '',
@@ -447,10 +458,20 @@ export default function ProviderListingApplications() {
         url: '',
       }))
 
+    // If storage.list returned no documents, try falling back to the CV path stored on the profile
+    if (allDocs.length === 0 && (application.applicant?.cv_url || application.cvLink)) {
+      const storedCv = application.applicant?.cv_url || application.cvLink
+      let normalizedPath = storedCv.includes('/') ? storedCv : authUserId ? `${authUserId}/${storedCv}` : storedCv
+      const fallbackUrl = await resolveStorageLink(DOCS_BUCKET, normalizedPath)
+      if (fallbackUrl) {
+        allDocs.push({ name: storedCv, label: formatDocumentLabel(storedCv), url: fallbackUrl })
+      }
+    }
+
     const documentEntries = await Promise.all(
       allDocs.map(async (doc) => ({
         ...doc,
-        url: await resolveStorageLink(DOCS_BUCKET, `${authUserId}/${doc.name}`),
+        url: doc.url || (await resolveStorageLink(DOCS_BUCKET, `${authUserId}/${doc.name}`)),
       })),
     )
 
