@@ -162,6 +162,26 @@ describe('app-helpers (branch tests)', () => {
     expect(route).toBe('/dashboard')
   })
 
+  it('getApplicantLandingRouteForEmail sends existing applicants to dashboard even before profile completion', async () => {
+    const { supabase } = await import('./lib/supabaseClient')
+    const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table) => {
+      if (table === 'users') {
+        return {
+          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'user-1' }, error: null }) }) }),
+        }
+      }
+
+      return {
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+      }
+    })
+
+    const route = await helpers.getApplicantLandingRouteForEmail('applicant@example.com')
+
+    expect(route).toBe('/dashboard')
+    expect(fromSpy).not.toHaveBeenCalledWith('applicant_profiles')
+  })
+
   it('getProviderLandingRouteForEmail returns provider workspace for a complete profile', async () => {
     const { supabase } = await import('./lib/supabaseClient')
     vi.spyOn(supabase, 'from').mockImplementation((table) => {
