@@ -239,7 +239,8 @@ function App() {
         }
       } catch {
         if (isMounted) {
-          setSignedIn(false)
+          // Keep the auth session active (do not force a logout) but surface an error
+          setSignedIn(true)
           setRole(null)
           setApplicantLandingRoute('/dashboard')
           setProviderLandingRoute('/provider/profile')
@@ -316,7 +317,8 @@ function App() {
         if (!isMounted) {
           return
         }
-        setSignedIn(false)
+        // Do not sign the user out automatically when role lookup fails; keep session
+        setSignedIn(true)
         setRole(null)
         setApplicantLandingRoute('/dashboard')
         setProviderLandingRoute('/provider/profile')
