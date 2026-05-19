@@ -221,7 +221,7 @@ export default function ProviderListingApplications() {
 
       const { data: applicationRows, error: applicationError } = await supabase
         .from('applications')
-        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url)')
+        .select('id,applicant_id,status,applied_at')
         .eq('opportunity_id', listingId)
         .order('applied_at', { ascending: false })
 
@@ -234,13 +234,26 @@ export default function ProviderListingApplications() {
         return
       }
 
+      // Fetch applicant profiles in a separate query to avoid RLS infinite
+      // recursion that occurs when applicant_profiles is embedded inside the
+      // applications query (the two tables' policies reference each other).
+      const applicantIds = (applicationRows || []).map((r) => r.applicant_id).filter(Boolean)
+      const { data: profileRows } = applicantIds.length
+        ? await supabase
+            .from('applicant_profiles')
+            .select('id,user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url')
+            .in('id', applicantIds)
+        : { data: [] }
+
+      const profileById = Object.fromEntries((profileRows || []).map((p) => [p.id, p]))
+
       const normalizedApplications = (applicationRows || []).map((row) => ({
         id: row.id,
         applicantId: row.applicant_id,
         appliedAt: row.applied_at,
         status: normalizeApplicationStatus(row.status),
         statusDraft: normalizeApplicationStatus(row.status),
-        applicant: row.applicant_profiles || {},
+        applicant: profileById[row.applicant_id] || {},
       }))
 
       const withCvLinks = await Promise.all(
@@ -255,8 +268,7 @@ export default function ProviderListingApplications() {
             return { ...item, cvLink: cv }
           }
 
-          const storageUserId = item.applicant?.auth_uid || ''
-          let normalizedPath = cv.includes('/') ? cv : storageUserId ? `${storageUserId}/${cv}` : cv
+          let normalizedPath = cv.includes('/') ? cv : cv
           const cvLink = await resolveStorageLink(DOCS_BUCKET, normalizedPath)
           return { ...item, cvLink: cvLink || '' }
         }),
