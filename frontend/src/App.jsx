@@ -282,6 +282,14 @@ function App() {
         return
       }
 
+      // Token refresh only replaces the JWT — the user's role hasn't changed.
+      // Re-running the role lookup here risks a timeout that sets role=null and
+      // redirects the user out of their workspace.
+      if (event === 'TOKEN_REFRESHED') {
+        if (isMounted) setIsLoadingAuth(false)
+        return
+      }
+
       try {
         const resolvedRole = await withTimeout(
           getRoleForEmail(session.user.email),
@@ -317,13 +325,11 @@ function App() {
         if (!isMounted) {
           return
         }
-        // Do not sign the user out automatically when role lookup fails; keep session
+        // Keep the session active and preserve the existing role — a transient DB
+        // timeout or network error should not kick the user out of their workspace.
         setSignedIn(true)
-        setRole(null)
-        setApplicantLandingRoute('/dashboard')
-        setProviderLandingRoute('/provider/profile')
         setIsSigningIn(false)
-        setAuthError('OAuth succeeded, but role lookup failed. Please verify Supabase table policies.')
+        setAuthError('Role lookup failed. Please refresh the page if you experience issues.')
       } finally {
         if (isMounted) {
           clearOAuthTimeout()

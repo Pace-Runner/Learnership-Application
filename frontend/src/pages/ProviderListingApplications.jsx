@@ -390,7 +390,17 @@ export default function ProviderListingApplications() {
   const loadApplicantDetails = async (application) => {
     const applicant = application.applicant || {}
     const applicantId = application.applicantId || application.applicant_id || ''
-    const storageUserId = applicant.auth_uid || ''
+    let storageUserId = applicant.auth_uid || ''
+
+    // auth_uid may be null for older profiles — fall back to the users table to find it.
+    if (!storageUserId && applicant.user_id) {
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('auth_uid')
+        .eq('id', applicant.user_id)
+        .maybeSingle()
+      storageUserId = userRow?.auth_uid || ''
+    }
 
     const [educationResult, skillLinksResult] = await Promise.all([
       applicantId
@@ -424,13 +434,15 @@ export default function ProviderListingApplications() {
     let profileImageUrl = ''
     if (firstProfileFile?.name && storageUserId) {
       profileImageUrl = await resolveStorageLink(PROFILE_BUCKET, `${storageUserId}/${firstProfileFile.name}`)
-    } else {
+    } else if (storageUserId) {
       // Fallback: try common profile filenames when list() returns empty (RLS may prevent listing).
+      // Use createSignedUrl directly — resolveStorageLink always returns a string via getPublicUrl
+      // even for non-existent files in a private bucket, causing the loop to break too early.
       const commonProfileNames = ['profile.jpg', 'profile.jpeg', 'profile.png', 'profile.webp']
       for (const name of commonProfileNames) {
-        const candidate = await resolveStorageLink(PROFILE_BUCKET, `${storageUserId}/${name}`)
-        if (candidate) {
-          profileImageUrl = candidate
+        const result = await supabase.storage.from(PROFILE_BUCKET).createSignedUrl(`${storageUserId}/${name}`, 60 * 10)
+        if (result?.data?.signedUrl) {
+          profileImageUrl = result.data.signedUrl
           break
         }
       }
