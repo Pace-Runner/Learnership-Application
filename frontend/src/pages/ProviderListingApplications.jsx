@@ -221,13 +221,14 @@ export default function ProviderListingApplications() {
 
       const { data: applicationRows, error: applicationError } = await supabase
         .from('applications')
-        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,auth_uid,first_name,last_name,phone,location,date_of_birth,about_me,cv_url)')
+        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url)')
         .eq('opportunity_id', listingId)
         .order('applied_at', { ascending: false })
 
       if (applicationError) {
+        console.error('Applications query error:', applicationError)
         if (isMounted) {
-          setError('Could not load applications. Check RLS policies.')
+          setError(`Could not load applications: ${applicationError.message || 'unknown error'}`)
           setIsLoading(false)
         }
         return
