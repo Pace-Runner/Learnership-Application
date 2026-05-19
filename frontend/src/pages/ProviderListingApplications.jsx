@@ -228,7 +228,7 @@ export default function ProviderListingApplications() {
       if (applicationError) {
         console.error('Applications query error:', applicationError)
         if (isMounted) {
-          setError(`Could not load applications: ${applicationError.message || 'unknown error'}`)
+          setError(`Error fetching applications: ${applicationError.message || 'unknown error'}`)
           setIsLoading(false)
         }
         return
@@ -237,13 +237,25 @@ export default function ProviderListingApplications() {
       // Fetch applicant profiles in a separate query to avoid RLS infinite
       // recursion that occurs when applicant_profiles is embedded inside the
       // applications query (the two tables' policies reference each other).
-      const applicantIds = (applicationRows || []).map((r) => r.applicant_id).filter(Boolean)
-      const { data: profileRows } = applicantIds.length
-        ? await supabase
-            .from('applicant_profiles')
-            .select('id,user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url')
-            .in('id', applicantIds)
-        : { data: [] }
+      const applicantIds = [...new Set((applicationRows || []).map((r) => r.applicant_id).filter(Boolean))]
+      const profileRows = applicantIds.length
+        ? (await Promise.all(
+            applicantIds.map(async (applicantId) => {
+              const { data, error: profileError } = await supabase
+                .from('applicant_profiles')
+                .select('id,user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url')
+                .eq('id', applicantId)
+                .maybeSingle()
+
+              if (profileError) {
+                console.error(`Applicant profile query error (${applicantId}):`, profileError)
+                return null
+              }
+
+              return data || null
+            }),
+          )).filter(Boolean)
+        : []
 
       const profileById = Object.fromEntries((profileRows || []).map((p) => [p.id, p]))
 
@@ -253,7 +265,7 @@ export default function ProviderListingApplications() {
         appliedAt: row.applied_at,
         status: normalizeApplicationStatus(row.status),
         statusDraft: normalizeApplicationStatus(row.status),
-        applicant: profileById[row.applicant_id] || {},
+        applicant: profileById[row.applicant_id] || row.applicant_profiles || {},
       }))
 
       const withCvLinks = await Promise.all(
@@ -404,15 +416,16 @@ export default function ProviderListingApplications() {
     const applicant = application.applicant || {}
     const applicantId = application.applicantId || application.applicant_id || ''
     // Storage files are uploaded under auth.uid() (auth.users.id) as the folder.
-    // public.users.id is a different UUID, so we look up auth_uid from the users table.
-    let storageUserId = ''
-    if (applicant.user_id) {
+    // Prefer auth_uid when available, then users.auth_uid lookup, and finally
+    // fallback to user_id for backward compatibility.
+    let storageUserId = applicant.auth_uid || ''
+    if (!storageUserId && applicant.user_id) {
       const { data: userRow } = await supabase
         .from('users')
         .select('auth_uid')
         .eq('id', applicant.user_id)
         .maybeSingle()
-      storageUserId = userRow?.auth_uid || ''
+      storageUserId = userRow?.auth_uid || applicant.user_id || ''
     }
 
     const [educationResult, skillLinksResult] = await Promise.all([
@@ -730,7 +743,8 @@ export default function ProviderListingApplications() {
                 {(() => {
                   const existing = selectedApplicant.applicant?.documentEntries || []
                   const docs = [...existing]
-                  if (selectedApplicant.cvLink && !docs.find((d) => d.url === selectedApplicant.cvLink)) {
+                  const hasCvDocument = docs.some((d) => /cv/i.test(`${d.name || ''} ${d.label || ''}`))
+                  if (selectedApplicant.cvLink && !hasCvDocument && !docs.find((d) => d.url === selectedApplicant.cvLink)) {
                     docs.unshift({ name: 'cv-fallback', label: 'CV', url: selectedApplicant.cvLink })
                   }
 
