@@ -403,17 +403,9 @@ export default function ProviderListingApplications() {
   const loadApplicantDetails = async (application) => {
     const applicant = application.applicant || {}
     const applicantId = application.applicantId || application.applicant_id || ''
-    let storageUserId = applicant.auth_uid || ''
-
-    // auth_uid may be null for older profiles — fall back to the users table to find it.
-    if (!storageUserId && applicant.user_id) {
-      const { data: userRow } = await supabase
-        .from('users')
-        .select('auth_uid')
-        .eq('id', applicant.user_id)
-        .maybeSingle()
-      storageUserId = userRow?.auth_uid || ''
-    }
+    // users.id is the Supabase auth UUID in this project — storage files are
+    // uploaded under auth.uid() as the folder, which equals applicant_profiles.user_id.
+    const storageUserId = applicant.user_id || ''
 
     const [educationResult, skillLinksResult] = await Promise.all([
       applicantId
