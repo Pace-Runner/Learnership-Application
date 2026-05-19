@@ -4,6 +4,7 @@ create extension if not exists pgcrypto;
 -- Chunk 1: Users & Auth
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
+  auth_uid uuid unique,
   email text unique not null,
   role text check (role in ('Applicant', 'Provider', 'Admin')) not null default 'Applicant',
   created_at timestamp default now()

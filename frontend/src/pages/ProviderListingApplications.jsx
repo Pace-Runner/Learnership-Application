@@ -392,7 +392,7 @@ export default function ProviderListingApplications() {
     const applicantId = application.applicantId || application.applicant_id || ''
     const authUserId = applicant.user_id || ''
 
-    const [educationResult, skillLinksResult, profileImageListResult, docsListResult] = await Promise.all([
+    const [educationResult, skillLinksResult, authUserResult] = await Promise.all([
       applicantId
         ? supabase
             .from('applicant_education')
@@ -404,11 +404,15 @@ export default function ProviderListingApplications() {
         ? supabase.from('applicant_skills').select('skill_tag_id,skill_tags:skill_tag_id(id,name)').eq('applicant_id', applicantId)
         : Promise.resolve({ data: [] }),
       authUserId
-        ? supabase.storage.from(PROFILE_BUCKET).list(authUserId, { limit: 10 })
-        : Promise.resolve({ data: [] }),
-      authUserId
-        ? supabase.storage.from(DOCS_BUCKET).list(authUserId, { limit: 100 })
-        : Promise.resolve({ data: [] }),
+        ? supabase.from('users').select('auth_uid').eq('id', authUserId).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+
+    const storageUserId = authUserResult?.data?.auth_uid || authUserId
+
+    const [profileImageListResult, docsListResult] = await Promise.all([
+      storageUserId ? supabase.storage.from(PROFILE_BUCKET).list(storageUserId, { limit: 10 }) : Promise.resolve({ data: [] }),
+      storageUserId ? supabase.storage.from(DOCS_BUCKET).list(storageUserId, { limit: 100 }) : Promise.resolve({ data: [] }),
     ])
 
     // Log any storage list errors to aid debugging when files are not returned.
@@ -423,13 +427,13 @@ export default function ProviderListingApplications() {
     const profileFiles = (profileImageListResult?.data || []).filter((file) => file?.name && !file.name.endsWith('/'))
     const firstProfileFile = profileFiles[0]
     let profileImageUrl = ''
-    if (firstProfileFile?.name) {
-      profileImageUrl = await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${firstProfileFile.name}`)
+    if (firstProfileFile?.name && storageUserId) {
+      profileImageUrl = await resolveStorageLink(PROFILE_BUCKET, `${storageUserId}/${firstProfileFile.name}`)
     } else {
       // Fallback: try common profile filenames when list() returns empty (RLS may prevent listing).
       const commonProfileNames = ['profile.jpg', 'profile.jpeg', 'profile.png', 'profile.webp']
       for (const name of commonProfileNames) {
-        const candidate = await resolveStorageLink(PROFILE_BUCKET, `${authUserId}/${name}`)
+        const candidate = await resolveStorageLink(PROFILE_BUCKET, `${storageUserId}/${name}`)
         if (candidate) {
           profileImageUrl = candidate
           break
@@ -461,7 +465,7 @@ export default function ProviderListingApplications() {
     // If storage.list returned no documents, try falling back to the CV path stored on the profile
     if (allDocs.length === 0 && (application.applicant?.cv_url || application.cvLink)) {
       const storedCv = application.applicant?.cv_url || application.cvLink
-      let normalizedPath = storedCv.includes('/') ? storedCv : authUserId ? `${authUserId}/${storedCv}` : storedCv
+      let normalizedPath = storedCv.includes('/') ? storedCv : storageUserId ? `${storageUserId}/${storedCv}` : storedCv
       const fallbackUrl = await resolveStorageLink(DOCS_BUCKET, normalizedPath)
       if (fallbackUrl) {
         allDocs.push({ name: storedCv, label: formatDocumentLabel(storedCv), url: fallbackUrl })
@@ -471,7 +475,7 @@ export default function ProviderListingApplications() {
     const documentEntries = await Promise.all(
       allDocs.map(async (doc) => ({
         ...doc,
-        url: doc.url || (await resolveStorageLink(DOCS_BUCKET, `${authUserId}/${doc.name}`)),
+        url: doc.url || (await resolveStorageLink(DOCS_BUCKET, `${storageUserId}/${doc.name}`)),
       })),
     )
 

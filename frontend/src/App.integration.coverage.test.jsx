@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 const appState = vi.hoisted(() => ({
   hasSupabaseConfig: true,
   sessionResult: { data: { session: null }, error: null },
+  authUserResult: { data: { user: { id: 'auth-user-1' } }, error: null },
   roleByEmail: null,
   applicantLandingRoute: '/profile',
   providerLandingRoute: '/provider/profile',
@@ -61,6 +62,7 @@ vi.mock('./lib/supabaseClient', () => ({
   supabase: {
     auth: {
       getSession: vi.fn(async () => appState.sessionResult),
+      getUser: vi.fn(async () => appState.authUserResult),
       onAuthStateChange: vi.fn((callback) => {
         appState.authStateHandler = callback
         return {
@@ -127,6 +129,7 @@ async function loadApp() {
 beforeEach(() => {
   appState.hasSupabaseConfig = true
   appState.sessionResult = { data: { session: null }, error: null }
+  appState.authUserResult = { data: { user: { id: 'auth-user-1' } }, error: null }
   appState.roleByEmail = null
   appState.applicantLandingRoute = '/profile'
   appState.providerLandingRoute = '/provider/profile'
@@ -242,7 +245,7 @@ describe('App integration coverage', () => {
 
     expect(await screen.findByText(/Could not save role selection/i)).toBeTruthy()
     expect(appState.usersInsertCalls).toEqual([
-      { email: 'new-provider@example.com', role: 'Provider' },
+      { email: 'new-provider@example.com', role: 'Provider', auth_uid: 'auth-user-1' },
     ])
   })
 

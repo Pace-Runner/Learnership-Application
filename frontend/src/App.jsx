@@ -389,9 +389,16 @@ function App() {
     setIsSavingRole(true)
     setAuthError('')
 
+    const { data: authData } = await supabase.auth.getUser()
+    const authUserId = authData?.user?.id || ''
+
+    const payload = authUserId
+      ? { email: pendingEmail, role: selectedRole, auth_uid: authUserId }
+      : { email: pendingEmail, role: selectedRole }
+
     const { data: insertedUser, error } = await supabase
       .from('users')
-      .insert({ email: pendingEmail, role: selectedRole })
+      .insert(payload)
       .select('role')
       .single()
 

@@ -35,7 +35,8 @@ describe('Provider tests', () => {
   test('Provider role assignment is wired in OAuth callback flow', () => {
     const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-    expect(appSource).toContain(".insert({ email: pendingEmail, role: selectedRole })")
+    expect(appSource).toContain('auth_uid: authUserId')
+    expect(appSource).toContain('.insert(payload)')
     expect(appSource).toContain("handleRoleSelection('Provider')")
   })
 
