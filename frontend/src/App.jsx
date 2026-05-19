@@ -284,9 +284,10 @@ function App() {
 
       // Token refresh only replaces the JWT — the user's role hasn't changed.
       // Re-running the role lookup here risks a timeout that sets role=null and
-      // redirects the user out of their workspace.
+      // redirects the user out of their workspace. Do NOT touch isLoadingAuth
+      // here — initializeAuth's finally block manages that, and setting it false
+      // prematurely while signedIn is still false causes the route guard to redirect.
       if (event === 'TOKEN_REFRESHED') {
-        if (isMounted) setIsLoadingAuth(false)
         return
       }
 
