@@ -206,6 +206,7 @@ describe('ProviderListingApplications coverage', () => {
                     applied_at: '2026-05-01T10:00:00Z',
                     applicant_profiles: {
                       user_id: 'applicant-user-1',
+                      auth_uid: 'applicant-auth-1',
                       first_name: 'Ava',
                       last_name: 'Mokoena',
                       phone: '0821234567',
@@ -356,6 +357,7 @@ describe('ProviderListingApplications coverage', () => {
                     applied_at: '2026-05-01T10:00:00Z',
                     applicant_profiles: {
                       user_id: 'applicant-user-1',
+                      auth_uid: 'applicant-auth-1',
                       first_name: 'Ava',
                       last_name: 'Mokoena',
                       phone: '0821234567',

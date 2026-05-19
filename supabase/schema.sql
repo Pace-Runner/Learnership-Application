@@ -14,6 +14,7 @@ create table if not exists users (
 create table if not exists applicant_profiles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references users(id) on delete cascade,
+  auth_uid uuid,
   first_name text,
   last_name text,
   phone text,

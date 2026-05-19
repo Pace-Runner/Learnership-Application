@@ -862,6 +862,7 @@ export default function ApplicantProfile({ onLogout }) {
       // Build the payload exactly how applicant_profiles expects it.
       const profilePayload = {
         user_id: databaseUserId,
+        auth_uid: authUser?.id || null,
         first_name: profileForm.first_name.trim(),
         last_name: profileForm.last_name.trim(),
         phone: profileForm.phone.trim(),

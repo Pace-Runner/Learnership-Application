@@ -221,7 +221,7 @@ export default function ProviderListingApplications() {
 
       const { data: applicationRows, error: applicationError } = await supabase
         .from('applications')
-        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,first_name,last_name,phone,location,date_of_birth,about_me,cv_url)')
+        .select('id,applicant_id,status,applied_at,applicant_profiles:applicant_id(user_id,auth_uid,first_name,last_name,phone,location,date_of_birth,about_me,cv_url)')
         .eq('opportunity_id', listingId)
         .order('applied_at', { ascending: false })
 
@@ -254,8 +254,8 @@ export default function ProviderListingApplications() {
             return { ...item, cvLink: cv }
           }
 
-          const authUserId = item.applicant?.user_id || ''
-          let normalizedPath = cv.includes('/') ? cv : authUserId ? `${authUserId}/${cv}` : cv
+          const storageUserId = item.applicant?.auth_uid || ''
+          let normalizedPath = cv.includes('/') ? cv : storageUserId ? `${storageUserId}/${cv}` : cv
           const cvLink = await resolveStorageLink(DOCS_BUCKET, normalizedPath)
           return { ...item, cvLink: cvLink || '' }
         }),
@@ -390,9 +390,9 @@ export default function ProviderListingApplications() {
   const loadApplicantDetails = async (application) => {
     const applicant = application.applicant || {}
     const applicantId = application.applicantId || application.applicant_id || ''
-    const authUserId = applicant.user_id || ''
+    const storageUserId = applicant.auth_uid || ''
 
-    const [educationResult, skillLinksResult, authUserResult] = await Promise.all([
+    const [educationResult, skillLinksResult] = await Promise.all([
       applicantId
         ? supabase
             .from('applicant_education')
@@ -403,12 +403,7 @@ export default function ProviderListingApplications() {
       applicantId
         ? supabase.from('applicant_skills').select('skill_tag_id,skill_tags:skill_tag_id(id,name)').eq('applicant_id', applicantId)
         : Promise.resolve({ data: [] }),
-      authUserId
-        ? supabase.from('users').select('auth_uid').eq('id', authUserId).maybeSingle()
-        : Promise.resolve({ data: null }),
     ])
-
-    const storageUserId = authUserResult?.data?.auth_uid || authUserId
 
     const [profileImageListResult, docsListResult] = await Promise.all([
       storageUserId ? supabase.storage.from(PROFILE_BUCKET).list(storageUserId, { limit: 10 }) : Promise.resolve({ data: [] }),
