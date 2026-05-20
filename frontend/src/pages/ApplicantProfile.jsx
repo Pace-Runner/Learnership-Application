@@ -129,6 +129,11 @@ function getFriendlySupabaseError(error, fallbackMessage) {
   return error.message || fallbackMessage
 }
 
+function isMissingAuthUidColumnError(error) {
+  const message = String(error?.message || '').toLowerCase()
+  return Boolean(message.includes('auth_uid') && (message.includes('column') || message.includes('schema cache')))
+}
+
 function debugLog(...messages) {
   if (import.meta.env.MODE === 'development') {
     console.log(...messages)
@@ -907,6 +912,8 @@ export default function ApplicantProfile({ onLogout }) {
         cv_url: profileForm.cv_url || null,
         about_me: profileForm.about_me.trim() || null,
       }
+      const profilePayloadWithoutAuthUid = { ...profilePayload }
+      delete profilePayloadWithoutAuthUid.auth_uid
 
       let resolvedProfileId = profileId
       const nextProfileState = {
@@ -923,10 +930,18 @@ export default function ApplicantProfile({ onLogout }) {
 
       // Update existing profile when we already have an id, otherwise create one.
       if (resolvedProfileId) {
-        const { error: updateError } = await supabase
+        let { error: updateError } = await supabase
           .from('applicant_profiles')
           .update(profilePayload)
           .eq('id', resolvedProfileId)
+
+        if (isMissingAuthUidColumnError(updateError)) {
+          const fallbackUpdate = await supabase
+            .from('applicant_profiles')
+            .update(profilePayloadWithoutAuthUid)
+            .eq('id', resolvedProfileId)
+          updateError = fallbackUpdate.error
+        }
 
         if (updateError) {
           console.error('Profile update error:', updateError)
@@ -935,11 +950,21 @@ export default function ApplicantProfile({ onLogout }) {
           return
         }
       } else {
-        const { data: insertedProfile, error: insertError } = await supabase
+        let { data: insertedProfile, error: insertError } = await supabase
           .from('applicant_profiles')
           .insert(profilePayload)
           .select('id')
           .single()
+
+        if (isMissingAuthUidColumnError(insertError)) {
+          const fallbackInsert = await supabase
+            .from('applicant_profiles')
+            .insert(profilePayloadWithoutAuthUid)
+            .select('id')
+            .single()
+          insertedProfile = fallbackInsert.data
+          insertError = fallbackInsert.error
+        }
 
         if (insertError || !insertedProfile?.id) {
           console.error('Profile insert error:', insertError)
@@ -1042,7 +1067,31 @@ export default function ApplicantProfile({ onLogout }) {
 
       // Persist skills through the RPC when available, but keep the old insert path as a fallback.
       try {
-        const skillIdsArray = Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []
+        const skillIdsArray = Array.from(new Set(Array.isArray(finalSelectedSkillTagIds) ? finalSelectedSkillTagIds : []))
+
+        const saveSkillsDirectly = async () => {
+          const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
+          if (deleteSkillsError) {
+            return deleteSkillsError
+          }
+
+          if (skillIdsArray.length === 0) {
+            return null
+          }
+
+          const { error: skillsError } = await supabase.from('applicant_skills').insert(
+            skillIdsArray.map((skillTagId) => ({
+              applicant_id: resolvedProfileId,
+              skill_tag_id: skillTagId,
+            })),
+          )
+
+          return skillsError || null
+        }
+
+        let skillsSaveError = null
+        let savedThroughRpc = false
+
         if (typeof supabase.rpc === 'function') {
           debugLog('Calling RPC upsert_applicant_skills', resolvedProfileId, skillIdsArray)
           const { data: rpcData, error: rpcError } = await supabase.rpc('upsert_applicant_skills', {
@@ -1052,35 +1101,43 @@ export default function ApplicantProfile({ onLogout }) {
 
           if (!rpcError) {
             debugLog('upsert_applicant_skills result:', rpcData)
+            savedThroughRpc = true
           } else {
             console.warn('upsert_applicant_skills RPC unavailable, falling back to direct inserts:', rpcError)
           }
         }
 
-        if (typeof supabase.rpc !== 'function' || finalSelectedSkillTagIds.length > 0) {
-          const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
-          if (deleteSkillsError) {
-            console.error('Skills delete error:', deleteSkillsError)
-          }
-
-          if (skillIdsArray.length > 0) {
-            const { error: skillsError } = await supabase.from('applicant_skills').insert(
-              skillIdsArray.map((skillTagId) => ({
-                applicant_id: resolvedProfileId,
-                skill_tag_id: skillTagId,
-              })),
-            )
-
-            if (skillsError) {
-              console.error('Skills insert error:', skillsError)
-              setUploadMessage(
-                `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsError, 'Unknown error')}`,
-              )
-              setIsSavingProfile(false)
-              return
-            }
-          }
+        if (!savedThroughRpc) {
+          skillsSaveError = await saveSkillsDirectly()
         }
+
+        if (skillsSaveError) {
+          console.error('Skills save error:', skillsSaveError)
+          setUploadMessage(
+            `Profile saved, but selected skills failed: ${getFriendlySupabaseError(skillsSaveError, 'Unknown error')}`,
+          )
+          setIsSavingProfile(false)
+          return
+        }
+
+        const { data: verifiedSkills, error: verifySkillsError } = await supabase
+          .from('applicant_skills')
+          .select('skill_tag_id')
+          .eq('applicant_id', resolvedProfileId)
+
+        if (verifySkillsError) {
+          console.error('Skills verification error:', verifySkillsError)
+          setUploadMessage(
+            `Profile saved, but selected skills could not be verified: ${getFriendlySupabaseError(
+              verifySkillsError,
+              'Unknown error',
+            )}`,
+          )
+          setIsSavingProfile(false)
+          return
+        }
+
+        setSelectedSkillTagIds((verifiedSkills || []).map((row) => row.skill_tag_id).filter(Boolean))
       } catch (errRpc) {
         console.error('Unexpected RPC error when saving skills:', errRpc)
         const { error: deleteSkillsError } = await supabase.from('applicant_skills').delete().eq('applicant_id', resolvedProfileId)
