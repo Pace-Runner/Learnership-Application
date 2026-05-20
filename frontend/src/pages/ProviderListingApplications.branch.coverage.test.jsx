@@ -221,6 +221,6 @@ describe('ProviderListingApplications branch coverage', () => {
       </MemoryRouter>,
     )
 
-    expect(await screen.findByText(/Could not load applications\. Check RLS policies\./i)).toBeTruthy()
+    expect(await screen.findByText(/Error fetching applications: RLS/i)).toBeTruthy()
   })
 })
