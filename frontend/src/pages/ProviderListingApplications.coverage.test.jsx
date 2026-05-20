@@ -31,6 +31,23 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+function createUsersMock() {
+  return {
+    select: (columns) => ({
+      eq: (field, value) => ({
+        maybeSingle: async () => {
+          // When querying by id for applicant user (in loadApplicantDetails), return auth_uid
+          if (field === 'id' && value === 'applicant-user-1') {
+            return { data: { id: 'applicant-user-1', auth_uid: 'applicant-auth-1' }, error: null }
+          }
+          // Default for provider user lookup
+          return { data: { id: 'provider-user-1' }, error: null }
+        },
+      }),
+    }),
+  }
+}
+
 describe('ProviderListingApplications coverage', () => {
   it('loads the provider listing and shows the empty state', async () => {
     mockGetSession.mockResolvedValue({
@@ -40,13 +57,7 @@ describe('ProviderListingApplications coverage', () => {
 
     mockFrom.mockImplementation((table) => {
       if (table === 'users') {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({ data: { id: 'provider-user-1' }, error: null }),
-            }),
-          }),
-        }
+        return createUsersMock()
       }
 
       if (table === 'provider_profiles') {
@@ -152,13 +163,7 @@ describe('ProviderListingApplications coverage', () => {
 
     mockFrom.mockImplementation((table) => {
       if (table === 'users') {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({ data: { id: 'provider-user-1' }, error: null }),
-            }),
-          }),
-        }
+        return createUsersMock()
       }
 
       if (table === 'provider_profiles') {
@@ -303,13 +308,7 @@ describe('ProviderListingApplications coverage', () => {
 
     mockFrom.mockImplementation((table) => {
       if (table === 'users') {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({ data: { id: 'provider-user-1' }, error: null }),
-            }),
-          }),
-        }
+        return createUsersMock()
       }
 
       if (table === 'provider_profiles') {
