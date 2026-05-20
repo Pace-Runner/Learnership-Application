@@ -53,6 +53,68 @@ create policy "applicant_profiles_own"
     )
   );
 
+-- Enable RLS on opportunities
+alter table opportunities enable row level security;
+
+-- Applicants can read approved listings, providers can manage their own listings, and admins can read everything.
+drop policy if exists "opportunities_select_access" on opportunities;
+create policy "opportunities_select_access"
+  on opportunities
+  for select
+  to authenticated
+  using (
+    status = 'Approved'
+    or exists (
+      select 1
+      from provider_profiles pp
+      join users u on u.id = pp.user_id
+      where pp.id = opportunities.provider_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+    or exists (
+      select 1
+      from users u
+      where u.email = auth.jwt() ->> 'email'
+        and u.role = 'Admin'
+    )
+  );
+
+drop policy if exists "opportunities_manage_own" on opportunities;
+create policy "opportunities_manage_own"
+  on opportunities
+  for all
+  to authenticated
+  using (
+    exists (
+      select 1
+      from provider_profiles pp
+      join users u on u.id = pp.user_id
+      where pp.id = opportunities.provider_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+    or exists (
+      select 1
+      from users u
+      where u.email = auth.jwt() ->> 'email'
+        and u.role = 'Admin'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from provider_profiles pp
+      join users u on u.id = pp.user_id
+      where pp.id = opportunities.provider_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+    or exists (
+      select 1
+      from users u
+      where u.email = auth.jwt() ->> 'email'
+        and u.role = 'Admin'
+    )
+  );
+
 -- Enable RLS on applicant_education
 alter table applicant_education enable row level security;
 
@@ -102,6 +164,118 @@ create policy "applicant_skills_own"
       from applicant_profiles ap
       join users u on u.id = ap.user_id
       where u.email = auth.jwt() ->> 'email'
+    )
+  );
+
+-- Enable RLS on applications
+alter table applications enable row level security;
+
+-- Applicants can read their own applications; providers can read and manage applications for their own listings; admins can read everything.
+drop policy if exists "applications_select_access" on applications;
+create policy "applications_select_access"
+  on applications
+  for select
+  to authenticated
+  using (
+    applicant_id in (
+      select ap.id
+      from applicant_profiles ap
+      join users u on u.id = ap.user_id
+      where u.email = auth.jwt() ->> 'email'
+    )
+    or exists (
+      select 1
+      from opportunities o
+      join provider_profiles pp on pp.id = o.provider_id
+      join users u on u.id = pp.user_id
+      where o.id = applications.opportunity_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+    or exists (
+      select 1
+      from users u
+      where u.email = auth.jwt() ->> 'email'
+        and u.role = 'Admin'
+    )
+  );
+
+drop policy if exists "applications_insert_own" on applications;
+create policy "applications_insert_own"
+  on applications
+  for insert
+  to authenticated
+  with check (
+    applicant_id in (
+      select ap.id
+      from applicant_profiles ap
+      join users u on u.id = ap.user_id
+      where u.email = auth.jwt() ->> 'email'
+    )
+    and exists (
+      select 1
+      from opportunities o
+      where o.id = applications.opportunity_id
+        and o.status = 'Approved'
+    )
+  );
+
+drop policy if exists "applications_manage_provider" on applications;
+create policy "applications_manage_provider"
+  on applications
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from opportunities o
+      join provider_profiles pp on pp.id = o.provider_id
+      join users u on u.id = pp.user_id
+      where o.id = applications.opportunity_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+    or exists (
+      select 1
+      from users u
+      where u.email = auth.jwt() ->> 'email'
+        and u.role = 'Admin'
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from opportunities o
+      join provider_profiles pp on pp.id = o.provider_id
+      join users u on u.id = pp.user_id
+      where o.id = applications.opportunity_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+    or exists (
+      select 1
+      from users u
+      where u.email = auth.jwt() ->> 'email'
+        and u.role = 'Admin'
+    )
+  );
+
+drop policy if exists "applications_delete_provider" on applications;
+create policy "applications_delete_provider"
+  on applications
+  for delete
+  to authenticated
+  using (
+    exists (
+      select 1
+      from opportunities o
+      join provider_profiles pp on pp.id = o.provider_id
+      join users u on u.id = pp.user_id
+      where o.id = applications.opportunity_id
+        and u.email = auth.jwt() ->> 'email'
+    )
+    or exists (
+      select 1
+      from users u
+      where u.email = auth.jwt() ->> 'email'
+        and u.role = 'Admin'
     )
   );
 

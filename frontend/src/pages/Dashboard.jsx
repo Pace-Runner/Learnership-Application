@@ -20,11 +20,13 @@ import {
 import './UserPages.css'
 
 // Quick statistics shown at top of dashboard
-const quickStats = [
-  { label: 'Available listings', value: '18' },
-  { label: 'Favourited opportunities', value: '12' },
-  { label: 'Documents uploaded', value: '04' },
+const quickStatLabels = [
+  'Available listings',
+  'Favourited opportunities',
+  'Documents uploaded',
 ]
+
+const DOCS_BUCKET = 'applicant-documents'
 
 const availableListings = [
   {
@@ -55,6 +57,7 @@ export default function Dashboard({ onLogout, listings }) {
   const [applicantUserId, setApplicantUserId] = useState('')
   const [dbNotifications, setDbNotifications] = useState([])
   const [dbFavouriteListings, setDbFavouriteListings] = useState([])
+  const [dbUploadedDocCount, setDbUploadedDocCount] = useState(0)
   const [showReadNotifications, setShowReadNotifications] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('All')
@@ -134,6 +137,28 @@ export default function Dashboard({ onLogout, listings }) {
 
     setDbNotifications(notificationRows || [])
     setIsLoadingNotifications(false)
+  }, [hasListingsProp])
+
+  const loadApplicantDocuments = useCallback(async (targetUserId) => {
+    if (hasListingsProp || !hasSupabaseConfig || !mountedRef.current || !targetUserId || !supabase.storage?.from) {
+      return
+    }
+
+    const { data: docRows, error: docRowsError } = await supabase
+      .storage
+      .from(DOCS_BUCKET)
+      .list(targetUserId, { limit: 100 })
+
+    if (!mountedRef.current) {
+      return
+    }
+
+    if (docRowsError) {
+      setDbUploadedDocCount(0)
+      return
+    }
+
+    setDbUploadedDocCount((docRows || []).filter((file) => file.name && !file.name.endsWith('/')).length)
   }, [hasListingsProp])
 
   const markNotificationAsRead = useCallback(async (notificationId) => {
@@ -330,6 +355,7 @@ export default function Dashboard({ onLogout, listings }) {
     }
 
     loadApplicantNotifications(applicantUserId)
+    loadApplicantDocuments(applicantUserId)
 
     const notificationsChannel = supabase
       .channel(`applicant-notifications-${applicantUserId}`)
@@ -350,7 +376,7 @@ export default function Dashboard({ onLogout, listings }) {
     return () => {
       supabase.removeChannel(notificationsChannel)
     }
-  }, [applicantUserId, hasListingsProp, loadApplicantNotifications])
+  }, [applicantUserId, hasListingsProp, loadApplicantDocuments, loadApplicantNotifications])
 
   useEffect(() => {
     return () => {
@@ -377,13 +403,19 @@ export default function Dashboard({ onLogout, listings }) {
     [dbFavouriteListings],
   )
 
-  const dashboardStats = useMemo(() => (
-    quickStats.map((item) => (
-      !hasListingsProp && item.label === 'Favourited opportunities'
-        ? { ...item, value: String(dbFavouriteListings.length).padStart(2, '0') }
-        : item
-    ))
-  ), [dbFavouriteListings.length, hasListingsProp])
+  const listingPropCount = hasListingsProp ? listings.length : 0
+
+  const dashboardStats = useMemo(() => {
+    const availableListingCount = hasListingsProp ? listingPropCount : dbApprovedListings.length
+    const favouritedCount = hasListingsProp ? 0 : dbFavouriteListings.length
+    const uploadedDocumentCount = hasListingsProp ? 0 : dbUploadedDocCount
+
+    return [
+      { label: quickStatLabels[0], value: String(availableListingCount).padStart(2, '0') },
+      { label: quickStatLabels[1], value: String(favouritedCount).padStart(2, '0') },
+      { label: quickStatLabels[2], value: String(uploadedDocumentCount).padStart(2, '0') },
+    ]
+  }, [dbApprovedListings.length, dbFavouriteListings.length, dbUploadedDocCount, hasListingsProp, listingPropCount])
 
   const handleSearchSubmit = (event) => {
     event.preventDefault()
@@ -658,11 +690,6 @@ export default function Dashboard({ onLogout, listings }) {
                         <span>{item.type}</span>
                         <strong>{item.title}</strong>
                         <small className="listing-card-provider">{item.provider}</small>
-                        {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
-                        {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
-                        {item.location ? <small className="user-item-meta">{item.location}</small> : null}
-                        <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
-                        {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
                         <div className="listing-card-actions">
                           {item.id ? (
                             <Link
@@ -688,6 +715,11 @@ export default function Dashboard({ onLogout, listings }) {
                             </button>
                           ) : null}
                         </div>
+                        {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
+                        {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
+                        {item.location ? <small className="user-item-meta">{item.location}</small> : null}
+                        <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
+                        {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
                       </div>
                     </li>
                   )
@@ -758,7 +790,7 @@ export default function Dashboard({ onLogout, listings }) {
               </span>
             </div>
 
-            {favouriteError ? <p className="user-panel-copy">{favouriteError}</p> : null}
+            {favouriteError ? <p className="user-panel-copy" role="alert">{favouriteError}</p> : null}
 
             {isLoadingFavourites ? (
               <p className="user-panel-copy">Loading your favourited opportunities...</p>

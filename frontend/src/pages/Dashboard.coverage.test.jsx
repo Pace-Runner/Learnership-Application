@@ -42,9 +42,8 @@ describe('Dashboard coverage tests', () => {
 
     expect(screen.getByText('Business Administration NQF 4')).toBeTruthy()
     expect(screen.getByText('Junior IT Support Internship')).toBeTruthy()
-    expect(screen.getByText('18')).toBeTruthy()
-    expect(screen.getByText('12')).toBeTruthy()
-    expect(screen.getByText('04')).toBeTruthy()
+    expect(screen.getByText('02')).toBeTruthy()
+    expect(screen.getAllByText('00')).toHaveLength(2)
     expect(screen.getAllByLabelText(/Provider profile picture for/i)).toHaveLength(2)
   })
 
