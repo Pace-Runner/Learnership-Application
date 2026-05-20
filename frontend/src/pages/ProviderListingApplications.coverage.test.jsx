@@ -33,7 +33,7 @@ afterEach(() => {
 
 function createUsersMock() {
   return {
-    select: (columns) => ({
+    select: () => ({
       eq: (field, value) => ({
         maybeSingle: async () => {
           // When querying by id for applicant user (in loadApplicantDetails), return auth_uid
