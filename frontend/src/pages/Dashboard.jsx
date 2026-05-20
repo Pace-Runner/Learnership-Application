@@ -719,11 +719,6 @@ export default function Dashboard({ onLogout, listings }) {
                             </button>
                           ) : null}
                         </div>
-                        {item.description ? <small className="user-item-meta">What this role involves: {item.description}</small> : null}
-                        {item.meta ? <small className="user-item-meta">{item.meta}</small> : null}
-                        {item.location ? <small className="user-item-meta">{item.location}</small> : null}
-                        <small className="user-item-meta">Monthly stipend: {formatRandAmount(item.stipend)}</small>
-                        {item.closingDate ? <small className="user-item-meta">Closing date: {formatShortDate(item.closingDate)}</small> : null}
                       </div>
                     </li>
                   )
