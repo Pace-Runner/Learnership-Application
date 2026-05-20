@@ -552,6 +552,28 @@ describe('ApplicantProfile coverage', () => {
     expect(updatePayload.location).toBe('Durban')
   })
 
+  test('saves without re-checking auth and keeps the edited form state visible', async () => {
+    const ApplicantProfile = await loadApplicantProfile()
+
+    render(
+      <MemoryRouter>
+        <ApplicantProfile onLogout={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await screen.findByDisplayValue('Taylor')
+
+    const initialGetUserCalls = applicantSpies.getUser.mock.calls.length
+
+    fireEvent.change(screen.getByLabelText('Location'), { target: { value: 'Durban' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save full profile' }))
+
+    await waitFor(() => expect(applicantSpies.profileUpdateEq).toHaveBeenCalled())
+
+    expect(applicantSpies.getUser.mock.calls.length).toBe(initialGetUserCalls)
+    expect(screen.getByDisplayValue('Durban')).toBeTruthy()
+  })
+
   test('rejects oversized CV files before upload', async () => {
     const ApplicantProfile = await loadApplicantProfile()
 

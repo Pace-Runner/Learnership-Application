@@ -850,24 +850,19 @@ export default function ApplicantProfile({ onLogout }) {
     setUploadMessage('Saving profile...')
 
     try {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser()
+      const authUserId = userId
+      const linkedDatabaseUserId = databaseUserId || ''
 
-      // Map auth identity to a row in `users` so profile foreign keys stay valid.
-      const databaseUserId = await resolveDatabaseUserId(authUser)
-      if (!databaseUserId) {
+      if (!linkedDatabaseUserId) {
         setUploadMessage('Could not save profile because your user account is not linked in the database.')
         setIsSavingProfile(false)
         return
       }
 
-      setDatabaseUserId(databaseUserId)
-
       // Build the payload exactly how applicant_profiles expects it.
       const profilePayload = {
-        user_id: databaseUserId,
-        auth_uid: authUser?.id || null,
+        user_id: linkedDatabaseUserId,
+        auth_uid: authUserId || null,
         first_name: profileForm.first_name.trim(),
         last_name: profileForm.last_name.trim(),
         phone: profileForm.phone.trim(),
@@ -879,6 +874,17 @@ export default function ApplicantProfile({ onLogout }) {
       }
 
       let resolvedProfileId = profileId
+      const nextProfileState = {
+        ...profileForm,
+        first_name: profileForm.first_name.trim(),
+        last_name: profileForm.last_name.trim(),
+        phone: profileForm.phone.trim(),
+        location: profileForm.location.trim(),
+        date_of_birth: profileForm.date_of_birth || '',
+        id_number: profileForm.id_number.trim(),
+        cv_url: profileForm.cv_url || '',
+        about_me: profileForm.about_me.trim(),
+      }
 
       // Update existing profile when we already have an id, otherwise create one.
       if (resolvedProfileId) {
@@ -910,6 +916,9 @@ export default function ApplicantProfile({ onLogout }) {
         resolvedProfileId = insertedProfile.id
         setProfileId(insertedProfile.id)
       }
+
+      setDatabaseUserId(linkedDatabaseUserId)
+      setProfileForm(nextProfileState)
 
       // Replace child records to keep education aligned with current form state.
       const { error: deleteEduError } = await supabase.from('applicant_education').delete().eq('applicant_id', resolvedProfileId)
@@ -1076,9 +1085,8 @@ export default function ApplicantProfile({ onLogout }) {
         setShowSavedConfirmation(false)
       }, 2000)
 
-      // Reload data to verify persistence
-      debugLog('Reloading profile data to verify persistence')
-      await fetchFiles(userId, databaseUserId)
+      // Refresh only the stored files so local form state is preserved.
+      await fetchStorageFiles(userId)
     } catch (err) {
       console.error('Unexpected save error:', err)
       setUploadMessage(getFriendlySupabaseError(err, 'Unexpected error while saving profile. Please try again.'))
