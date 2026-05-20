@@ -51,6 +51,11 @@ function getMissingProfileFields(profile) {
 
 export { formatRandAmount, formatDate, isProfileReady, getMissingProfileFields }
 
+function isMissingAuthUidColumnError(error) {
+  const message = String(error?.message || '').toLowerCase()
+  return Boolean(message.includes('auth_uid') && (message.includes('column') || message.includes('schema cache')))
+}
+
 export default function ApplicantListingDetail({ onLogout }) {
   const { listingId } = useParams()
 
@@ -82,7 +87,9 @@ export default function ApplicantListingDetail({ onLogout }) {
       }
 
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-      const email = sessionData?.session?.user?.email
+      const authUser = sessionData?.session?.user
+      const email = authUser?.email
+      const authUserId = authUser?.id || ''
 
       if (sessionError || !email) {
         if (isMounted) {
@@ -92,11 +99,43 @@ export default function ApplicantListingDetail({ onLogout }) {
         return
       }
 
-      const { data: userRow, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .maybeSingle()
+      let userRow = null
+      let userError = null
+
+      if (authUserId) {
+        const userByAuth = await supabase
+          .from('users')
+          .select('id,auth_uid,email')
+          .eq('auth_uid', authUserId)
+          .maybeSingle()
+
+        if (userByAuth.error && !isMissingAuthUidColumnError(userByAuth.error)) {
+          userError = userByAuth.error
+        } else {
+          userRow = userByAuth.data || null
+        }
+      }
+
+      if (!userRow && !userError) {
+        const userByEmail = await supabase
+          .from('users')
+          .select('id,auth_uid,email')
+          .eq('email', email)
+          .maybeSingle()
+
+        if (userByEmail.error && isMissingAuthUidColumnError(userByEmail.error)) {
+          const fallbackUserByEmail = await supabase
+            .from('users')
+            .select('id,email')
+            .eq('email', email)
+            .maybeSingle()
+          userRow = fallbackUserByEmail.data || null
+          userError = fallbackUserByEmail.error || null
+        } else {
+          userRow = userByEmail.data || null
+          userError = userByEmail.error || null
+        }
+      }
 
       if (userError || !userRow?.id) {
         if (isMounted) {
@@ -106,11 +145,55 @@ export default function ApplicantListingDetail({ onLogout }) {
         return
       }
 
-      const { data: profileRow, error: profileError } = await supabase
-        .from('applicant_profiles')
-        .select('id,user_id,first_name,last_name,phone,location,date_of_birth,id_number,cv_url,about_me')
-        .eq('user_id', userRow.id)
-        .maybeSingle()
+      if (authUserId && userRow.auth_uid !== authUserId) {
+        const { error: userAuthLinkError } = await supabase
+          .from('users')
+          .update({ auth_uid: authUserId })
+          .eq('id', userRow.id)
+
+        if (!userAuthLinkError || isMissingAuthUidColumnError(userAuthLinkError)) {
+          userRow = { ...userRow, auth_uid: authUserId }
+        }
+      }
+
+      const profileSelect = 'id,user_id,auth_uid,first_name,last_name,phone,location,date_of_birth,id_number,cv_url,about_me'
+      let profileRow = null
+      let profileError = null
+
+      if (authUserId) {
+        const profileByAuth = await supabase
+          .from('applicant_profiles')
+          .select(profileSelect)
+          .eq('auth_uid', authUserId)
+          .maybeSingle()
+
+        if (profileByAuth.error && !isMissingAuthUidColumnError(profileByAuth.error)) {
+          profileError = profileByAuth.error
+        } else {
+          profileRow = profileByAuth.data || null
+        }
+      }
+
+      if (!profileRow && !profileError) {
+        const profileByUser = await supabase
+          .from('applicant_profiles')
+          .select(profileSelect)
+          .eq('user_id', userRow.id)
+          .maybeSingle()
+
+        if (profileByUser.error && isMissingAuthUidColumnError(profileByUser.error)) {
+          const fallbackProfileByUser = await supabase
+            .from('applicant_profiles')
+            .select('id,user_id,first_name,last_name,phone,location,date_of_birth,id_number,cv_url,about_me')
+            .eq('user_id', userRow.id)
+            .maybeSingle()
+          profileRow = fallbackProfileByUser.data || null
+          profileError = fallbackProfileByUser.error || null
+        } else {
+          profileRow = profileByUser.data || null
+          profileError = profileByUser.error || null
+        }
+      }
 
       if (profileError) {
         if (isMounted) {
@@ -118,6 +201,17 @@ export default function ApplicantListingDetail({ onLogout }) {
           setIsLoading(false)
         }
         return
+      }
+
+      if (profileRow?.id && authUserId && profileRow.auth_uid !== authUserId) {
+        const { error: profileAuthLinkError } = await supabase
+          .from('applicant_profiles')
+          .update({ auth_uid: authUserId, user_id: userRow.id })
+          .eq('id', profileRow.id)
+
+        if (!profileAuthLinkError || isMissingAuthUidColumnError(profileAuthLinkError)) {
+          profileRow = { ...profileRow, auth_uid: authUserId, user_id: userRow.id }
+        }
       }
 
       const { data: listingRow, error: listingError } = await supabase
