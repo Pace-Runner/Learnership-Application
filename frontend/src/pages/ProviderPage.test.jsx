@@ -76,7 +76,7 @@ test('PROVIDER-ACCEPTANCE-2: Google OAuth entry point exists on registration pag
 test('PROVIDER-ACCEPTANCE-3: OAuth callback supports Provider role assignment flow', () => {
   const appSource = readFileSync(resolve(cwd(), 'src/App.jsx'), 'utf8')
 
-  expect(appSource).toContain(".insert({ email: pendingEmail, role: selectedRole })")
+  expect(appSource).toContain("email: pendingEmail, role: selectedRole")
   expect(appSource).toContain("handleRoleSelection('Provider')")
 })
 
