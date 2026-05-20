@@ -190,7 +190,7 @@ describe('Provider profile acceptance tests', () => {
 
     await screen.findByText('Build your profile')
 
-    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+    fireEvent.change(await screen.findByLabelText(/Company \/ organisation name/i), {
       target: { value: 'Ubuntu Training Hub' },
     })
     fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '0821234567' } })
@@ -273,7 +273,7 @@ describe('Provider profile acceptance tests', () => {
 
     await screen.findByDisplayValue('Khayelitsha Skills Centre')
 
-    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+    fireEvent.change(await screen.findByLabelText(/Company \/ organisation name/i), {
       target: { value: 'Updated Skills Centre' },
     })
 
@@ -298,7 +298,7 @@ describe('Provider profile acceptance tests', () => {
     })
 
     // Now fill in the field
-    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+    fireEvent.change(await screen.findByLabelText(/Company \/ organisation name/i), {
       target: { value: 'Test Org' },
     })
 
@@ -403,7 +403,7 @@ describe('Provider profile acceptance tests', () => {
     renderProfilePage()
 
     await screen.findByDisplayValue('Khayelitsha Skills Centre')
-    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+    fireEvent.change(await screen.findByLabelText(/Company \/ organisation name/i), {
       target: { value: 'Updated Skills Centre' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
@@ -423,7 +423,7 @@ describe('Provider profile acceptance tests', () => {
 
     await screen.findByText('Build your profile')
 
-    fireEvent.change(screen.getByLabelText(/Company \/ organisation name/i), {
+    fireEvent.change(await screen.findByLabelText(/Company \/ organisation name/i), {
       target: { value: 'Ubuntu Training Hub' },
     })
     fireEvent.change(screen.getByLabelText(/Phone number/i), { target: { value: '0821234567' } })
