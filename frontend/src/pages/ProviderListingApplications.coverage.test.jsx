@@ -475,9 +475,9 @@ describe('ProviderListingApplications coverage', () => {
 
     expect(await screen.findByText('Applicant profile')).toBeTruthy()
     expect(screen.getAllByText(/Ava Mokoena/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Cape College/i)).toBeTruthy()
-    expect(screen.getByText(/Communication/i)).toBeTruthy()
-    expect(screen.getByText(/Teamwork/i)).toBeTruthy()
+    expect(await screen.findByText(/Cape College/i)).toBeTruthy()
+    expect(await screen.findByText(/Communication/i)).toBeTruthy()
+    expect(await screen.findByText(/Teamwork/i)).toBeTruthy()
     expect(screen.getByText(/Application received:/i)).toBeTruthy()
     expect(screen.getAllByText(/Location:/i).length).toBeGreaterThan(0)
     expect(screen.getByText(/Phone number:/i)).toBeTruthy()
