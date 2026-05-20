@@ -806,6 +806,7 @@
   display: flex;
   gap: 1.05rem;
   align-items: flex-start;
+  overflow: visible;
 }
 
 .listing-card-content {
