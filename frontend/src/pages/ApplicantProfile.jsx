@@ -850,11 +850,46 @@ export default function ApplicantProfile({ onLogout }) {
     setUploadMessage('Saving profile...')
 
     try {
-      const authUserId = userId
-      const linkedDatabaseUserId = databaseUserId || ''
+      let authUserId = userId
+      let linkedDatabaseUserId = databaseUserId || ''
+
+      // If we don't yet have a linked database user id, try a safe lookup by auth_uid
+      if (!linkedDatabaseUserId && authUserId) {
+        try {
+          const { data: byAuthUid, error: byAuthUidErr } = await supabase
+            .from('users')
+            .select('id')
+            .eq('auth_uid', authUserId)
+            .maybeSingle()
+
+          if (!byAuthUidErr && byAuthUid?.id) {
+            linkedDatabaseUserId = byAuthUid.id
+          }
+        } catch (err) {
+          console.error('users lookup by auth_uid failed', err)
+        }
+      }
+
+      // As a final fallback, attempt to resolve/create the users row from the auth payload.
+      if (!linkedDatabaseUserId) {
+        try {
+          const { data, error: userErr } = await supabase.auth.getUser()
+          const authUser = data?.user || null
+          if (userErr || !authUser?.email) {
+            setUploadMessage('Could not save profile because your user account is not linked in the database. Please sign out and sign back in.')
+            setIsSavingProfile(false)
+            return
+          }
+
+          const resolved = await resolveDatabaseUserId(authUser)
+          if (resolved) linkedDatabaseUserId = resolved
+        } catch (err) {
+          console.error('auth.getUser fallback failed', err)
+        }
+      }
 
       if (!linkedDatabaseUserId) {
-        setUploadMessage('Could not save profile because your user account is not linked in the database.')
+        setUploadMessage('Could not save profile because your user account is not linked in the database. Please sign out and sign back in.')
         setIsSavingProfile(false)
         return
       }
