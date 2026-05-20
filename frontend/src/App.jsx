@@ -398,6 +398,7 @@ function App() {
 
     const { data: authData } = await supabase.auth.getUser()
     const authUserId = authData?.user?.id || ''
+    const authMetadata = authData?.user?.user_metadata || {}
 
     const payload = authUserId
       ? { email: pendingEmail, role: selectedRole, auth_uid: authUserId }
@@ -406,7 +407,7 @@ function App() {
     const { data: insertedUser, error } = await supabase
       .from('users')
       .insert(payload)
-      .select('role')
+      .select('id, role')
       .single()
 
     if (error) {
@@ -416,6 +417,28 @@ function App() {
     }
 
     const resolvedRole = insertedUser?.role || selectedRole
+    const resolvedUserId = insertedUser?.id || ''
+
+    if (resolvedRole === 'Applicant' && resolvedUserId) {
+      const metadataFirstName = (authMetadata.given_name || authMetadata.first_name || '').trim()
+      const metadataLastName = (authMetadata.family_name || authMetadata.last_name || '').trim()
+
+      const { data: existingApplicantProfile } = await supabase
+        .from('applicant_profiles')
+        .select('id')
+        .eq('user_id', resolvedUserId)
+        .maybeSingle()
+
+      if (!existingApplicantProfile?.id) {
+        await supabase.from('applicant_profiles').insert({
+          user_id: resolvedUserId,
+          auth_uid: authUserId || null,
+          first_name: metadataFirstName,
+          last_name: metadataLastName,
+        })
+      }
+    }
+
     setRole(resolvedRole)
     setPendingEmail('')
     setIsSavingRole(false)
