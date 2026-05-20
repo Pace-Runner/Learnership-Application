@@ -786,14 +786,15 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  flex: 0 0 6.25rem;
-  width: 6.25rem;
-  height: 2.42rem;
-  min-width: 0;
-  min-height: 0;
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 7rem;
+  height: auto;
+  min-height: 2.5rem;
   margin-top: 0;
-  padding: 0 0.72rem;
-  line-height: 1;
+  padding: 0.48rem 0.9rem;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .listing-card-actions .provider-action-link,
@@ -811,6 +812,9 @@
   min-width: 0;
   flex: 1;
   padding-top: 0.1rem;
+  display: grid;
+  gap: 0.2rem;
+  align-content: start;
 }
 
 .listing-provider-avatar {
