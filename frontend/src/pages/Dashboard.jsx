@@ -55,6 +55,7 @@ export default function Dashboard({ onLogout, listings }) {
   const [dbApplications, setDbApplications] = useState([])
   const [applicantId, setApplicantId] = useState('')
   const [applicantUserId, setApplicantUserId] = useState('')
+  const [applicantAuthUserId, setApplicantAuthUserId] = useState('')
   const [dbNotifications, setDbNotifications] = useState([])
   const [dbFavouriteListings, setDbFavouriteListings] = useState([])
   const [dbUploadedDocCount, setDbUploadedDocCount] = useState(0)
@@ -194,6 +195,9 @@ export default function Dashboard({ onLogout, listings }) {
 
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
     const email = sessionData?.session?.user?.email
+    const authUserId = sessionData?.session?.user?.id || ''
+
+    setApplicantAuthUserId(authUserId)
 
     if (!mountedRef.current) {
       return
@@ -355,7 +359,7 @@ export default function Dashboard({ onLogout, listings }) {
     }
 
     loadApplicantNotifications(applicantUserId)
-    loadApplicantDocuments(applicantUserId)
+    loadApplicantDocuments(applicantAuthUserId || applicantUserId)
 
     const notificationsChannel = supabase
       .channel(`applicant-notifications-${applicantUserId}`)
@@ -376,7 +380,7 @@ export default function Dashboard({ onLogout, listings }) {
     return () => {
       supabase.removeChannel(notificationsChannel)
     }
-  }, [applicantUserId, hasListingsProp, loadApplicantDocuments, loadApplicantNotifications])
+  }, [applicantAuthUserId, applicantUserId, hasListingsProp, loadApplicantDocuments, loadApplicantNotifications])
 
   useEffect(() => {
     return () => {

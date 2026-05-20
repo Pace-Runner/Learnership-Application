@@ -140,6 +140,7 @@ export { createEducationRow, isCvFile, getFriendlySupabaseError }
 
 export default function ApplicantProfile({ onLogout }) {
   const [userId, setUserId] = useState('')
+  const [databaseUserId, setDatabaseUserId] = useState('')
   const [profileId, setProfileId] = useState('')
 
   const [profileForm, setProfileForm] = useState(defaultProfileForm)
@@ -535,6 +536,8 @@ export default function ApplicantProfile({ onLogout }) {
           return
         }
 
+        setDatabaseUserId(databaseUserId)
+
         await fetchFiles(authUserId, databaseUserId)
       } finally {
         if (isMounted) {
@@ -859,6 +862,8 @@ export default function ApplicantProfile({ onLogout }) {
         return
       }
 
+      setDatabaseUserId(databaseUserId)
+
       // Build the payload exactly how applicant_profiles expects it.
       const profilePayload = {
         user_id: databaseUserId,
@@ -1171,7 +1176,8 @@ export default function ApplicantProfile({ onLogout }) {
     }))
 
     // Persist the uploaded CV path onto the applicant profile so it can be reopened later from the profile page.
-    await supabase.from('applicant_profiles').update({ cv_url: filePath }).eq('user_id', userId)
+    const profileUserId = databaseUserId || userId
+    await supabase.from('applicant_profiles').update({ cv_url: filePath }).eq('user_id', profileUserId)
     await resolveCvLink(userId, filePath)
 
     setUploadMessage('CV uploaded successfully.')
@@ -1195,7 +1201,8 @@ export default function ApplicantProfile({ onLogout }) {
     // If the deleted file is the active CV, clear the database reference too.
     const isCurrentCv = profileForm.cv_url.endsWith(fileName)
     if (isCurrentCv) {
-      await supabase.from('applicant_profiles').update({ cv_url: null }).eq('user_id', userId)
+      const profileUserId = databaseUserId || userId
+      await supabase.from('applicant_profiles').update({ cv_url: null }).eq('user_id', profileUserId)
       setProfileForm((current) => ({
         ...current,
         cv_url: '',
@@ -1608,7 +1615,18 @@ export default function ApplicantProfile({ onLogout }) {
                 className="user-action-btn user-action-btn-inline"
                 onClick={() => {
                   if (!ensureUploadReady()) return
-                  // Use the generic documents input - any uploaded file is treated as a document
+                  cvInputRef.current?.click()
+                }}
+              >
+                Upload CV
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className="user-action-btn user-action-btn-inline"
+                onClick={() => {
+                  if (!ensureUploadReady()) return
                   docsInputRef.current?.click()
                 }}
               >
