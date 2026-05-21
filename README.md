@@ -7,7 +7,7 @@
 <img src="https://img.shields.io/badge/Language-JavaScript-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript">
 <img src="https://img.shields.io/badge/Language-HTML5-E34F26?logo=html5&logoColor=white" alt="HTML5">
 
-website url: https://learnership-portal-fxd3hwdcehaxhgb3.southafricanorth-01.azurewebsites.net		
+website url: https://learnership-portal-fxd3hwdcehaxhgb3.southafricanorth-01.azurewebsites.net  		
 Video Walkthough: https://youtu.be/mXUwTpBTuJw
 
 A role-based learnership platform built with React, Vite, and Supabase.
